@@ -1,0 +1,11 @@
+- [2026-10-25 15:30] src/adapters/*: Fixed TypeScript compilation errors across all 6 format adapters (PDF, EPUB, CBZ, TXT, HTML, DOCX) - removed unused private fields, fixed Blob constructor type issues, fixed unused parameter warnings
+- [2026-10-25 15:30] src/utils/store.ts: Updated TypedStore to use LazyStore from @tauri-apps/plugin-store v2 API (Store constructor is now private, use LazyStore or Store.load())
+- [2026-10-25 15:30] src/stores/bookStore.ts, uiStore.ts: Fixed zustand v5 subscribe API - subscribe now receives full state with (state, prevState) signature, removed selector usage
+- [2026-10-25 15:30] src/adapters/registry.ts: Registered HTML and DOCX adapters after fixing htmlAdapter.ts
+- [2026-10-25 15:30] Build: All TypeScript compilation errors resolved, `npm run build` passes successfully
+- [2026-10-25 16:45] src-tauri/Cargo.toml: Added tauri-plugin-store = "2" dependency for Rust-side store plugin
+- [2026-10-25 16:45] src-tauri/src/lib.rs: Registered tauri_plugin_store::Builder::default().build() plugin
+- [2026-10-25 16:45] src-tauri/capabilities/default.json: Fixed store permissions - replaced "store:default" with "core:app:allow-fetch-data-store-identifiers" and "core:app:allow-remove-data-store", added "core:app:default"
+- [2026-10-25 16:45] Build: Tauri release build completes successfully, produces ebook-reader.exe and MSI installer
+- [2026-10-25 17:30] src-tauri/tauri.conf.json: Removed invalid store plugin config (v2 expects no config, was causing "invalid type: map, expected unit" error)
+- [2026-10-25 17:30] Runtime: `npm run tauri dev` launches successfully, app runs without errors

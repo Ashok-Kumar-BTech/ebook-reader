@@ -1,0 +1,106 @@
+# Project Agent Rules (.clinerules)
+
+## 1. Graphify Knowledge Base Lifecycle (Initialize & Update)
+Before exploring the codebase, ensure the `graphify-out/` knowledge graph is present and up to date:
+- **Check Existence:** Check if `graphify-out/GRAPH_REPORT.md` and `graphify-out/graph.json` exist in the workspace.
+- **Initialize (If Missing):**
+  - If `graphify-out/` does not exist, initialize the knowledge graph by running: `graphify .`
+  - *(If the CLI is missing, install via `pip install graphifyy`, then run `graphify .`).*
+- **Update (If Existing):**
+  - If `graphify-out/` already exists and files have been added, modified, or refactored, refresh it using: `graphify update .` (or `graphify . --update`)
+  - Use targeted graph CLI queries when tracing relationships instead of blind file reads:
+    - `graphify query "<question>" --graph graphify-out/graph.json`
+    - `graphify path "<ComponentA>" "<ComponentB>" --graph graphify-out/graph.json`
+    - `graphify explain "<ModuleOrNode>"`
+
+---
+
+## 2. Project Initialization Command ("Understand the project")
+When a new chat is opened and the user gives the command **"Understand the project"** (trigger phrase is case-insensitive):
+
+### Execution Steps
+1. Verify if `graphify-out/` exists. If missing, run `graphify .` to generate it; if existing and stale, run `graphify update .`.
+2. Read `graphify-out/GRAPH_REPORT.md` (and query `graphify-out/graph.json` if needed) to map the codebase architecture, modules, and dependencies.
+   - **CRITICAL:** Never read `graphify-out/graph.html` to avoid exhausting the context window.
+3. Locate and read the project's PRD file (e.g., `PRD.md`, `docs/PRD.md`, or equivalent Product Requirements Document), along with `PLAN-PROGRESS.md` and `DEV-LOG.md` if present.
+4. Silently cross-reference the PRD requirements against the `graphify-out` knowledge graph and `PLAN-PROGRESS.md` to determine the current implementation status.
+
+### Strict Output Constraint
+- Do **NOT** output a summary of the PRD, file contents, or architectural breakdown during this step.
+- Once analysis is complete, finish the turn with **ONLY** the following exact response:
+
+Analysis complete.
+I have reviewed the project structure and PRD, and I am ready for further conversations.
+
+---
+
+## 3. Workflow for Planning Mode (New Features & Architecture)
+When asked to plan a feature, module, or workflow:
+1. **Analyze User Stories & Scenarios:** Read the user stories, acceptance criteria, and scenarios carefully to understand the underlying product intent and context the user is trying to convey.
+2. **Check Current State:** Cross-reference the request with `graphify-out/GRAPH_REPORT.md` and the PRD to identify existing vs. needed components.
+3. **Map Requirements to Technical Tasks:** Break down every user requirement into concrete, atomic technical tasks (e.g., database/schema changes, backend API logic, UI/state updates, dependency configurations).
+4. **Draft Consolidated Implementation Plan & Reset `PLAN-PROGRESS.md`:**
+   - Combine all mapped requirements into a structured, step-by-step implementation plan specifying affected files, execution order, dependencies, and verification steps.
+   - **Overwrite `PLAN-PROGRESS.md`:** Remove any previous plan contents in `PLAN-PROGRESS.md` and freshly write the new plan's checklist (`- [ ] Task...`) so progress is tracked from zero.
+
+---
+
+## 4. Workflow for Modifying, Refactoring & Fixing Issues
+When asked to modify existing behavior, debug an error, or fix an issue:
+1. **Understand the Scenario & Problem:** Read the user scenario/stories and inspect recent entries in `DEV-LOG.md` to see if recent changes contributed to the issue.
+2. **Targeted Investigation & Root Cause Analysis:**
+   - Use `graphify`, `search_files` (ripgrep), or `list_code_definition_names` to locate the exact affected files and line ranges.
+   - Clearly point out and explain the **root cause(s)** of the problem before writing code.
+3. **Construct Possible Solutions:** Formulate viable technical approaches to resolve the root cause and weigh their trade-offs (feasibility, side effects, performance).
+4. **Execute the Most Feasible & Effective Fix:**
+   - Decide on and implement the most feasible and effective solution using minimal, targeted edits (`replace_in_file` rather than rewriting entire files).
+   - Update `PLAN-PROGRESS.md` (if part of an active plan) and append a timestamped entry to `DEV-LOG.md`.
+   - Run `graphify update .` if structural relationships or module definitions changed.
+
+---
+
+## 5. Continuous Development & Plan Tracking (`DEV-LOG.md` & `PLAN-PROGRESS.md`)
+
+### A. Active Development Log (`DEV-LOG.md`)
+- **Rule: APPEND-ONLY. NEVER overwrite or delete existing historical entries in `DEV-LOG.md`.**
+- Whenever any code modification, bug fix, dependency update, or structural change is completed, automatically append a new entry to `DEV-LOG.md` (create the file if missing):
+  - Format: `- [YYYY-MM-DD HH:MM] <Scope/Files>: <Brief summary of changes made>`
+- Use `DEV-LOG.md` as a diagnostic reference whenever issues or regressions arise during development.
+
+### B. Active Implementation Progress (`PLAN-PROGRESS.md`)
+- **Rule: OVERWRITE ONLY FOR NEW PLANS; UPDATE IN-PLACE DURING EXECUTION.**
+- **For New Plans:** Remove existing contents of `PLAN-PROGRESS.md` and freshly track the new plan's tasks (`- [ ] Step...`).
+- **During Execution:** Actively update `PLAN-PROGRESS.md` in-place after completing each task (`- [x] Step...`) to ensure the plan is followed and its live status is always accurate.
+
+---
+
+## 6. Automated Git Push Command ("Push to <branch>")
+When prompted with **"Push to <branch>"** (the command words "push to" may be any case, but **`<branch>` is strictly CASE-SENSITIVE**):
+
+### 1. Exact Casing & Branch Verification
+1. Preserve the exact uppercase/lowercase characters of `<branch>` as typed by the user (e.g., `dev` and `Dev` are distinct branches).
+2. Run `git branch -a` and `git status` to verify the exact casing of existing local and remote branches before pushing.
+   - **Case-Collision Check (Windows Safety):** If a branch with the same name but different casing already exists locally or on `origin` (e.g., user asked for `Dev`, but `dev` exists on remote), **STOP** and ask the user whether they meant the existing branch or want a new case-variant branch.
+
+### 2. Commit & Push Flow
+1. Run `git diff --stat` to verify all modified and untracked files.
+2. Stage changes (`git add .`) and commit with a clear, concise, brief message pointing out the specific changes made in that commit.
+3. Push the commit using the exact case-sensitive branch name (`git push origin <branch>`).
+
+### 3. Git Issue Analysis & Scope Boundaries
+If the branch or repository is not found, or if the push fails, run git diagnostic commands (`git remote -v`, `git branch -a`, `git status`) to analyze the issue:
+- **In-Scope (Auto-Resolve):**
+  - If a valid remote exists and `<branch>` does not exist locally or remotely (with no case-collision), create/switch to `<branch>` (`git checkout -b <branch>`) preserving exact casing and push with upstream tracking (`git push -u origin <branch>`).
+- **Out-of-Scope / Needs User Permission (STOP & Summarize):**
+  - **Stop the push immediately** and provide a concise summary of the issue to the user if:
+    - A case-mismatch collision is detected between local and remote branches (e.g., `dev` vs `Dev`).
+    - Git is not initialized or no remote `origin` URL is configured.
+    - The remote repository does not exist, is inaccessible, or returns authentication/permission errors.
+    - Merge conflicts, diverged remote history, or branch protection rules prevent a clean fast-forward push.
+
+---
+
+## 7. Strict Token & Context Efficiency Guardrails
+1. **No Blind File Reads:** NEVER read random files to explore the repository. Always consult `graphify-out/GRAPH_REPORT.md`, `search_files`, or `list_code_definition_names` first.
+2. **Prevent Output Truncation:** When creating new files larger than 150 lines, create a minimal skeleton with `write_to_file` first, then add implementation blocks incrementally via `replace_in_file`.
+3. **Context Hygiene:** If context usage exceeds 50%, ensure `PLAN-PROGRESS.md` and `DEV-LOG.md` are updated and suggest running `/smol` or `/newtask`.
