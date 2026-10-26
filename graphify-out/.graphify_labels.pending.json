@@ -1,10 +1,10 @@
 {
-  "0": "registry.ts",
+  "0": "RenderOptions",
   "1": "package.json",
   "2": "bookStore.ts",
   "3": "lib.rs",
   "4": "tauri.conf.json",
-  "5": "BookAdapter",
+  "5": "VirtualizedFileList.tsx",
   "6": "compilerOptions",
   "7": "PdfAdapter",
   "8": "EpubAdapter",
@@ -30,5 +30,8 @@
   "28": "main.rs",
   "29": "ebook-reader",
   "30": "postcss.config.js",
-  "31": "vite-env.d.ts"
+  "31": "vite-env.d.ts",
+  "32": "App.tsx",
+  "33": "BookAdapter",
+  "38": "DEV-LOG.md"
 }

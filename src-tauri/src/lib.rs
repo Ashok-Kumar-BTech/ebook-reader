@@ -25,7 +25,9 @@ pub struct DirectoryEntry {
     pub modified: i64,
 }
 
-const SUPPORTED_EXTENSIONS: &[&str] = &["pdf", "epub", "cbz", "txt", "html", "htm", "xhtml"];
+const SUPPORTED_EXTENSIONS: &[&str] = &[
+    "pdf", "epub", "cbz", "cbr", "txt", "html", "htm", "xhtml", "docx",
+];
 
 fn is_supported_format(path: &Path) -> bool {
     path.extension()

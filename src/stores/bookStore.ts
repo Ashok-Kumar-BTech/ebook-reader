@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { createStore } from '../utils/store';
+import { createLoggedStore } from '../utils/logger';
 
 export interface Bookmark {
   id: string;
-  location: number;
+  location: string | number;
   label?: string;
   note?: string;
   createdAt: number;
@@ -20,7 +21,7 @@ export interface BookSettings {
 }
 
 export interface BookState {
-  currentLocation: number;
+  currentLocation: string | number;
   totalLocations: number;
   bookmarks: Bookmark[];
   settings: BookSettings;
@@ -29,9 +30,11 @@ export interface BookState {
 
 export interface BookStoreState {
   bookStates: Record<string, BookState>;
+  currentBookPath: string | null;
+  setCurrentBookPath: (path: string | null) => void;
   getBookState: (path: string) => BookState | undefined;
   setBookState: (path: string, state: Partial<BookState>) => void;
-  updateLocation: (path: string, location: number, totalLocations?: number) => void;
+  updateLocation: (path: string, location: string | number, totalLocations?: number) => void;
   addBookmark: (path: string, bookmark: Omit<Bookmark, 'id' | 'createdAt'>) => void;
   removeBookmark: (path: string, bookmarkId: string) => void;
   updateBookmark: (path: string, bookmarkId: string, updates: Partial<Bookmark>) => void;
@@ -62,105 +65,120 @@ const EMPTY_BOOK_STATE: BookState = {
 // Tauri store for persistence
 const bookStorePersist = createStore<Record<string, BookState>>('book-states', {});
 
-export const useBookStore = create<BookStoreState>()((set, get) => ({
-  bookStates: {},
+const loggedStoreCreator = createLoggedStore<BookStoreState>(
+  {
+    name: 'bookStore',
+    logLevel: 'debug',
+    logStateDiff: true,
+    excludeKeys: ['bookStates'],
+  },
+  (set, get) => ({
+    bookStates: {},
+    currentBookPath: null,
 
-  getBookState: (path: string) => get().bookStates[path],
+    setCurrentBookPath: (path: string | null) => set({ currentBookPath: path }),
 
-  setBookState: (path: string, state: Partial<BookState>) => set((s) => ({
-    bookStates: {
-      ...s.bookStates,
-      [path]: { ...(s.bookStates[path] ?? EMPTY_BOOK_STATE), ...state, lastOpened: Date.now() }
-    }
-  })),
+    getBookState: (path: string) => get().bookStates[path],
 
-  updateLocation: (path: string, location: number, totalLocations?: number) => set((s) => ({
-    bookStates: {
-      ...s.bookStates,
-      [path]: {
-        ...(s.bookStates[path] ?? EMPTY_BOOK_STATE),
-        currentLocation: location,
-        totalLocations: totalLocations ?? s.bookStates[path]?.totalLocations ?? 0,
-        lastOpened: Date.now()
+    setBookState: (path: string, state: Partial<BookState>) => set((s) => ({
+      bookStates: {
+        ...s.bookStates,
+        [path]: { ...(s.bookStates[path] ?? EMPTY_BOOK_STATE), ...state, lastOpened: Date.now() }
       }
-    }
-  })),
+    })),
 
-  addBookmark: (path: string, bookmark: Omit<Bookmark, 'id' | 'createdAt'>) => set((s) => {
-    const newBookmark: Bookmark = {
-      ...bookmark,
-      id: crypto.randomUUID(),
-      createdAt: Date.now(),
-    };
-    return {
+    updateLocation: (path: string, location: string | number, totalLocations?: number) => set((s) => ({
       bookStates: {
         ...s.bookStates,
         [path]: {
           ...(s.bookStates[path] ?? EMPTY_BOOK_STATE),
-          bookmarks: [...(s.bookStates[path]?.bookmarks ?? []), newBookmark].sort((a, b) => a.location - b.location),
+          currentLocation: location,
+          totalLocations: totalLocations ?? s.bookStates[path]?.totalLocations ?? 0,
           lastOpened: Date.now()
         }
       }
-    };
-  }),
+    })),
 
-  removeBookmark: (path: string, bookmarkId: string) => set((s) => {
-    const bookState = s.bookStates[path];
-    if (!bookState) return s;
-    return {
-      bookStates: {
-        ...s.bookStates,
-        [path]: {
-          ...bookState,
-          bookmarks: bookState.bookmarks.filter((b) => b.id !== bookmarkId),
-          lastOpened: Date.now()
+    addBookmark: (path: string, bookmark: Omit<Bookmark, 'id' | 'createdAt'>) => set((s) => {
+      const newBookmark: Bookmark = {
+        ...bookmark,
+        id: crypto.randomUUID(),
+        createdAt: Date.now(),
+      };
+      return {
+        bookStates: {
+          ...s.bookStates,
+          [path]: {
+            ...(s.bookStates[path] ?? EMPTY_BOOK_STATE),
+            bookmarks: [...(s.bookStates[path]?.bookmarks ?? []), newBookmark].sort((a, b) =>
+              String(a.location).localeCompare(String(b.location), undefined, { numeric: true })
+            ),
+            lastOpened: Date.now()
+          }
         }
-      }
-    };
-  }),
+      };
+    }),
 
-  updateBookmark: (path: string, bookmarkId: string, updates: Partial<Bookmark>) => set((s) => {
-    const bookState = s.bookStates[path];
-    if (!bookState) return s;
-    return {
-      bookStates: {
-        ...s.bookStates,
-        [path]: {
-          ...bookState,
-          bookmarks: bookState.bookmarks.map((b) => b.id === bookmarkId ? { ...b, ...updates } : b),
-          lastOpened: Date.now()
+    removeBookmark: (path: string, bookmarkId: string) => set((s) => {
+      const bookState = s.bookStates[path];
+      if (!bookState) return s;
+      return {
+        bookStates: {
+          ...s.bookStates,
+          [path]: {
+            ...bookState,
+            bookmarks: bookState.bookmarks.filter((b) => b.id !== bookmarkId),
+            lastOpened: Date.now()
+          }
         }
-      }
-    };
-  }),
+      };
+    }),
 
-  updateSettings: (path: string, settings: Partial<BookSettings>) => set((s) => {
-    const bookState = s.bookStates[path] ?? EMPTY_BOOK_STATE;
-    return {
-      bookStates: {
-        ...s.bookStates,
-        [path]: {
-          ...bookState,
-          settings: { ...bookState.settings, ...settings },
-          lastOpened: Date.now()
+    updateBookmark: (path: string, bookmarkId: string, updates: Partial<Bookmark>) => set((s) => {
+      const bookState = s.bookStates[path];
+      if (!bookState) return s;
+      return {
+        bookStates: {
+          ...s.bookStates,
+          [path]: {
+            ...bookState,
+            bookmarks: bookState.bookmarks.map((b) => b.id === bookmarkId ? { ...b, ...updates } : b),
+            lastOpened: Date.now()
+          }
         }
+      };
+    }),
+
+    updateSettings: (path: string, settings: Partial<BookSettings>) => set((s) => {
+      const bookState = s.bookStates[path] ?? EMPTY_BOOK_STATE;
+      return {
+        bookStates: {
+          ...s.bookStates,
+          [path]: {
+            ...bookState,
+            settings: { ...bookState.settings, ...settings },
+            lastOpened: Date.now()
+          }
+        }
+      };
+    }),
+
+    clearBookState: (path: string) => set((s) => {
+      const { [path]: _, ...rest } = s.bookStates;
+      return { bookStates: rest };
+    }),
+
+    hydrate: async () => {
+      await bookStorePersist.load();
+      const stored = bookStorePersist.get();
+      if (stored && Object.keys(stored).length > 0) {
+        set({ bookStates: stored });
       }
-    };
-  }),
+    },
+  })
+);
 
-  clearBookState: (path: string) => set((s) => {
-    const { [path]: _, ...rest } = s.bookStates;
-    return { bookStates: rest };
-  }),
-
-  hydrate: async () => {
-    await bookStorePersist.load();
-    const stored = bookStorePersist.get();
-    if (stored && Object.keys(stored).length > 0) {
-      set({ bookStates: stored });
-    }
-  },
-}));
+export const useBookStore = create<BookStoreState>()(loggedStoreCreator);
 
 // Subscribe to changes and persist to Tauri store
 useBookStore.subscribe(

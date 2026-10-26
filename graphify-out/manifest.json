@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1792909050.9325383,
-    "seen": 1792911249.9783158,
-    "ast_hash": "4234d98719a3543ca8b775b8946a6d08",
+    "mtime": 1792916120.9549801,
+    "seen": 1792921923.4781568,
+    "ast_hash": "fdb6646b70794aa0aef2f8c5dcd21926",
     "semantic_hash": ""
   },
   "postcss.config.js": {
@@ -18,9 +18,9 @@
     "semantic_hash": ""
   },
   "src-tauri/Cargo.toml": {
-    "mtime": 1792902659.6520214,
-    "seen": 1792911249.9783158,
-    "ast_hash": "488a3d475a9f2ab9144e3346b70ae163",
+    "mtime": 1792911962.8272302,
+    "seen": 1792921923.4781568,
+    "ast_hash": "64dc393764f26f57af073deea0c26cd5",
     "semantic_hash": ""
   },
   "src-tauri/build.rs": {
@@ -30,15 +30,15 @@
     "semantic_hash": ""
   },
   "src-tauri/capabilities/default.json": {
-    "mtime": 1792907826.6898117,
-    "seen": 1792911249.9783158,
-    "ast_hash": "b98e5f1657f904cc08a09765fcddcc2a",
+    "mtime": 1792912022.1564243,
+    "seen": 1792921923.4781568,
+    "ast_hash": "e5574a33d297e6f522dc1fd987545c1a",
     "semantic_hash": ""
   },
   "src-tauri/src/lib.rs": {
-    "mtime": 1792904676.7789962,
-    "seen": 1792911249.9783158,
-    "ast_hash": "c49188d82376ab2402b393ccb7e6b1e8",
+    "mtime": 1792912849.7067475,
+    "seen": 1792921923.4781568,
+    "ast_hash": "6a4cdf0f61bea18d0f68037ccecdf911",
     "semantic_hash": ""
   },
   "src-tauri/src/main.rs": {
@@ -48,15 +48,15 @@
     "semantic_hash": ""
   },
   "src-tauri/tauri.conf.json": {
-    "mtime": 1792907818.069805,
-    "seen": 1792911249.9783158,
-    "ast_hash": "d32e9c9c2d4d170ab4d24d6b8d280cd0",
+    "mtime": 1792914446.4427931,
+    "seen": 1792921923.4781568,
+    "ast_hash": "8a1ae8866f20ff32897512cbe244ecfd",
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1792903077.4069624,
-    "seen": 1792911249.9783158,
-    "ast_hash": "6fe4f89d66c82ff7729488fad6934a0a",
+    "mtime": 1792934283.7420783,
+    "seen": 1792934875.4712498,
+    "ast_hash": "0b86eb47cd3d8d71cf626062b656f304",
     "semantic_hash": ""
   },
   "src/adapters/cbzAdapter.ts": {
@@ -102,15 +102,15 @@
     "semantic_hash": ""
   },
   "src/stores/bookStore.ts": {
-    "mtime": 1792911181.3206012,
-    "seen": 1792911249.9783158,
-    "ast_hash": "6d74f5169e81738d072f8ddb0e38b52e",
+    "mtime": 1792934197.5296674,
+    "seen": 1792934875.4712498,
+    "ast_hash": "e37b686f9bb5f79705a84a14fbabf632",
     "semantic_hash": ""
   },
   "src/stores/uiStore.ts": {
-    "mtime": 1792911166.030185,
-    "seen": 1792911249.9783158,
-    "ast_hash": "b9e6446cd6252ed7c9ac9d2a5f89f45c",
+    "mtime": 1792934142.6090126,
+    "seen": 1792934875.4712498,
+    "ast_hash": "63fa17cdd65f6ca3ada8674c3ae58cb7",
     "semantic_hash": ""
   },
   "src/types/reader.ts": {
@@ -120,9 +120,9 @@
     "semantic_hash": ""
   },
   "src/utils/store.ts": {
-    "mtime": 1792910990.0651834,
-    "seen": 1792911249.9783158,
-    "ast_hash": "c348766eeaf049b2a39303ee02790b6c",
+    "mtime": 1792934460.981933,
+    "seen": 1792934875.4712498,
+    "ast_hash": "7ea61e93dd05daa00d4d6b845e69e26e",
     "semantic_hash": ""
   },
   "src/vite-env.d.ts": {
@@ -267,6 +267,42 @@
     "mtime": 1792902152.856335,
     "seen": 1792911249.9783158,
     "ast_hash": "f0402b67b6ce880f65666bb49e841696",
+    "semantic_hash": ""
+  },
+  "src/components/FileTree.tsx": {
+    "mtime": 1792934408.2091885,
+    "seen": 1792934875.4712498,
+    "ast_hash": "5505e298bddf714e3e074eaa03e64452",
+    "semantic_hash": ""
+  },
+  "src/components/FormatBadge.tsx": {
+    "mtime": 1792916114.9774642,
+    "seen": 1792921923.4781568,
+    "ast_hash": "c553bc10aeb459436f0de3b88e38534b",
+    "semantic_hash": ""
+  },
+  "src/components/VirtualizedFileList.tsx": {
+    "mtime": 1792921578.091575,
+    "seen": 1792921923.4781568,
+    "ast_hash": "2e397bb2eb94ec3abae833ccd371df3d",
+    "semantic_hash": ""
+  },
+  "DEV-LOG.md": {
+    "mtime": 1792934863.7195702,
+    "seen": 1792934875.4712498,
+    "ast_hash": "ddc64885fb39b140aad1e68b07611291",
+    "semantic_hash": ""
+  },
+  "PLAN-PROGRESS.md": {
+    "mtime": 1792921881.3668177,
+    "seen": 1792921923.4781568,
+    "ast_hash": "f2ba383f6465f86bc6ec7cf8a2146a10",
+    "semantic_hash": ""
+  },
+  "src/utils/tauriApi.ts": {
+    "mtime": 1792934515.5482984,
+    "seen": 1792934875.4712498,
+    "ast_hash": "ec5fd6bb3b25013156979283d98eca97",
     "semantic_hash": ""
   }
 }

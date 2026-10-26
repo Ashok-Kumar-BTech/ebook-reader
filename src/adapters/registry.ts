@@ -38,31 +38,41 @@ class FormatRegistry {
     const factory = this.adapters.get(ext);
     if (!factory) return null;
 
-    // Return cached instance if exists
-    const cached = this.instances.get(ext);
+    // Return cached instance for this specific file if exists
+    const cached = this.instances.get(filePath);
     if (cached) return cached;
 
-    // Create new instance
+    // Create new instance for this book
     const instance = factory();
-    this.instances.set(ext, instance);
+    this.instances.set(filePath, instance);
     return instance;
   }
 
   /**
-   * Get adapter by format identifier
+   * Unload adapter instance for a specific file path
+   */
+  unloadAdapterForPath(filePath: string): void {
+    const instance = this.instances.get(filePath);
+    if (instance) {
+      try {
+        instance.unload();
+      } catch {
+        // Ignore unload errors
+      }
+      this.instances.delete(filePath);
+    }
+  }
+
+  /**
+   * Get a fresh adapter by format identifier
    */
   getAdapterByFormat(format: Format): BookAdapter | null {
     // Find first extension for this format
     const entry = [...this.adapters.entries()].find(([ext]) => ext === format);
     if (!entry) return null;
 
-    const [ext, factory] = entry;
-    const cached = this.instances.get(ext);
-    if (cached) return cached;
-
-    const instance = factory();
-    this.instances.set(ext, instance);
-    return instance;
+    const [, factory] = entry;
+    return factory();
   }
 
   /**

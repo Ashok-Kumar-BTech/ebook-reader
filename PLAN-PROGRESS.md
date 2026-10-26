@@ -16,20 +16,20 @@
 - [x] Dependencies installed: `pdfjs-dist`, `epubjs`, `jszip`, `mammoth`
 - [x] Build verification: `npm run build` passes without errors
 
-## Phase 2: File System Access & Library UI (NEXT)
-- [ ] Folder tree component with recursive rendering
-- [ ] File picker using Tauri dialog API
-- [ ] Virtualized list for large directories (react-window or similar)
-- [ ] Format badge display (PDF, EPUB, CBZ, TXT, HTML, DOCX)
-- [ ] Recent folders/files persistence
-- [ ] Sorting (name, date, size, type) and view modes (tree/list)
+## Phase 2: File System Access & Library UI ✓ COMPLETE
+- [x] Folder tree component with recursive rendering
+- [x] File picker using Tauri dialog API
+- [x] Virtualized list for large directories (react-window)
+- [x] Format badge display (PDF, EPUB, CBZ, CBR, TXT, HTML, DOCX)
+- [x] Recent folders/files persistence in uiStore
+- [x] Sorting (name, date, size, type) and view modes (tree/list)
 
-## Phase 3: Reader View & Navigation
-- [ ] Main reader component with adapter integration
-- [ ] Page rendering with continuous scroll and two-page view
-- [ ] Keyboard/mouse/touch navigation
-- [ ] Progress bar and location indicator
-- [ ] Theme support (light, dark, sepia) with CSS variables
+## Phase 3: Reader View & Navigation ✓ COMPLETE
+- [x] Main reader component with adapter integration (`src/components/ReaderView.tsx`)
+- [x] Page rendering with continuous scroll and two-page spread view
+- [x] Keyboard/mouse/touch navigation (arrows, space, page up/down, home/end, touch swipes, shortcuts)
+- [x] Progress bar, interactive scrubber, and location indicator with jump-to-page dialog
+- [x] Theme support (light, dark, sepia) with CSS variables and font size zoom controls
 
 ## Phase 4: Search & TOC
 - [ ] Global search across library
