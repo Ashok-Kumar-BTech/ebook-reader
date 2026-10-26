@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { GearIcon, XIcon, SunIcon, MoonIcon } from "@primer/octicons-react";
 import type { BookSettings } from "../stores/bookStore";
 import type { BookInstance } from "../types/reader";
 import { FormatBadge } from "./FormatBadge";
@@ -70,10 +71,9 @@ export function SettingsDrawer({
         style={{ borderColor: drawerBorder }}
       >
         <div className="flex items-center gap-2">
-          <svg className="w-5 h-5 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
+          <div className="p-1.5 rounded-md bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center">
+            <GearIcon size={16} />
+          </div>
           <div>
             <h3 className="font-semibold text-sm">Book Settings</h3>
             <p className="text-[11px] opacity-70 truncate max-w-[180px]">
@@ -83,12 +83,10 @@ export function SettingsDrawer({
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center"
           title="Close Settings (Esc)"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <XIcon size={16} />
         </button>
       </div>
 
@@ -267,7 +265,7 @@ export function SettingsDrawer({
                   }`}
                   style={{ backgroundColor: "#ffffff", color: "#111827", borderColor: "#e5e7eb" }}
                 >
-                  <span className="text-base mb-1">☀️</span>
+                  <SunIcon size={18} className="mb-1 text-amber-500" />
                   <span>Light</span>
                 </button>
 
@@ -280,7 +278,7 @@ export function SettingsDrawer({
                   }`}
                   style={{ backgroundColor: "#fbf0d9", color: "#5f4b32", borderColor: "#e2d3b5" }}
                 >
-                  <span className="text-base mb-1">📜</span>
+                  <span className="text-sm mb-1 leading-none">📜</span>
                   <span>Sepia</span>
                 </button>
 
@@ -293,7 +291,7 @@ export function SettingsDrawer({
                   }`}
                   style={{ backgroundColor: "#111827", color: "#f9fafb", borderColor: "#374151" }}
                 >
-                  <span className="text-base mb-1">🌙</span>
+                  <MoonIcon size={18} className="mb-1 text-blue-400" />
                   <span>Dark</span>
                 </button>
               </div>

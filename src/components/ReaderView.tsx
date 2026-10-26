@@ -1,9 +1,31 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import {
+  ListUnorderedIcon,
+  SearchIcon,
+  BookmarkIcon,
+  BookmarkFillIcon,
+  RowsIcon,
+  ColumnsIcon,
+  ThreeBarsIcon,
+  SunIcon,
+  MoonIcon,
+  GearIcon,
+  XIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+  MaximizeIcon,
+  MinimizeIcon,
+  PinIcon,
+  PinSlashIcon,
+} from "@primer/octicons-react";
 import { useBookStore } from "../stores/bookStore";
 import { useUiStore } from "../stores/uiStore";
 import { getAdapterForPath } from "../adapters/registry";
 import { readFileData } from "../utils/tauriApi";
 import { useLogger } from "../utils/logger";
+import { toggleFullscreen, isFullscreen } from "../utils/windowState";
 import { FormatBadge } from "./FormatBadge";
 import { SearchAndTOCDrawer, type DrawerTab } from "./SearchAndTOCDrawer";
 import { SettingsDrawer } from "./SettingsDrawer";
@@ -16,8 +38,13 @@ interface ReaderViewProps {
 
 export function ReaderView({ onClose }: ReaderViewProps) {
   const logger = useLogger("ReaderView");
-  const { currentBookPath, getBookState, updateLocation, updateSettings, addBookmark, removeBookmark } = useBookStore();
+  const { currentBookPath, bookStates, getBookState, updateLocation, updateSettings, addBookmark, removeBookmark } = useBookStore();
   const { toggleSidebar, sidebarVisible } = useUiStore();
+
+  const bookBookmarks = useMemo(() => {
+    if (!currentBookPath) return [];
+    return bookStates[currentBookPath]?.bookmarks ?? [];
+  }, [currentBookPath, bookStates]);
 
   const [loading, setLoading] = useState(true);
   const [rendering, setRendering] = useState(false);
@@ -33,6 +60,15 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const [fontFamily, setFontFamily] = useState<'serif' | 'sans' | 'mono'>('serif');
   const [isJumpModalOpen, setIsJumpModalOpen] = useState(false);
   const [jumpPageInput, setJumpPageInput] = useState("");
+
+  // Smart Auto-Hiding Top Header & Fullscreen state
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [isHeaderPinned, setIsHeaderPinned] = useState(false);
+  const [isWindowFullscreen, setIsWindowFullscreen] = useState(false);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isHeaderHoveredRef = useRef<boolean>(false);
+  const isRenderingRef = useRef<boolean>(false);
+  const renderPendingRef = useRef<boolean>(false);
 
   // Search & TOC & Bookmark Drawer state
   const [toc, setToc] = useState<TOCItem[]>([]);
@@ -84,51 +120,61 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         const count = Math.max(1, adapter.getPageCount());
         setTotalPages(count);
 
-        // Load Table of Contents
-        try {
-          const loadedToc = await adapter.getTOC();
-          if (isMounted) {
-            setToc(loadedToc);
-          }
-        } catch (tocErr) {
-          logger.warn("FAILED_TO_LOAD_TOC", { error: String(tocErr) });
-        }
-
         // Restore saved book state
         const savedState = getBookState(currentBookPath!);
+        let initialPage = 1;
+        let initialTheme: "light" | "dark" | "sepia" = "dark";
+        let initialFontSize = 16;
+        let initialLineHeight = 1.6;
+        let initialMargin = 32;
+        let initialFontFamily: 'serif' | 'sans' | 'mono' = 'serif';
+        let initialViewMode: "single" | "two-page" | "scroll" = ['txt', 'html', 'docx'].includes(instance.format) ? "scroll" : "single";
+
         if (savedState) {
           if (savedState.currentLocation) {
             const locNum = typeof savedState.currentLocation === 'number'
               ? savedState.currentLocation
               : parseInt(savedState.currentLocation, 10);
             if (!isNaN(locNum) && locNum >= 1 && locNum <= count) {
-              setCurrentPage(locNum);
+              initialPage = locNum;
             }
           }
           if (savedState.settings) {
-            setReaderTheme(savedState.settings.theme);
-            setFontSize(savedState.settings.fontSize);
-            if (savedState.settings.lineHeight) setLineHeight(savedState.settings.lineHeight);
-            if (savedState.settings.margin) setMargin(savedState.settings.margin);
-            if (savedState.settings.fontFamily) setFontFamily(savedState.settings.fontFamily);
+            initialTheme = savedState.settings.theme;
+            initialFontSize = savedState.settings.fontSize;
+            if (savedState.settings.lineHeight) initialLineHeight = savedState.settings.lineHeight;
+            if (savedState.settings.margin) initialMargin = savedState.settings.margin;
+            if (savedState.settings.fontFamily) initialFontFamily = savedState.settings.fontFamily;
             if (savedState.settings.continuousScroll) {
-              setViewMode("scroll");
+              initialViewMode = "scroll";
             } else if (savedState.settings.twoPageView) {
-              setViewMode("two-page");
+              initialViewMode = "two-page";
             } else {
-              setViewMode("single");
+              initialViewMode = "single";
             }
-          }
-        } else {
-          // Default view mode based on format
-          if (['txt', 'html', 'docx'].includes(instance.format)) {
-            setViewMode("scroll");
-          } else {
-            setViewMode("single");
           }
         }
 
+        // Apply all restored state together before releasing loading lock
+        setCurrentPage(initialPage);
+        setReaderTheme(initialTheme);
+        setFontSize(initialFontSize);
+        setLineHeight(initialLineHeight);
+        setMargin(initialMargin);
+        setFontFamily(initialFontFamily);
+        setViewMode(initialViewMode);
+
+        // Unblock reader immediately so Page 1 renders without latency
         setLoading(false);
+
+        // Load Table of Contents asynchronously in background
+        adapter.getTOC().then((loadedToc) => {
+          if (isMounted) {
+            setToc(loadedToc);
+          }
+        }).catch((tocErr) => {
+          logger.warn("FAILED_TO_LOAD_TOC", { error: String(tocErr) });
+        });
       } catch (err) {
         if (!isMounted) return;
         logger.error("LOAD_BOOK_ERROR", { currentBookPath }, err as Error);
@@ -160,6 +206,12 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       return;
     }
 
+    if (isRenderingRef.current) {
+      renderPendingRef.current = true;
+      return;
+    }
+
+    isRenderingRef.current = true;
     setRendering(true);
     const container = containerRef.current;
     const width = container.clientWidth || 800;
@@ -198,7 +250,12 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     } catch (err) {
       logger.warn("RENDER_PAGE_ERROR", { currentPage, viewMode, error: String(err) });
     } finally {
+      isRenderingRef.current = false;
       setRendering(false);
+      if (renderPendingRef.current) {
+        renderPendingRef.current = false;
+        renderPages();
+      }
     }
   }, [loading, viewMode, currentPage, totalPages, readerTheme, fontSize, lineHeight, margin, fontFamily, logger]);
 
@@ -366,6 +423,56 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     goToPage(currentPage + step);
   }, [currentPage, viewMode, goToPage]);
 
+  // Sync window fullscreen state
+  useEffect(() => {
+    isFullscreen().then(setIsWindowFullscreen).catch(() => {});
+    const handleFullscreenChange = () => {
+      isFullscreen().then(setIsWindowFullscreen).catch(() => {});
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const handleToggleFullscreen = useCallback(async () => {
+    const next = await toggleFullscreen();
+    setIsWindowFullscreen(next);
+  }, []);
+
+  // Auto-hide top navigation bar timer (3.5s inactivity)
+  const resetAutoHideTimer = useCallback(() => {
+    setIsHeaderVisible(true);
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+    }
+    if (!isHeaderPinned && !isDrawerOpen && !isSettingsOpen && !isJumpModalOpen) {
+      hideTimerRef.current = setTimeout(() => {
+        if (!isHeaderHoveredRef.current && !isHeaderPinned && !isDrawerOpen && !isSettingsOpen && !isJumpModalOpen) {
+          setIsHeaderVisible(false);
+        }
+      }, 3500);
+    }
+  }, [isHeaderPinned, isDrawerOpen, isSettingsOpen, isJumpModalOpen]);
+
+  const handleMouseMove = useCallback(() => {
+    resetAutoHideTimer();
+  }, [resetAutoHideTimer]);
+
+  // Keep header visible when drawers/settings/modals are active or header is pinned
+  useEffect(() => {
+    if (isHeaderPinned || isDrawerOpen || isSettingsOpen || isJumpModalOpen) {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      setIsHeaderVisible(true);
+    } else {
+      resetAutoHideTimer();
+    }
+  }, [isHeaderPinned, isDrawerOpen, isSettingsOpen, isJumpModalOpen, resetAutoHideTimer]);
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, []);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -375,6 +482,17 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       }
 
       switch (e.key) {
+        case "F11":
+          e.preventDefault();
+          handleToggleFullscreen();
+          break;
+        case "p":
+        case "P":
+          if (!e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            setIsHeaderPinned(curr => !curr);
+          }
+          break;
         case "ArrowRight":
         case "PageDown":
         case " ":
@@ -402,6 +520,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             setIsSettingsOpen(false);
           } else if (isDrawerOpen) {
             setIsDrawerOpen(false);
+          } else if (isWindowFullscreen) {
+            handleToggleFullscreen();
           } else {
             onClose();
           }
@@ -457,7 +577,19 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [nextPage, prevPage, goToPage, totalPages, onClose, isJumpModalOpen, isSettingsOpen, isDrawerOpen, drawerTab]);
+  }, [
+    nextPage,
+    prevPage,
+    goToPage,
+    totalPages,
+    onClose,
+    isJumpModalOpen,
+    isSettingsOpen,
+    isDrawerOpen,
+    drawerTab,
+    isWindowFullscreen,
+    handleToggleFullscreen,
+  ]);
 
   // Touch Swipe handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -635,15 +767,36 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
   return (
     <div
-      className="flex-1 flex flex-col h-full overflow-hidden select-none"
+      className="flex-1 flex flex-col h-full overflow-hidden select-none relative"
       style={{ backgroundColor: themeStyle.bg, color: themeStyle.text }}
+      onMouseMove={handleMouseMove}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Top Navigation Bar */}
+      {/* Top Hover Sensor Zone: hovering within top 24px reveals top header */}
+      <div
+        className="reader-top-hover-zone"
+        onMouseEnter={() => {
+          setIsHeaderVisible(true);
+          resetAutoHideTimer();
+        }}
+      />
+
+      {/* Floating Smart Auto-Hiding Top Navigation Bar */}
       <header
-        className="flex items-center justify-between px-4 py-2.5 border-b z-20 flex-shrink-0"
+        className={`reader-header-floating flex items-center justify-between px-4 py-2 border-b z-50 ${
+          isHeaderVisible || isHeaderPinned ? "reader-header-visible" : "reader-header-hidden"
+        }`}
         style={{ backgroundColor: themeStyle.barBg, borderColor: themeStyle.border }}
+        onMouseEnter={() => {
+          isHeaderHoveredRef.current = true;
+          if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+          setIsHeaderVisible(true);
+        }}
+        onMouseLeave={() => {
+          isHeaderHoveredRef.current = false;
+          resetAutoHideTimer();
+        }}
       >
         <div className="flex items-center gap-3 min-w-0">
           <button
@@ -691,9 +844,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               }`}
               title="Table of Contents (C)"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
+              <ListUnorderedIcon size={14} />
               <span>Contents</span>
               {toc.length > 0 && (
                 <span className="opacity-75 text-[10px] px-1 py-0.2 bg-black/10 dark:bg-white/10 rounded-full">
@@ -714,9 +865,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               style={{ borderColor: themeStyle.border }}
               title="Search Book (Ctrl+F)"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <SearchIcon size={14} />
               <span>Search</span>
             </button>
             <button
@@ -732,10 +881,13 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               style={{ borderColor: themeStyle.border }}
               title="Bookmarks (B)"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-              </svg>
+              <BookmarkIcon size={14} />
               <span>Bookmarks</span>
+              {bookBookmarks.length > 0 && (
+                <span className="opacity-75 text-[10px] px-1 py-0.2 bg-amber-500 text-white rounded-full font-bold">
+                  {bookBookmarks.length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -743,18 +895,19 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
             <button
               onClick={() => setViewMode("single")}
-              className={`px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium transition-colors ${
                 viewMode === "single"
                   ? "bg-[var(--color-primary)] text-white"
                   : "hover:bg-black/5 dark:hover:bg-white/5"
               }`}
               title="Single Page View"
             >
-              Single
+              <RowsIcon size={13} />
+              <span className="hidden sm:inline">Single</span>
             </button>
             <button
               onClick={() => setViewMode("two-page")}
-              className={`px-2.5 py-1 text-xs font-medium transition-colors border-l ${
+              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
                 viewMode === "two-page"
                   ? "bg-[var(--color-primary)] text-white"
                   : "hover:bg-black/5 dark:hover:bg-white/5"
@@ -762,11 +915,12 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               style={{ borderColor: themeStyle.border }}
               title="Two-Page Spread View"
             >
-              Spread
+              <ColumnsIcon size={13} />
+              <span className="hidden sm:inline">Spread</span>
             </button>
             <button
               onClick={() => setViewMode("scroll")}
-              className={`px-2.5 py-1 text-xs font-medium transition-colors border-l ${
+              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
                 viewMode === "scroll"
                   ? "bg-[var(--color-primary)] text-white"
                   : "hover:bg-black/5 dark:hover:bg-white/5"
@@ -774,7 +928,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               style={{ borderColor: themeStyle.border }}
               title="Continuous Scroll View"
             >
-              Scroll
+              <ThreeBarsIcon size={13} />
+              <span className="hidden sm:inline">Scroll</span>
             </button>
           </div>
 
@@ -789,7 +944,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               }`}
               title="Light Theme"
             >
-              ☀️
+              <SunIcon size={13} />
             </button>
             <button
               onClick={() => setReaderTheme("sepia")}
@@ -801,7 +956,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               style={{ borderColor: themeStyle.border }}
               title="Sepia Theme"
             >
-              📜
+              <span className="text-xs leading-none">📜</span>
             </button>
             <button
               onClick={() => setReaderTheme("dark")}
@@ -813,7 +968,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               style={{ borderColor: themeStyle.border }}
               title="Dark Theme"
             >
-              🌙
+              <MoonIcon size={13} />
             </button>
           </div>
 
@@ -821,20 +976,20 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
             <button
               onClick={() => setFontSize(s => Math.max(12, s - 2))}
-              className="px-2 py-1 text-xs font-bold hover:bg-black/5 dark:hover:bg-white/5"
+              className="px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5"
               title="Decrease Font Size (-)"
             >
-              A-
+              <ZoomOutIcon size={13} />
             </button>
-            <span className="px-2 py-1 text-xs border-l border-r" style={{ borderColor: themeStyle.border }}>
+            <span className="px-2 py-1 text-xs font-medium border-l border-r" style={{ borderColor: themeStyle.border }}>
               {fontSize}px
             </span>
             <button
               onClick={() => setFontSize(s => Math.min(36, s + 2))}
-              className="px-2 py-1 text-xs font-bold hover:bg-black/5 dark:hover:bg-white/5"
+              className="px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5"
               title="Increase Font Size (+)"
             >
-              A+
+              <ZoomInIcon size={13} />
             </button>
           </div>
 
@@ -849,11 +1004,36 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             style={{ borderColor: themeStyle.border }}
             title="Configure book settings (S)"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span>Settings</span>
+            <GearIcon size={14} />
+            <span className="hidden md:inline">Settings</span>
+          </button>
+
+          {/* Header Pin Toggle Button */}
+          <button
+            onClick={() => setIsHeaderPinned(curr => !curr)}
+            className={`p-1.5 rounded border transition-colors ${
+              isHeaderPinned
+                ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-sm"
+                : "hover:bg-black/5 dark:hover:bg-white/5 opacity-80 hover:opacity-100"
+            }`}
+            style={{ borderColor: themeStyle.border }}
+            title={isHeaderPinned ? "Unpin Top Panel (auto-hides after 3.5s of inactivity) (P)" : "Pin Top Panel (keep visible) (P)"}
+          >
+            {isHeaderPinned ? <PinIcon size={14} /> : <PinSlashIcon size={14} />}
+          </button>
+
+          {/* Fullscreen Toggle Button */}
+          <button
+            onClick={handleToggleFullscreen}
+            className={`p-1.5 rounded border hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
+              isWindowFullscreen
+                ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] border-[var(--color-primary)]/40 font-bold"
+                : "opacity-80 hover:opacity-100"
+            }`}
+            style={{ borderColor: themeStyle.border }}
+            title={isWindowFullscreen ? "Exit Fullscreen (F11 / Esc)" : "Enter Fullscreen Mode (F11)"}
+          >
+            {isWindowFullscreen ? <MinimizeIcon size={14} /> : <MaximizeIcon size={14} />}
           </button>
 
           <button
@@ -861,9 +1041,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             className="p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ml-1"
             title="Close Book (Esc)"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <XIcon size={18} />
           </button>
         </div>
       </header>
@@ -886,25 +1064,50 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
         {/* Single Page View */}
         {viewMode === "single" && (
-          <div
-            ref={pageContainerRef}
-            className="w-full h-full flex items-center justify-center overflow-auto shadow-md rounded p-2"
-            style={{ maxWidth: "100%", maxHeight: "100%" }}
-          />
+          <div className="relative w-full h-full flex items-center justify-center p-2">
+            {bookBookmarks.some(b => b.location === currentPage) && (
+              <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage}`}>
+                <div className="bookmark-corner-ribbon-badge">
+                  <BookmarkFillIcon size={14} />
+                </div>
+              </div>
+            )}
+            <div
+              ref={pageContainerRef}
+              className="w-full h-full flex items-center justify-center overflow-auto shadow-md rounded p-2"
+              style={{ maxWidth: "100%", maxHeight: "100%" }}
+            />
+          </div>
         )}
 
         {/* Two-Page Spread View */}
         {viewMode === "two-page" && (
           <div className="w-full h-full flex items-center justify-center gap-4 overflow-auto p-2">
             <div
-              ref={leftPageRef}
-              className="flex-1 h-full flex items-center justify-center overflow-auto border-r shadow-sm p-4 rounded-l"
+              className="flex-1 h-full relative flex items-center justify-center overflow-auto border-r shadow-sm p-4 rounded-l"
               style={{ borderColor: themeStyle.border }}
-            />
+            >
+              {bookBookmarks.some(b => b.location === currentPage) && (
+                <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage}`}>
+                  <div className="bookmark-corner-ribbon-badge">
+                    <BookmarkFillIcon size={14} />
+                  </div>
+                </div>
+              )}
+              <div ref={leftPageRef} className="w-full h-full flex items-center justify-center" />
+            </div>
             <div
-              ref={rightPageRef}
-              className="flex-1 h-full flex items-center justify-center overflow-auto shadow-sm p-4 rounded-r"
-            />
+              className="flex-1 h-full relative flex items-center justify-center overflow-auto shadow-sm p-4 rounded-r"
+            >
+              {bookBookmarks.some(b => b.location === currentPage + 1) && (
+                <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage + 1}`}>
+                  <div className="bookmark-corner-ribbon-badge">
+                    <BookmarkFillIcon size={14} />
+                  </div>
+                </div>
+              )}
+              <div ref={rightPageRef} className="w-full h-full flex items-center justify-center" />
+            </div>
           </div>
         )}
 
@@ -914,30 +1117,40 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             ref={scrollContainerRef}
             className="w-full h-full overflow-y-auto overflow-x-hidden p-6 max-w-4xl mx-auto"
           >
-            {scrollPages.map((pageNum: number) => (
-              <div
-                key={pageNum}
-                id={`reader-page-${pageNum}`}
-                data-page-num={pageNum}
-                className="reader-page-slot my-6 mx-auto rounded shadow-sm border relative transition-all"
-                style={{
-                  minHeight: "700px",
-                  backgroundColor: themeStyle.pageBg,
-                  borderColor: themeStyle.border,
-                  maxWidth: "100%",
-                }}
-              >
+            {scrollPages.map((pageNum: number) => {
+              const isBookmarked = bookBookmarks.some(b => b.location === pageNum);
+              return (
                 <div
-                  id={`reader-page-content-${pageNum}`}
-                  className="w-full h-full min-h-[700px] flex items-center justify-center p-2"
+                  key={pageNum}
+                  id={`reader-page-${pageNum}`}
+                  data-page-num={pageNum}
+                  className="reader-page-slot my-6 mx-auto rounded shadow-sm border relative transition-all"
+                  style={{
+                    minHeight: "700px",
+                    backgroundColor: themeStyle.pageBg,
+                    borderColor: themeStyle.border,
+                    maxWidth: "100%",
+                  }}
                 >
-                  <div className="text-xs text-[var(--color-text-muted)] opacity-50 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
-                    Page {pageNum} of {totalPages}
+                  {isBookmarked && (
+                    <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${pageNum}`}>
+                      <div className="bookmark-corner-ribbon-badge">
+                        <BookmarkFillIcon size={14} />
+                      </div>
+                    </div>
+                  )}
+                  <div
+                    id={`reader-page-content-${pageNum}`}
+                    className="w-full h-full min-h-[700px] flex items-center justify-center p-2"
+                  >
+                    <div className="text-xs text-[var(--color-text-muted)] opacity-50 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
+                      Page {pageNum} of {totalPages}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
@@ -951,26 +1164,44 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           <button
             onClick={prevPage}
             disabled={currentPage <= 1}
-            className="px-3 py-1.5 rounded flex items-center gap-1 text-sm font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10"
+            className="px-3 py-1.5 rounded flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10"
             title="Previous Page (Left Arrow)"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+            <ChevronLeftIcon size={16} />
             <span>Prev</span>
           </button>
         </div>
 
         {/* Center Scrubber and Location */}
-        <div className="flex-1 max-w-xl flex items-center gap-4">
-          <input
-            type="range"
-            min="1"
-            max={totalPages}
-            value={currentPage}
-            onChange={(e) => goToPage(parseInt(e.target.value, 10))}
-            className="w-full accent-[var(--color-primary)] cursor-pointer h-2 bg-black/10 dark:bg-white/10 rounded-lg"
-          />
+        <div className="flex-1 max-w-xl flex items-center gap-3">
+          <div className="relative flex-1 flex items-center">
+            <input
+              type="range"
+              min="1"
+              max={totalPages}
+              value={currentPage}
+              onChange={(e) => goToPage(parseInt(e.target.value, 10))}
+              className="w-full accent-[var(--color-primary)] cursor-pointer h-2 bg-black/10 dark:bg-white/10 rounded-lg relative z-0"
+            />
+            {/* Scrubber Timeline Bookmark Pin Markers */}
+            {totalPages > 1 && bookBookmarks.map((bm) => {
+              const loc = typeof bm.location === 'number' ? bm.location : parseInt(String(bm.location), 10);
+              if (isNaN(loc) || loc < 1 || loc > totalPages) return null;
+              const percent = ((loc - 1) / (totalPages - 1)) * 100;
+              return (
+                <div
+                  key={bm.id}
+                  className="scrubber-bookmark-pin"
+                  style={{ left: `${percent}%` }}
+                  title={`Bookmark on Page ${loc}${bm.label ? `: ${bm.label}` : ''} (Click to jump)`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goToPage(loc);
+                  }}
+                />
+              );
+            })}
+          </div>
 
           <button
             onClick={() => {
@@ -984,11 +1215,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             Page {currentPage} of {totalPages}
           </button>
 
-          {/* Quick Bookmark Toggle */}
+          {/* Quick Bookmark Toggle with Octicon */}
           <button
             onClick={() => {
               if (currentBookPath) {
-                const bookBookmarks = getBookState(currentBookPath)?.bookmarks ?? [];
                 const existing = bookBookmarks.find(b => b.location === currentPage);
                 if (existing) {
                   removeBookmark(currentBookPath, existing.id);
@@ -1001,25 +1231,39 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               }
             }}
             title={
-              currentBookPath && getBookState(currentBookPath)?.bookmarks?.some(b => b.location === currentPage)
+              bookBookmarks.some(b => b.location === currentPage)
                 ? "Remove bookmark for this page"
                 : "Bookmark this page"
             }
             className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${
-              currentBookPath && getBookState(currentBookPath)?.bookmarks?.some(b => b.location === currentPage)
-                ? "text-amber-500 fill-amber-500"
+              bookBookmarks.some(b => b.location === currentPage)
+                ? "text-amber-500"
                 : "opacity-60 hover:opacity-100"
             }`}
           >
-            <svg
-              className="w-4 h-4"
-              fill={currentBookPath && getBookState(currentBookPath)?.bookmarks?.some(b => b.location === currentPage) ? "currentColor" : "none"}
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-            </svg>
+            {bookBookmarks.some(b => b.location === currentPage) ? (
+              <BookmarkFillIcon size={16} />
+            ) : (
+              <BookmarkIcon size={16} />
+            )}
           </button>
+
+          {/* Quick Resume/Next Bookmark Jump button */}
+          {bookBookmarks.length > 0 && (
+            <button
+              onClick={() => {
+                const nextBm = bookBookmarks.find(b => Number(b.location) > currentPage) || bookBookmarks[0];
+                if (nextBm) {
+                  goToPage(typeof nextBm.location === 'number' ? nextBm.location : parseInt(String(nextBm.location), 10));
+                }
+              }}
+              className="px-2 py-1 text-xs font-medium rounded border border-amber-500/40 text-amber-500 hover:bg-amber-500/10 transition-colors flex items-center gap-1"
+              title="Resume reading at next bookmark"
+            >
+              <BookmarkFillIcon size={12} />
+              <span className="hidden sm:inline">Resume</span>
+            </button>
+          )}
 
           <span className="text-xs font-medium text-[var(--color-text-muted)] whitespace-nowrap">
             {progressPercent}%
@@ -1030,13 +1274,11 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           <button
             onClick={nextPage}
             disabled={currentPage >= totalPages}
-            className="px-3 py-1.5 rounded flex items-center gap-1 text-sm font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10"
+            className="px-3 py-1.5 rounded flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10"
             title="Next Page (Right Arrow)"
           >
             <span>Next</span>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            <ChevronRightIcon size={16} />
           </button>
         </div>
       </footer>
@@ -1108,7 +1350,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           if (!adapterRef.current) return [];
           return adapterRef.current.search(query);
         }}
-        bookmarks={currentBookPath ? (getBookState(currentBookPath)?.bookmarks ?? []) : []}
+        bookmarks={bookBookmarks}
         onAddBookmark={(page, label) => {
           if (currentBookPath) {
             addBookmark(currentBookPath, { location: page, label });

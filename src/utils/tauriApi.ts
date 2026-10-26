@@ -275,12 +275,12 @@ export async function readFileData(path: string): Promise<Uint8Array | null> {
 
   return logTauriCall('fs.readFile', async () => {
     try {
+      const { readFile } = await import('@tauri-apps/plugin-fs');
+      return await readFile(path);
+    } catch {
       const { invoke } = await import('@tauri-apps/api/core');
       const bytes = await invoke<number[]>('read_file', { path });
       return new Uint8Array(bytes);
-    } catch {
-      const { readFile } = await import('@tauri-apps/plugin-fs');
-      return await readFile(path);
     }
   }, { path });
 }

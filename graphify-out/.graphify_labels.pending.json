@@ -44,5 +44,6 @@
   "42": "BookAdapter",
   "43": "Technical Tasks & Progress",
   "44": "scripts",
-  "45": "vite.config.ts"
+  "45": "vite.config.ts",
+  "46": "tauriApi.ts"
 }

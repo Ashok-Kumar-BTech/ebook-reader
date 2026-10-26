@@ -1,4 +1,12 @@
 import { useState, useEffect } from "react";
+import {
+  XIcon,
+  SearchIcon,
+  BookmarkIcon,
+  TrashIcon,
+  ChevronRightIcon,
+  BookIcon,
+} from "@primer/octicons-react";
 import type { TOCItem, SearchResult } from "../types/reader";
 import type { Bookmark } from "../stores/bookStore";
 
@@ -134,9 +142,7 @@ export function SearchAndTOCDrawer({
           className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
           title="Close Drawer (Esc)"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <XIcon size={18} />
         </button>
       </div>
 
@@ -201,9 +207,7 @@ export function SearchAndTOCDrawer({
           <div className="space-y-1">
             {toc.length === 0 ? (
               <div className="text-center py-12" style={{ color: style.textMuted }}>
-                <svg className="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477 4.5 1.253" />
-                </svg>
+                <BookIcon size={36} className="mx-auto mb-3 opacity-30" />
                 <p className="text-sm font-medium">No Table of Contents</p>
                 <p className="text-xs mt-1">This book does not contain outline markers.</p>
               </div>
@@ -235,21 +239,16 @@ export function SearchAndTOCDrawer({
                   style={{ borderColor: style.border }}
                   autoFocus
                 />
-                <svg
-                  className="w-4 h-4 absolute left-2.5 top-3 opacity-40 pointer-events-none"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                <div className="absolute left-2.5 top-3 opacity-40 pointer-events-none flex items-center">
+                  <SearchIcon size={14} />
+                </div>
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-2.5 opacity-50 hover:opacity-100"
+                    className="absolute right-2.5 top-2.5 opacity-50 hover:opacity-100 flex items-center"
                   >
-                    ✕
+                    <XIcon size={14} />
                   </button>
                 )}
               </div>
@@ -304,9 +303,7 @@ export function SearchAndTOCDrawer({
 
             {!isSearching && !hasSearched && (
               <div className="text-center py-12" style={{ color: style.textMuted }}>
-                <svg className="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                <SearchIcon size={36} className="mx-auto mb-3 opacity-30" />
                 <p className="text-sm font-medium">Search Within Book</p>
                 <p className="text-xs mt-1">Enter keywords to quickly find and jump to matching passages.</p>
               </div>
@@ -346,9 +343,7 @@ export function SearchAndTOCDrawer({
             {/* Bookmark List */}
             {bookmarks.length === 0 ? (
               <div className="text-center py-12" style={{ color: style.textMuted }}>
-                <svg className="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
+                <BookmarkIcon size={36} className="mx-auto mb-3 opacity-30" />
                 <p className="text-sm font-medium">No Bookmarks Saved</p>
                 <p className="text-xs mt-1">Bookmark key locations to return to them anytime.</p>
               </div>
@@ -388,12 +383,10 @@ export function SearchAndTOCDrawer({
                         e.stopPropagation();
                         onRemoveBookmark(bm.id);
                       }}
-                      className="p-1 rounded opacity-50 hover:opacity-100 hover:text-red-500 transition-colors ml-2"
+                      className="p-1 rounded opacity-50 hover:opacity-100 hover:text-red-500 transition-colors ml-2 flex items-center"
                       title="Delete bookmark"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+                      <TrashIcon size={14} />
                     </button>
                   </div>
                 ))}
@@ -445,16 +438,12 @@ function TOCNodeItem({
                 e.stopPropagation();
                 setExpanded(!expanded);
               }}
-              className="p-0.5 rounded opacity-60 hover:opacity-100 flex-shrink-0"
+              className="p-0.5 rounded opacity-60 hover:opacity-100 flex-shrink-0 flex items-center"
             >
-              <svg
-                className={`w-3.5 h-3.5 transform transition-transform ${expanded ? "rotate-90" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              <ChevronRightIcon
+                size={12}
+                className={`transform transition-transform ${expanded ? "rotate-90" : ""}`}
+              />
             </button>
           )}
           {!hasChildren && <span className="w-3.5 flex-shrink-0" />}

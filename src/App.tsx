@@ -1,13 +1,25 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import {
+  BookIcon,
+  FileDirectoryFillIcon,
+  SearchIcon,
+  XIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ArrowUpIcon,
+  SunIcon,
+  MoonIcon,
+  ColumnsIcon,
+  RowsIcon,
+} from "@primer/octicons-react";
 import { useUiStore, type SortBy } from "./stores/uiStore";
 import { useBookStore } from "./stores/bookStore";
-import { FileTree, DirectoryPicker } from "./components/FileTree";
 import { VirtualizedFileList } from "./components/VirtualizedFileList";
 import { ReaderView } from "./components/ReaderView";
 import { FormatBadge } from "./components/FormatBadge";
 import { openDirectoryDialog, readDirectory, getFileStat, listDirectory } from "./utils/tauriApi";
 import { useLogRender, useLogger } from "./utils/logger";
-import { initWindowStateWatcher } from "./utils/windowState";
+import { initWindowStateWatcher, toggleFullscreen } from "./utils/windowState";
 import { getParentPath, getBreadcrumbSegments } from "./utils/pathUtils";
 
 interface FileEntry {
@@ -25,9 +37,6 @@ export default function App() {
   const logger = useLogger('App');
 
   const {
-    sidebarVisible,
-    setSidebarVisible,
-    sidebarWidth,
     currentRoot,
     dirHistory,
     dirHistoryIndex,
@@ -38,7 +47,6 @@ export default function App() {
     sortOrder,
     viewMode,
     appTheme,
-    setSidebarWidth,
     setSort,
     setSortOrder,
     setViewMode,
@@ -54,7 +62,6 @@ export default function App() {
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [resizing, setResizing] = useState(false);
   const [librarySearchQuery, setLibrarySearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -92,7 +99,10 @@ export default function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (mode === "browse") {
-        if ((e.ctrlKey || e.metaKey) && (e.key === "f" || e.key === "F")) {
+        if (e.key === "F11") {
+          e.preventDefault();
+          toggleFullscreen();
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === "f" || e.key === "F")) {
           e.preventDefault();
           searchInputRef.current?.focus();
           searchInputRef.current?.select();
@@ -118,11 +128,10 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [mode, canGoBack, canGoForward, canGoUp, navigateBack, navigateForward, handleNavigateUp]);
 
-  // Add render logging (after state declarations)
+  // Render logging
   useLogRender('App', { 
     mode, 
     currentRoot, 
-    sidebarVisible, 
     viewMode, 
     appTheme,
     entriesCount: entries.length 
@@ -131,11 +140,8 @@ export default function App() {
   // Hydrate store on mount
   useEffect(() => {
     logger.info('HYDRATE_START');
-    hydrate().then(() => {
-      // In browse mode, ensure sidebar is visible per PRD 5.4.1 rule 1
-      setSidebarVisible(true);
-    });
-  }, [hydrate, logger, setSidebarVisible]);
+    hydrate();
+  }, [hydrate, logger]);
 
   // Initialize window state persistence
   useEffect(() => {
@@ -178,25 +184,16 @@ export default function App() {
         return;
       }
 
-      const dirEntries = await readDirectory(path);
-      if (!dirEntries) {
-        dirLogger.warn('LOAD_DIRECTORY_UNAVAILABLE', { path });
-        setError("Directory reading not available in this environment");
-        setEntries([]);
-        setLoading(false);
-        return;
-      }
-      
-      dirLogger.debug('LOAD_DIRECTORY_READ', { path, entryCount: dirEntries.length });
-      
+      // Fallback: slow entry-by-entry scan
+      dirLogger.debug('LOAD_DIRECTORY_FALLBACK_SCAN', { path });
+      const rawEntries = (await readDirectory(path)) ?? [];
       const fileEntries: FileEntry[] = [];
 
-      for (const entry of dirEntries) {
-        const fullPath = path + "/" + entry.name;
+      for (const entry of rawEntries) {
+        const fullPath = `${path}/${entry.name}`;
         const isDirectory = entry.isDirectory ?? false;
-        const isSupported = !isDirectory && SUPPORTED_EXTENSIONS.has(
-          entry.name.toLowerCase().slice(entry.name.lastIndexOf("."))
-        );
+        const ext = entry.name.toLowerCase().slice(entry.name.lastIndexOf("."));
+        const isSupported = !isDirectory && SUPPORTED_EXTENSIONS.has(ext);
 
         let size = 0;
         let modified = 0;
@@ -268,374 +265,354 @@ export default function App() {
 
     setCurrentBookPath(path);
     addRecentFile(path);
-    setSidebarVisible(false); // auto-hide sidebar when opening book per PRD 5.4.3
     setMode("reading");
   };
 
   const handleCloseBook = () => {
     setCurrentBookPath(null);
     setMode("browse");
-    setSidebarVisible(true);
-  };
-
-  const handleSidebarResize = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setResizing(true);
-    const startX = e.clientX;
-    const startWidth = sidebarWidth;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = startWidth + (moveEvent.clientX - startX);
-      setSidebarWidth(Math.max(200, Math.min(600, newWidth)));
-    };
-
-    const onMouseUp = () => {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-      setResizing(false);
-    };
-
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
   };
 
   return (
-    <div className="app" style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--color-background)' }}>
-      <aside
-        className="sidebar"
-        style={{ 
-          width: sidebarWidth, 
-          minWidth: 200, 
-          maxWidth: 600,
-          backgroundColor: 'var(--color-surface)',
-          borderRight: '1px solid var(--color-border)',
-          display: sidebarVisible ? 'flex' : 'none',
-          flexDirection: 'column',
-        }}
-      >
-        <div className="sidebar-header" style={{ padding: '12px 16px', borderBottom: '1px solid var(--color-border)' }}>
-          <h2 className="text-lg font-semibold text-[var(--color-text)]">Library</h2>
-        </div>
-        <div className="sidebar-toolbar" style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <DirectoryPicker onSelect={handleOpenDirectory} />
-          <div className="theme-toggle">
-            <button
-              onClick={() => setTheme(appTheme === 'dark' ? 'light' : 'dark')}
-              className="px-3 py-1.5 text-sm bg-[var(--color-primary)] text-white rounded hover:bg-[var(--color-primary-hover)] transition-colors"
-            >
-              {appTheme === 'dark' ? '☀️' : '🌙'}
-            </button>
-          </div>
-        </div>
+    <div className="app">
+      {mode === "browse" ? (
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          {/* Top Slim Minimalist Navigation Bar */}
+          <header
+            className="h-12 border-b flex items-center justify-between px-4 z-20 flex-shrink-0 gap-4"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              borderColor: 'var(--color-border)',
+            }}
+          >
+            {/* Left: App Logo / Brand & Open Folder */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center">
+                  <BookIcon size={16} />
+                </div>
+                <h1 className="text-sm font-bold tracking-tight text-[var(--color-text)] hidden sm:inline">
+                  Ebook Reader
+                </h1>
+              </div>
 
-        {/* Global Library Search Input */}
-        <div className="sidebar-search" style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-border)' }}>
-          <div className="relative flex items-center">
-            <svg className="w-4 h-4 absolute left-2.5 text-[var(--color-text-muted)] pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search library... (Ctrl+F)"
-              value={librarySearchQuery}
-              onChange={(e) => setLibrarySearchQuery(e.target.value)}
-              className="w-full pl-8 pr-7 py-1.5 text-xs rounded-md border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
-            />
-            {librarySearchQuery && (
               <button
-                onClick={() => setLibrarySearchQuery("")}
-                className="absolute right-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] p-0.5"
-                title="Clear library search"
+                onClick={() => handleOpenDirectory()}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] transition-all shadow-sm cursor-pointer"
+                title="Open Folder (Select directory containing ebooks)"
               >
-                ✕
-              </button>
-            )}
-          </div>
-          {librarySearchQuery && (
-            <div className="mt-1 flex items-center justify-between text-[11px] text-[var(--color-text-muted)] px-1">
-              <span>{filteredEntries.length} {filteredEntries.length === 1 ? 'item' : 'items'} found</span>
-              <button
-                onClick={() => setLibrarySearchQuery("")}
-                className="hover:underline text-[var(--color-primary)] cursor-pointer"
-              >
-                Clear
+                <FileDirectoryFillIcon size={14} />
+                <span>Open Folder</span>
               </button>
             </div>
-          )}
-        </div>
-        <div className="sidebar-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div className="sort-controls" style={{ padding: '12px', borderBottom: '1px solid var(--color-border)' }}>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-                Sort by:
+
+            {/* Center: Search Bar */}
+            <div className="flex-1 max-w-md flex items-center gap-2">
+              <div className="relative flex-1 flex items-center">
+                <div className="absolute left-2.5 opacity-40 pointer-events-none flex items-center">
+                  <SearchIcon size={13} />
+                </div>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search books in folder... (Ctrl+F)"
+                  value={librarySearchQuery}
+                  onChange={(e) => setLibrarySearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border bg-[var(--color-background)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
+                  style={{ borderColor: 'var(--color-border)' }}
+                />
+                {librarySearchQuery && (
+                  <button
+                    onClick={() => setLibrarySearchQuery("")}
+                    className="absolute right-2.5 opacity-50 hover:opacity-100 flex items-center text-xs"
+                    title="Clear search"
+                  >
+                    <XIcon size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Sort, View Toggle & Theme Toggle in Top Right Corner */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Sort By Dropdown */}
+              <div className="hidden md:flex items-center gap-1 text-xs">
                 <select
                   value={sortBy}
-                  onChange={e => setSort(e.target.value as SortBy)}
-                  className="px-2 py-1 text-sm border border-[var(--color-border)] rounded bg-[var(--color-background)] text-[var(--color-text)]"
+                  onChange={(e) => setSort(e.target.value as SortBy)}
+                  className="px-2 py-1 text-xs border rounded-lg bg-[var(--color-background)] text-[var(--color-text)] cursor-pointer focus:outline-none"
+                  style={{ borderColor: 'var(--color-border)' }}
+                  title="Sort by"
                 >
                   <option value="name">Name</option>
                   <option value="date">Date</option>
                   <option value="size">Size</option>
                   <option value="type">Type</option>
                 </select>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-                Order:
-                <select
-                  value={sortOrder}
-                  onChange={e => setSortOrder(e.target.value as "asc" | "desc")}
-                  className="px-2 py-1 text-sm border border-[var(--color-border)] rounded bg-[var(--color-background)] text-[var(--color-text)]"
+                <button
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="p-1 px-1.5 rounded-lg border hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-xs font-semibold cursor-pointer"
+                  style={{ borderColor: 'var(--color-border)' }}
+                  title={sortOrder === 'asc' ? "Ascending (click for descending)" : "Descending (click for ascending)"}
                 >
-                  <option value="asc">↑</option>
-                  <option value="desc">↓</option>
-                </select>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-                View:
-                <select
-                  value={viewMode}
-                  onChange={e => setViewMode(e.target.value as "tree" | "list")}
-                  className="px-2 py-1 text-sm border border-[var(--color-border)] rounded bg-[var(--color-background)] text-[var(--color-text)]"
+                  {sortOrder === 'asc' ? '↑' : '↓'}
+                </button>
+              </div>
+
+              {/* View Mode Toggle: Grid vs List */}
+              <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`p-1.5 transition-colors cursor-pointer ${
+                    viewMode !== "list"
+                      ? "bg-[var(--color-primary)] text-white"
+                      : "hover:bg-black/5 dark:hover:bg-white/5 text-[var(--color-text)]"
+                  }`}
+                  title="Grid View"
                 >
-                  <option value="tree">Tree</option>
-                  <option value="list">List</option>
-                </select>
-              </label>
+                  <ColumnsIcon size={13} />
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`p-1.5 transition-colors border-l cursor-pointer ${
+                    viewMode === "list"
+                      ? "bg-[var(--color-primary)] text-white"
+                      : "hover:bg-black/5 dark:hover:bg-white/5 text-[var(--color-text)]"
+                  }`}
+                  style={{ borderColor: 'var(--color-border)' }}
+                  title="List View"
+                >
+                  <RowsIcon size={13} />
+                </button>
+              </div>
+
+              {/* Theme Toggle (Top Right Corner) */}
+              <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+                <button
+                  onClick={() => setTheme("light")}
+                  className={`p-1.5 transition-colors cursor-pointer ${
+                    appTheme === "light"
+                      ? "bg-amber-100 text-amber-900"
+                      : "hover:bg-black/5 dark:hover:bg-white/5 opacity-70 hover:opacity-100"
+                  }`}
+                  title="Light Theme"
+                >
+                  <SunIcon size={14} />
+                </button>
+                <button
+                  onClick={() => setTheme("sepia")}
+                  className={`p-1.5 transition-colors border-l cursor-pointer ${
+                    appTheme === "sepia"
+                      ? "bg-[#ecd5b3] text-[#5f4b32]"
+                      : "hover:bg-black/5 dark:hover:bg-white/5 opacity-70 hover:opacity-100"
+                  }`}
+                  style={{ borderColor: 'var(--color-border)' }}
+                  title="Sepia Theme"
+                >
+                  <span className="text-xs leading-none">📜</span>
+                </button>
+                <button
+                  onClick={() => setTheme("dark")}
+                  className={`p-1.5 transition-colors border-l cursor-pointer ${
+                    appTheme === "dark"
+                      ? "bg-gray-800 text-white"
+                      : "hover:bg-black/5 dark:hover:bg-white/5 opacity-70 hover:opacity-100"
+                  }`}
+                  style={{ borderColor: 'var(--color-border)' }}
+                  title="Dark Theme"
+                >
+                  <MoonIcon size={14} />
+                </button>
+              </div>
             </div>
-          </div>
+          </header>
 
-          {viewMode === "tree" ? (
-            <FileTree
-              rootPath={currentRoot ?? ""}
-              onFileClick={handleFileClick}
-              onDirectoryChange={handleDirectoryNavigate}
-              searchQuery={librarySearchQuery}
-            />
-          ) : (
-            <VirtualizedFileList
-              entries={filteredEntries}
-              onFileClick={handleFileClick}
-              onDirectoryClick={handleDirectoryNavigate}
-              parentPath={parentPath}
-              onParentClick={handleNavigateUp}
-              loading={loading}
-              error={error}
-              emptyMessage={librarySearchQuery ? `No ebooks match "${librarySearchQuery}"` : "No files found"}
-            />
-          )}
-        </div>
-      </aside>
-
-      {sidebarVisible && (
-        <div
-          className="sidebar-resizer"
-          onMouseDown={handleSidebarResize}
-          style={{ cursor: resizing ? "ew-resize" : "col-resize" }}
-          aria-label="Resize sidebar"
-        />
-      )}
-
-      <main className="content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {mode === "browse" ? (
-          <> 
+          {/* Main Content Area */}
+          <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {currentRoot ? (
-              <div className="flex-1 flex flex-col h-full overflow-hidden">
-                <div className="list-toolbar" style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                {/* Sub-directory & Breadcrumbs Navigation Toolbar */}
+                <div
+                  className="px-4 py-2 border-b flex items-center justify-between gap-3 flex-shrink-0"
+                  style={{
+                    backgroundColor: 'var(--color-surface)',
+                    borderColor: 'var(--color-border)',
+                  }}
+                >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {!sidebarVisible && (
-                      <button
-                        onClick={() => setSidebarVisible(true)}
-                        className="p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex-shrink-0"
-                        title="Show Sidebar (M)"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                      </button>
-                    )}
-
                     {/* Navigation Buttons: Back, Forward, Up */}
                     <div className="flex items-center gap-0.5 bg-black/5 dark:bg-white/5 p-0.5 rounded-lg flex-shrink-0 border border-[var(--color-border)]">
                       <button
                         onClick={navigateBack}
                         disabled={!canGoBack}
-                        className="p-1.5 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10"
+                        className="p-1.5 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10 flex items-center cursor-pointer"
                         title="Go Back (Alt + Left)"
                         aria-label="Go Back"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
+                        <ArrowLeftIcon size={14} />
                       </button>
                       <button
                         onClick={navigateForward}
                         disabled={!canGoForward}
-                        className="p-1.5 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10"
+                        className="p-1.5 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10 flex items-center cursor-pointer"
                         title="Go Forward (Alt + Right)"
                         aria-label="Go Forward"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                        <ArrowRightIcon size={14} />
                       </button>
                       <button
                         onClick={handleNavigateUp}
                         disabled={!canGoUp}
-                        className="p-1.5 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10"
+                        className="p-1.5 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10 flex items-center cursor-pointer"
                         title={parentPath ? `Up to parent (${parentPath})` : "Parent folder"}
                         aria-label="Up to parent directory"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                        </svg>
+                        <ArrowUpIcon size={14} />
                       </button>
                     </div>
 
                     {/* Breadcrumbs Trail */}
-                    <div className="flex items-center gap-1 overflow-x-auto text-xs py-1 px-2.5 rounded-lg bg-black/5 dark:bg-white/5 border border-[var(--color-border)] max-w-xl scrollbar-none">
+                    <div className="flex items-center gap-1 overflow-x-auto text-xs py-1 px-2.5 rounded-lg bg-black/5 dark:bg-white/5 border border-[var(--color-border)] max-w-2xl scrollbar-none">
                       {breadcrumbSegments.map((segment, idx) => (
                         <div key={segment.path} className="flex items-center gap-1 flex-shrink-0">
                           {idx > 0 && <span className="text-[var(--color-text-muted)] opacity-40">/</span>}
                           <button
                             onClick={() => handleDirectoryNavigate(segment.path)}
                             disabled={segment.isLast}
-                            className={`px-1.5 py-0.5 rounded transition-colors ${
+                            className={`px-1.5 py-0.5 rounded transition-colors flex items-center gap-1 ${
                               segment.isLast
                                 ? "font-semibold text-[var(--color-text)] cursor-default bg-black/5 dark:bg-white/10"
                                 : "text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
                             }`}
                             title={segment.path}
                           >
-                            {idx === 0 && (
-                              <svg className="w-3.5 h-3.5 inline mr-1 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                              </svg>
-                            )}
-                            {segment.name}
+                            {idx === 0 && <FileDirectoryFillIcon size={12} className="text-[var(--color-primary)]" />}
+                            <span>{segment.name}</span>
                           </button>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="entry-count" style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
+                  {/* Right count info */}
+                  <div className="flex items-center gap-3 flex-shrink-0 text-xs text-[var(--color-text-muted)]">
+                    <span>
                       {librarySearchQuery.trim()
-                        ? `Showing ${filteredEntries.length} of ${entries.length} items`
+                        ? `${filteredEntries.length} of ${entries.length} items`
                         : `${entries.length} items`}
                     </span>
-                    {librarySearchQuery.trim() && (
-                      <button
-                        onClick={() => setLibrarySearchQuery("")}
-                        className="text-xs text-[var(--color-primary)] hover:underline flex items-center gap-1"
-                      >
-                        Clear search
-                      </button>
-                    )}
-                    {loading && <span className="loading" style={{ fontSize: '12px', color: 'var(--color-primary)' }}>Loading...</span>}
-                    {error && <span className="error" style={{ fontSize: '12px', color: 'var(--color-error)' }}>{error}</span>}
+                    {loading && <span className="text-[var(--color-primary)] animate-pulse">Loading...</span>}
+                    {error && <span className="text-[var(--color-error)]">{error}</span>}
                   </div>
                 </div>
 
-                {/* Main Content Area: Book Library Grid */}
-                <div className="flex-1 overflow-auto p-6">
-                  {filteredEntries.length === 0 && !canGoUp ? (
-                    <div className="flex flex-col items-center justify-center p-12 text-[var(--color-text-muted)]">
-                      <p className="text-base font-medium">
-                        {librarySearchQuery ? `No ebooks match "${librarySearchQuery}"` : "No books found in this folder"}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {/* Parent Directory item card */}
-                      {canGoUp && !librarySearchQuery.trim() && (
-                        <div
-                          onClick={handleNavigateUp}
-                          className="flex flex-col p-4 rounded-xl border border-dashed border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] hover:shadow-lg transition-all cursor-pointer group"
-                          title={`Up to parent (${parentPath})`}
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="w-10 h-10 rounded-lg bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)] group-hover:scale-105 transition-transform">
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                              </svg>
+                {/* View Container: Grid or List */}
+                {viewMode === "list" ? (
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <VirtualizedFileList
+                      entries={filteredEntries}
+                      onFileClick={handleFileClick}
+                      onDirectoryClick={handleDirectoryNavigate}
+                      parentPath={parentPath}
+                      onParentClick={handleNavigateUp}
+                      loading={loading}
+                      error={error}
+                      emptyMessage={librarySearchQuery ? `No ebooks match "${librarySearchQuery}"` : "No files found"}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex-1 min-h-0 overflow-y-auto p-6">
+                    {filteredEntries.length === 0 && !canGoUp ? (
+                      <div className="flex flex-col items-center justify-center p-12 text-[var(--color-text-muted)]">
+                        <p className="text-base font-medium">
+                          {librarySearchQuery ? `No ebooks match "${librarySearchQuery}"` : "No books found in this folder"}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        {/* Parent Directory item card */}
+                        {canGoUp && !librarySearchQuery.trim() && (
+                          <div
+                            onClick={handleNavigateUp}
+                            className="flex flex-col p-4 rounded-xl border border-dashed border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] hover:shadow-md transition-all cursor-pointer group"
+                            title={`Up to parent (${parentPath})`}
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="w-10 h-10 rounded-lg bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)] group-hover:scale-105 transition-transform">
+                                <ArrowUpIcon size={18} />
+                              </div>
+                              <span className="text-xs font-mono px-2 py-0.5 rounded bg-black/5 dark:bg-white/10 text-[var(--color-text-muted)]">
+                                ..
+                              </span>
                             </div>
-                            <span className="text-xs font-mono px-2 py-0.5 rounded bg-black/5 dark:bg-white/10 text-[var(--color-text-muted)]">
-                              ..
+                            <span className="font-semibold text-sm text-[var(--color-text)] truncate group-hover:text-[var(--color-primary)] transition-colors mb-1">
+                              .. (Parent Directory)
+                            </span>
+                            <span className="text-xs text-[var(--color-text-muted)] truncate">
+                              {parentPath}
                             </span>
                           </div>
-                          <span className="font-semibold text-sm text-[var(--color-text)] truncate group-hover:text-[var(--color-primary)] transition-colors mb-1">
-                            .. (Parent Directory)
-                          </span>
-                          <span className="text-xs text-[var(--color-text-muted)] truncate">
-                            {parentPath}
-                          </span>
-                        </div>
-                      )}
+                        )}
 
-                      {filteredEntries.map((entry) => (
-                        <div
-                          key={entry.path}
-                          onClick={() => {
-                            if (entry.isDirectory) {
-                              handleDirectoryNavigate(entry.path);
-                            } else {
-                              handleFileClick(entry.path);
-                            }
-                          }}
-                          className="flex flex-col p-4 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)] hover:shadow-lg transition-all cursor-pointer group"
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="w-10 h-10 rounded-lg bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)] group-hover:scale-105 transition-transform">
-                              {entry.isDirectory ? (
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                </svg>
-                              ) : (
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477 4.5 1.253" />
-                                </svg>
-                              )}
+                        {filteredEntries.map((entry) => (
+                          <div
+                            key={entry.path}
+                            onClick={() => {
+                              if (entry.isDirectory) {
+                                handleDirectoryNavigate(entry.path);
+                              } else {
+                                handleFileClick(entry.path);
+                              }
+                            }}
+                            className="flex flex-col p-4 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)] hover:shadow-md transition-all cursor-pointer group"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="w-10 h-10 rounded-lg bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)] group-hover:scale-105 transition-transform">
+                                {entry.isDirectory ? (
+                                  <FileDirectoryFillIcon size={20} />
+                                ) : (
+                                  <BookIcon size={20} />
+                                )}
+                              </div>
+                              {!entry.isDirectory && <FormatBadge path={entry.path} />}
                             </div>
-                            {!entry.isDirectory && <FormatBadge path={entry.path} />}
+                            <span className="font-semibold text-sm text-[var(--color-text)] truncate group-hover:text-[var(--color-primary)] transition-colors mb-1">
+                              {entry.name}
+                            </span>
+                            <span className="text-xs text-[var(--color-text-muted)] truncate">
+                              {entry.isDirectory ? "Folder" : entry.path}
+                            </span>
                           </div>
-                          <span className="font-semibold text-sm text-[var(--color-text)] truncate group-hover:text-[var(--color-primary)] transition-colors mb-1">
-                            {entry.name}
-                          </span>
-                          <span className="text-xs text-[var(--color-text-muted)] truncate">
-                            {entry.isDirectory ? "Folder" : entry.path}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
-              // Welcome screen when no directory opened
-              <div className="text-center text-[var(--color-text-muted)]" style={{ padding: '48px 24px' }}>
-                <svg className="w-24 h-24 mx-auto mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477 4.5 1.253" />
-                </svg>
-                <h2 className="text-2xl font-semibold mb-2">Welcome to Ebook Reader</h2>
-                <p className="text-[var(--color-text-muted)] mb-6">Open a directory containing your ebooks to get started</p>
+              // Welcome screen when no directory is opened
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-[var(--color-text-muted)]">
+                <div className="w-20 h-20 rounded-2xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center mb-6 shadow-sm">
+                  <BookIcon size={40} />
+                </div>
+                <h2 className="text-2xl font-bold mb-2 text-[var(--color-text)]">Welcome to Ebook Reader</h2>
+                <p className="text-sm max-w-sm mb-6 text-[var(--color-text-muted)]">
+                  Select a directory containing your ebooks to begin reading. Supports PDF, EPUB, CBZ, TXT, HTML, DOCX.
+                </p>
                 <button
-                  onClick={handleOpenDirectory}
-                  className="px-6 py-3 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors flex items-center justify-center gap-2 mx-auto"
+                  onClick={() => handleOpenDirectory()}
+                  className="px-6 py-2.5 bg-[var(--color-primary)] text-white text-sm font-semibold rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors flex items-center gap-2 shadow-md hover:shadow-lg cursor-pointer"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                  </svg>
-                  Open Directory
+                  <FileDirectoryFillIcon size={16} />
+                  <span>Open Folder</span>
                 </button>
               </div>
             )}
-          </>
-        ) : (
-          <ReaderView onClose={handleCloseBook} />
-        )}
-      </main>
+          </main>
+        </div>
+      ) : (
+        <ReaderView onClose={handleCloseBook} />
+      )}
     </div>
   );
 }
@@ -676,5 +653,3 @@ function sortEntries(entries: FileEntry[], sortBy: string, sortOrder: string): F
     return sortOrder === "asc" ? comparison : -comparison;
   });
 }
-
-

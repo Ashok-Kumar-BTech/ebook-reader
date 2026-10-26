@@ -31,10 +31,15 @@ export class PdfAdapter implements BookAdapter {
     this.pdfDoc = await loadingTask.promise;
     this.pageCount = this.pdfDoc.numPages;
     
-    const metadata = await this.pdfDoc.getMetadata();
-    this.title = metadata.info?.Title || bookPath.split('/').pop() || 'PDF Document';
-    this.author = metadata.info?.Author;
+    const fileName = bookPath.split(/[\/\\]/).pop()?.replace(/\.[^.]+$/, '') || 'PDF Document';
+    this.title = fileName;
     this.currentPage = 1;
+
+    // Asynchronously resolve metadata without blocking initial open
+    this.pdfDoc.getMetadata().then((metadata: any) => {
+      if (metadata?.info?.Title) this.title = metadata.info.Title;
+      if (metadata?.info?.Author) this.author = metadata.info.Author;
+    }).catch(() => {});
     
     return {
       format: 'pdf',
@@ -42,7 +47,7 @@ export class PdfAdapter implements BookAdapter {
       title: this.title,
       author: this.author,
       pageCount: this.pageCount,
-      metadata: metadata.info || {},
+      metadata: {},
     };
   }
 
@@ -149,13 +154,13 @@ export class PdfAdapter implements BookAdapter {
     if (!this.pdfDoc || pageNum < 1 || pageNum > this.pageCount) return;
     
     const page = await this.pdfDoc.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 1.5 });
+    const baseViewport = page.getViewport({ scale: 1.0 });
     
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;
     
     const containerWidth = options.width - options.margin * 2;
-    const scale = Math.min(containerWidth / viewport.width, 2);
+    const scale = Math.min(Math.max(containerWidth / baseViewport.width, 0.5), 2.5);
     
     const scaledViewport = page.getViewport({ scale });
     canvas.width = scaledViewport.width;

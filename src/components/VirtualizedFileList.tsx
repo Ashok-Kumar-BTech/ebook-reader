@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { List } from "react-window";
+import { FileDirectoryFillIcon, BookIcon, ArrowUpIcon } from "@primer/octicons-react";
 import { FormatBadge } from "./FormatBadge";
 
 interface FileEntry {
@@ -59,15 +60,11 @@ function FileListItem({
         }
       }}
     >
-      <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+      <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 text-[var(--color-primary)]">
         {entry.isDirectory ? (
-          <svg className="w-5 h-5 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-          </svg>
+          <FileDirectoryFillIcon size={18} />
         ) : (
-          <svg className="w-5 h-5 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-          </svg>
+          <BookIcon size={18} className="text-[var(--color-text-muted)]" />
         )}
       </div>
       <div className="flex-1 min-w-0">
@@ -123,9 +120,7 @@ export function VirtualizedFileList({
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center text-[var(--color-text-muted)] p-8">
-          <svg className="w-16 h-16 mx-auto mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-          </svg>
+          <FileDirectoryFillIcon size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg font-medium mb-1">{emptyMessage || "No files found"}</p>
         </div>
       </div>
@@ -141,9 +136,7 @@ export function VirtualizedFileList({
           title={`Go up to ${parentPath}`}
         >
           <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 text-[var(--color-primary)]">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-            </svg>
+            <ArrowUpIcon size={18} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">

@@ -114,3 +114,52 @@ export async function initWindowStateWatcher(): Promise<() => void> {
     isInitialized = false;
   };
 }
+
+/**
+ * Toggles fullscreen mode across Tauri desktop and browser environments.
+ * Returns the updated fullscreen state (true if fullscreen, false otherwise).
+ */
+export async function toggleFullscreen(): Promise<boolean> {
+  const inTauri = await checkIsTauri();
+  if (inTauri) {
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const appWindow = getCurrentWindow();
+      const current = await appWindow.isFullscreen();
+      await appWindow.setFullscreen(!current);
+      return !current;
+    } catch (err) {
+      logger.warn("TAURI_FULLSCREEN_ERROR", { error: String(err) });
+    }
+  }
+
+  // Web Standard Fullscreen Fallback
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen();
+      return true;
+    } else {
+      await document.exitFullscreen();
+      return false;
+    }
+  } catch (err) {
+    logger.warn("WEB_FULLSCREEN_ERROR", { error: String(err) });
+    return !!document.fullscreenElement;
+  }
+}
+
+/**
+ * Checks whether the application window is currently in fullscreen mode.
+ */
+export async function isFullscreen(): Promise<boolean> {
+  const inTauri = await checkIsTauri();
+  if (inTauri) {
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      return await getCurrentWindow().isFullscreen();
+    } catch {
+      return false;
+    }
+  }
+  return !!document.fullscreenElement;
+}

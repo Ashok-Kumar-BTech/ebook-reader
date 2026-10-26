@@ -4,7 +4,7 @@ import { createLoggedStore } from '../utils/logger';
 
 export type SortBy = 'name' | 'date' | 'size' | 'type';
 export type SortOrder = 'asc' | 'desc';
-export type ViewMode = 'tree' | 'list';
+export type ViewMode = 'grid' | 'list' | 'tree';
 export type AppTheme = 'light' | 'dark' | 'sepia';
 
 export interface UiState {

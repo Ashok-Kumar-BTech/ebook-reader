@@ -37,7 +37,6 @@ export class EpubAdapter implements BookAdapter {
     this.author = metadata.creator;
     this.spineItems = this.book.spine.spineItems;
     this.pageCount = this.spineItems.length;
-    this.toc = await this.parseTOC();
     this.currentLocation = 0;
     
     return {
@@ -122,6 +121,9 @@ export class EpubAdapter implements BookAdapter {
   }
 
   async getTOC(): Promise<TOCItem[]> {
+    if (this.toc.length === 0) {
+      this.toc = await this.parseTOC();
+    }
     return this.toc;
   }
 
