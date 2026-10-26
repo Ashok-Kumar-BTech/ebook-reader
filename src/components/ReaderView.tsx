@@ -1,11 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useBookStore } from "../stores/bookStore";
 import { useUiStore } from "../stores/uiStore";
 import { getAdapterForPath } from "../adapters/registry";
 import { readFileData } from "../utils/tauriApi";
 import { useLogger } from "../utils/logger";
 import { FormatBadge } from "./FormatBadge";
-import type { BookAdapter, BookInstance, RenderOptions } from "../types/reader";
+import { SearchAndTOCDrawer, type DrawerTab } from "./SearchAndTOCDrawer";
+import { SettingsDrawer } from "./SettingsDrawer";
+import type { BookSettings } from "../stores/bookStore";
+import type { BookAdapter, BookInstance, RenderOptions, TOCItem } from "../types/reader";
 
 interface ReaderViewProps {
   onClose: () => void;
@@ -13,7 +16,7 @@ interface ReaderViewProps {
 
 export function ReaderView({ onClose }: ReaderViewProps) {
   const logger = useLogger("ReaderView");
-  const { currentBookPath, getBookState, updateLocation, updateSettings } = useBookStore();
+  const { currentBookPath, getBookState, updateLocation, updateSettings, addBookmark, removeBookmark } = useBookStore();
   const { toggleSidebar, sidebarVisible } = useUiStore();
 
   const [loading, setLoading] = useState(true);
@@ -25,8 +28,17 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const [viewMode, setViewMode] = useState<"single" | "two-page" | "scroll">("single");
   const [readerTheme, setReaderTheme] = useState<"light" | "dark" | "sepia">("dark");
   const [fontSize, setFontSize] = useState<number>(16);
+  const [lineHeight, setLineHeight] = useState<number>(1.6);
+  const [margin, setMargin] = useState<number>(32);
+  const [fontFamily, setFontFamily] = useState<'serif' | 'sans' | 'mono'>('serif');
   const [isJumpModalOpen, setIsJumpModalOpen] = useState(false);
   const [jumpPageInput, setJumpPageInput] = useState("");
+
+  // Search & TOC & Bookmark Drawer state
+  const [toc, setToc] = useState<TOCItem[]>([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>("toc");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const pageContainerRef = useRef<HTMLDivElement>(null);
@@ -35,6 +47,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<BookAdapter | null>(null);
   const touchStartXRef = useRef<number | null>(null);
+  const renderedPagesRef = useRef<Set<number>>(new Set());
+  const isScrollingToPageRef = useRef<boolean>(false);
+
+  const scrollPages = useMemo(() => Array.from({ length: totalPages }, (_, i) => i + 1), [totalPages]);
 
   // Load Book Adapter and File Data
   useEffect(() => {
@@ -68,6 +84,16 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         const count = Math.max(1, adapter.getPageCount());
         setTotalPages(count);
 
+        // Load Table of Contents
+        try {
+          const loadedToc = await adapter.getTOC();
+          if (isMounted) {
+            setToc(loadedToc);
+          }
+        } catch (tocErr) {
+          logger.warn("FAILED_TO_LOAD_TOC", { error: String(tocErr) });
+        }
+
         // Restore saved book state
         const savedState = getBookState(currentBookPath!);
         if (savedState) {
@@ -82,6 +108,9 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           if (savedState.settings) {
             setReaderTheme(savedState.settings.theme);
             setFontSize(savedState.settings.fontSize);
+            if (savedState.settings.lineHeight) setLineHeight(savedState.settings.lineHeight);
+            if (savedState.settings.margin) setMargin(savedState.settings.margin);
+            if (savedState.settings.fontFamily) setFontFamily(savedState.settings.fontFamily);
             if (savedState.settings.continuousScroll) {
               setViewMode("scroll");
             } else if (savedState.settings.twoPageView) {
@@ -122,10 +151,14 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     };
   }, [currentBookPath, getBookState, logger]);
 
-  // Render current page content
+  // Render current page content (for single and two-page views)
   const renderPages = useCallback(async () => {
     const adapter = adapterRef.current;
     if (!adapter || loading || !containerRef.current) return;
+    if (viewMode === "scroll") {
+      // Continuous scroll mode is handled via virtualized page slots and IntersectionObserver
+      return;
+    }
 
     setRendering(true);
     const container = containerRef.current;
@@ -137,11 +170,11 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       height: height - 40,
       theme: readerTheme,
       fontSize,
-      lineHeight: 1.6,
-      margin: 32,
-      fontFamily: 'serif',
+      lineHeight,
+      margin,
+      fontFamily,
       twoPageView: viewMode === "two-page",
-      continuousScroll: viewMode === "scroll",
+      continuousScroll: false,
     };
 
     try {
@@ -161,36 +194,147 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           rightPageRef.current.innerHTML = "";
           rightPageRef.current.style.display = "none";
         }
-      } else if (viewMode === "scroll" && scrollContainerRef.current) {
-        if (adapter.renderPageRange) {
-          await adapter.renderPageRange(1, totalPages, scrollContainerRef.current, baseOptions);
-        } else {
-          // Render current page into scroll container
-          await adapter.renderPage(currentPage, scrollContainerRef.current, baseOptions);
-        }
       }
     } catch (err) {
       logger.warn("RENDER_PAGE_ERROR", { currentPage, viewMode, error: String(err) });
     } finally {
       setRendering(false);
     }
-  }, [loading, viewMode, currentPage, totalPages, readerTheme, fontSize, logger]);
+  }, [loading, viewMode, currentPage, totalPages, readerTheme, fontSize, lineHeight, margin, fontFamily, logger]);
 
   // Re-render when layout parameters change
   useEffect(() => {
-    if (!loading && !error) {
+    if (!loading && !error && viewMode !== "scroll") {
       renderPages();
     }
-  }, [loading, error, renderPages]);
+  }, [loading, error, viewMode, renderPages]);
+
+  // Lazy-loaded page slots IntersectionObserver for Continuous Scroll View
+  useEffect(() => {
+    if (viewMode !== "scroll" || !scrollContainerRef.current || !adapterRef.current || loading) {
+      return;
+    }
+
+    const adapter = adapterRef.current;
+    const container = containerRef.current;
+    const width = container?.clientWidth || 800;
+    const height = container?.clientHeight || 600;
+
+    const baseOptions: RenderOptions = {
+      width: Math.min(width - 48, 860),
+      height: height - 40,
+      theme: readerTheme,
+      fontSize,
+      lineHeight,
+      margin,
+      fontFamily,
+      twoPageView: false,
+      continuousScroll: true,
+    };
+
+    // Invalidate cached renders when layout/theme/font settings change so slots re-render
+    renderedPagesRef.current.clear();
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const pageNum = parseInt(entry.target.getAttribute("data-page-num") || "0", 10);
+            if (pageNum && !renderedPagesRef.current.has(pageNum)) {
+              renderedPagesRef.current.add(pageNum);
+              const contentEl = document.getElementById(`reader-page-content-${pageNum}`);
+              if (contentEl) {
+                adapter.renderPage(pageNum, contentEl, baseOptions).catch((err) => {
+                  logger.warn("LAZY_RENDER_PAGE_ERROR", { pageNum, error: String(err) });
+                });
+              }
+            }
+          }
+        });
+      },
+      {
+        root: scrollContainerRef.current,
+        rootMargin: "600px 0px",
+      }
+    );
+
+    const slots = scrollContainerRef.current.querySelectorAll(".reader-page-slot");
+    slots.forEach((slot) => observer.observe(slot));
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [viewMode, totalPages, loading, readerTheme, fontSize, lineHeight, margin, fontFamily, logger]);
+
+  // Initial scroll position restoration in scroll view
+  useEffect(() => {
+    if (viewMode === "scroll" && scrollContainerRef.current && currentPage > 1) {
+      const timer = setTimeout(() => {
+        const targetSlot = document.getElementById(`reader-page-${currentPage}`);
+        if (targetSlot) {
+          targetSlot.scrollIntoView({ behavior: "auto", block: "start" });
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [viewMode]);
+
+  // Bidirectional scroll position tracking for Continuous Scroll View
+  useEffect(() => {
+    if (viewMode !== "scroll" || !scrollContainerRef.current) return;
+
+    const scrollEl = scrollContainerRef.current;
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (isScrollingToPageRef.current) return;
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          ticking = false;
+          if (!scrollEl) return;
+          const containerRect = scrollEl.getBoundingClientRect();
+          const centerY = containerRect.top + containerRect.height / 3;
+
+          const slots = scrollEl.querySelectorAll(".reader-page-slot");
+          let closestPage = currentPage;
+          let minDistance = Infinity;
+
+          slots.forEach((slot) => {
+            const rect = slot.getBoundingClientRect();
+            const slotCenterY = rect.top + rect.height / 2;
+            const distance = Math.abs(slotCenterY - centerY);
+            if (distance < minDistance) {
+              minDistance = distance;
+              const p = parseInt(slot.getAttribute("data-page-num") || "0", 10);
+              if (p) closestPage = p;
+            }
+          });
+
+          if (closestPage !== currentPage && closestPage >= 1 && closestPage <= totalPages) {
+            setCurrentPage(closestPage);
+            if (currentBookPath) {
+              updateLocation(currentBookPath, closestPage, totalPages);
+            }
+          }
+        });
+        ticking = true;
+      }
+    };
+
+    scrollEl.addEventListener("scroll", handleScroll, { passive: true });
+    return () => scrollEl.removeEventListener("scroll", handleScroll);
+  }, [viewMode, currentPage, totalPages, currentBookPath, updateLocation]);
 
   // Handle window resizing
   useEffect(() => {
     const handleResize = () => {
-      renderPages();
+      if (viewMode !== "scroll") {
+        renderPages();
+      }
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [renderPages]);
+  }, [renderPages, viewMode]);
 
   // Navigation handlers
   const goToPage = useCallback((pageNum: number) => {
@@ -199,7 +343,18 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     if (currentBookPath) {
       updateLocation(currentBookPath, clamped, totalPages);
     }
-  }, [totalPages, currentBookPath, updateLocation]);
+
+    if (viewMode === "scroll" && scrollContainerRef.current) {
+      const targetEl = document.getElementById(`reader-page-${clamped}`);
+      if (targetEl) {
+        isScrollingToPageRef.current = true;
+        targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        setTimeout(() => {
+          isScrollingToPageRef.current = false;
+        }, 500);
+      }
+    }
+  }, [totalPages, currentBookPath, updateLocation, viewMode]);
 
   const prevPage = useCallback(() => {
     const step = viewMode === "two-page" ? 2 : 1;
@@ -241,7 +396,38 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           break;
         case "Escape":
           e.preventDefault();
-          onClose();
+          if (isJumpModalOpen) {
+            setIsJumpModalOpen(false);
+          } else if (isSettingsOpen) {
+            setIsSettingsOpen(false);
+          } else if (isDrawerOpen) {
+            setIsDrawerOpen(false);
+          } else {
+            onClose();
+          }
+          break;
+        case "s":
+        case "S":
+          e.preventDefault();
+          setIsSettingsOpen(curr => !curr);
+          break;
+        case "f":
+        case "F":
+          e.preventDefault();
+          setDrawerTab("search");
+          setIsDrawerOpen(true);
+          break;
+        case "c":
+        case "C":
+          e.preventDefault();
+          setDrawerTab("toc");
+          setIsDrawerOpen(curr => (drawerTab === "toc" ? !curr : true));
+          break;
+        case "b":
+        case "B":
+          e.preventDefault();
+          setDrawerTab("bookmarks");
+          setIsDrawerOpen(curr => (drawerTab === "bookmarks" ? !curr : true));
           break;
         case "+":
         case "=":
@@ -271,7 +457,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [nextPage, prevPage, goToPage, totalPages, onClose]);
+  }, [nextPage, prevPage, goToPage, totalPages, onClose, isJumpModalOpen, isSettingsOpen, isDrawerOpen, drawerTab]);
 
   // Touch Swipe handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -335,11 +521,85 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       updateSettings(currentBookPath, {
         theme: readerTheme,
         fontSize,
+        lineHeight,
+        margin,
+        fontFamily,
         twoPageView: viewMode === "two-page",
         continuousScroll: viewMode === "scroll",
       });
     }
-  }, [readerTheme, fontSize, viewMode, currentBookPath, updateSettings]);
+  }, [readerTheme, fontSize, lineHeight, margin, fontFamily, viewMode, currentBookPath, updateSettings]);
+
+  // Auto-save reading position on scroll in continuous scroll view
+  useEffect(() => {
+    if (viewMode !== "scroll" || !scrollContainerRef.current) return;
+    const container = scrollContainerRef.current;
+
+    let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
+    const handleScroll = () => {
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        const scrollHeight = container.scrollHeight - container.clientHeight;
+        if (scrollHeight > 0 && totalPages > 1) {
+          const scrollFraction = Math.max(0, Math.min(1, container.scrollTop / scrollHeight));
+          const approxPage = Math.min(totalPages, Math.max(1, Math.round(scrollFraction * (totalPages - 1)) + 1));
+          if (approxPage !== currentPage) {
+            setCurrentPage(approxPage);
+            if (currentBookPath) {
+              updateLocation(currentBookPath, approxPage, totalPages);
+            }
+          }
+        }
+      }, 150);
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+    };
+  }, [viewMode, totalPages, currentPage, currentBookPath, updateLocation]);
+
+  // Auto-save reading position on unmount / window beforeunload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (currentBookPath) {
+        updateLocation(currentBookPath, currentPage, totalPages);
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      if (currentBookPath) {
+        updateLocation(currentBookPath, currentPage, totalPages);
+      }
+    };
+  }, [currentBookPath, currentPage, totalPages, updateLocation]);
+
+  // Settings helpers
+  const handleUpdateSettings = (updates: Partial<BookSettings>) => {
+    if (updates.fontSize !== undefined) setFontSize(updates.fontSize);
+    if (updates.lineHeight !== undefined) setLineHeight(updates.lineHeight);
+    if (updates.margin !== undefined) setMargin(updates.margin);
+    if (updates.fontFamily !== undefined) setFontFamily(updates.fontFamily);
+    if (updates.theme !== undefined) setReaderTheme(updates.theme);
+    if (updates.continuousScroll !== undefined && updates.continuousScroll) {
+      setViewMode("scroll");
+    } else if (updates.twoPageView !== undefined && updates.twoPageView) {
+      setViewMode("two-page");
+    } else if (updates.continuousScroll === false || updates.twoPageView === false) {
+      setViewMode("single");
+    }
+  };
+
+  const handleResetSettings = () => {
+    setFontSize(16);
+    setLineHeight(1.6);
+    setMargin(32);
+    setFontFamily("serif");
+    setReaderTheme("dark");
+    setViewMode("single");
+  };
 
   if (loading) {
     return (
@@ -417,6 +677,68 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
         {/* View Mode & Theme Controls */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Drawer Navigation Buttons */}
+          <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
+            <button
+              onClick={() => {
+                setDrawerTab("toc");
+                setIsDrawerOpen(curr => (drawerTab === "toc" ? !curr : true));
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors ${
+                isDrawerOpen && drawerTab === "toc"
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "hover:bg-black/5 dark:hover:bg-white/5"
+              }`}
+              title="Table of Contents (C)"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+              <span>Contents</span>
+              {toc.length > 0 && (
+                <span className="opacity-75 text-[10px] px-1 py-0.2 bg-black/10 dark:bg-white/10 rounded-full">
+                  {toc.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setDrawerTab("search");
+                setIsDrawerOpen(curr => (drawerTab === "search" ? !curr : true));
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
+                isDrawerOpen && drawerTab === "search"
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "hover:bg-black/5 dark:hover:bg-white/5"
+              }`}
+              style={{ borderColor: themeStyle.border }}
+              title="Search Book (Ctrl+F)"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <span>Search</span>
+            </button>
+            <button
+              onClick={() => {
+                setDrawerTab("bookmarks");
+                setIsDrawerOpen(curr => (drawerTab === "bookmarks" ? !curr : true));
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
+                isDrawerOpen && drawerTab === "bookmarks"
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "hover:bg-black/5 dark:hover:bg-white/5"
+              }`}
+              style={{ borderColor: themeStyle.border }}
+              title="Bookmarks (B)"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+              <span>Bookmarks</span>
+            </button>
+          </div>
+
           {/* View Mode Selectors */}
           <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
             <button
@@ -516,6 +838,24 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             </button>
           </div>
 
+          {/* Settings Button */}
+          <button
+            onClick={() => setIsSettingsOpen(curr => !curr)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded border transition-colors ${
+              isSettingsOpen
+                ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-sm"
+                : "hover:bg-black/5 dark:hover:bg-white/5"
+            }`}
+            style={{ borderColor: themeStyle.border }}
+            title="Configure book settings (S)"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>Settings</span>
+          </button>
+
           <button
             onClick={onClose}
             className="p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ml-1"
@@ -530,7 +870,11 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
       {/* Main Reading Viewport */}
       <main
-        className="flex-1 overflow-auto relative flex items-center justify-center p-4"
+        className={`flex-1 relative ${
+          viewMode === "scroll"
+            ? "overflow-hidden flex flex-col"
+            : "overflow-auto flex items-center justify-center p-4"
+        }`}
         ref={containerRef}
         style={{ backgroundColor: themeStyle.pageBg }}
       >
@@ -569,7 +913,32 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           <div
             ref={scrollContainerRef}
             className="w-full h-full overflow-y-auto overflow-x-hidden p-6 max-w-4xl mx-auto"
-          />
+          >
+            {scrollPages.map((pageNum: number) => (
+              <div
+                key={pageNum}
+                id={`reader-page-${pageNum}`}
+                data-page-num={pageNum}
+                className="reader-page-slot my-6 mx-auto rounded shadow-sm border relative transition-all"
+                style={{
+                  minHeight: "700px",
+                  backgroundColor: themeStyle.pageBg,
+                  borderColor: themeStyle.border,
+                  maxWidth: "100%",
+                }}
+              >
+                <div
+                  id={`reader-page-content-${pageNum}`}
+                  className="w-full h-full min-h-[700px] flex items-center justify-center p-2"
+                >
+                  <div className="text-xs text-[var(--color-text-muted)] opacity-50 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
+                    Page {pageNum} of {totalPages}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </main>
 
@@ -613,6 +982,43 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             title="Click to jump to page"
           >
             Page {currentPage} of {totalPages}
+          </button>
+
+          {/* Quick Bookmark Toggle */}
+          <button
+            onClick={() => {
+              if (currentBookPath) {
+                const bookBookmarks = getBookState(currentBookPath)?.bookmarks ?? [];
+                const existing = bookBookmarks.find(b => b.location === currentPage);
+                if (existing) {
+                  removeBookmark(currentBookPath, existing.id);
+                } else {
+                  addBookmark(currentBookPath, {
+                    location: currentPage,
+                    label: `Page ${currentPage}`,
+                  });
+                }
+              }
+            }}
+            title={
+              currentBookPath && getBookState(currentBookPath)?.bookmarks?.some(b => b.location === currentPage)
+                ? "Remove bookmark for this page"
+                : "Bookmark this page"
+            }
+            className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${
+              currentBookPath && getBookState(currentBookPath)?.bookmarks?.some(b => b.location === currentPage)
+                ? "text-amber-500 fill-amber-500"
+                : "opacity-60 hover:opacity-100"
+            }`}
+          >
+            <svg
+              className="w-4 h-4"
+              fill={currentBookPath && getBookState(currentBookPath)?.bookmarks?.some(b => b.location === currentPage) ? "currentColor" : "none"}
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            </svg>
           </button>
 
           <span className="text-xs font-medium text-[var(--color-text-muted)] whitespace-nowrap">
@@ -685,6 +1091,57 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           </div>
         </div>
       )}
+
+      {/* Search, TOC, and Bookmark Drawer */}
+      <SearchAndTOCDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        activeTab={drawerTab}
+        onTabChange={setDrawerTab}
+        toc={toc}
+        currentPage={currentPage}
+        onNavigateToPage={(page) => {
+          goToPage(page);
+          setIsDrawerOpen(false);
+        }}
+        onSearch={async (query) => {
+          if (!adapterRef.current) return [];
+          return adapterRef.current.search(query);
+        }}
+        bookmarks={currentBookPath ? (getBookState(currentBookPath)?.bookmarks ?? []) : []}
+        onAddBookmark={(page, label) => {
+          if (currentBookPath) {
+            addBookmark(currentBookPath, { location: page, label });
+          }
+        }}
+        onRemoveBookmark={(id) => {
+          if (currentBookPath) {
+            removeBookmark(currentBookPath, id);
+          }
+        }}
+        theme={readerTheme}
+      />
+
+      {/* Settings Drawer */}
+      <SettingsDrawer
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={{
+          fontSize,
+          lineHeight,
+          margin,
+          fontFamily,
+          theme: readerTheme,
+          twoPageView: viewMode === "two-page",
+          continuousScroll: viewMode === "scroll",
+        }}
+        onUpdateSettings={handleUpdateSettings}
+        onResetSettings={handleResetSettings}
+        bookInstance={bookInstance}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        theme={readerTheme}
+      />
     </div>
   );
 }

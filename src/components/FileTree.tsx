@@ -16,6 +16,7 @@ interface FileTreeProps {
   rootPath: string;
   onFileClick: (path: string) => void;
   onDirectoryChange?: (path: string) => void;
+  searchQuery?: string;
 }
 
 const SUPPORTED_EXTENSIONS = new Set([
@@ -28,6 +29,38 @@ const SUPPORTED_EXTENSIONS = new Set([
   ".htm",
   ".docx",
 ]);
+
+function highlightText(text: string, query: string) {
+  if (!query.trim()) return text;
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const idx = lowerText.indexOf(lowerQuery);
+  if (idx === -1) return text;
+
+  const before = text.slice(0, idx);
+  const match = text.slice(idx, idx + query.length);
+  const after = text.slice(idx + query.length);
+
+  return (
+    <>
+      {before}
+      <mark className="bg-amber-300 dark:bg-amber-600/70 text-black dark:text-white rounded px-0.5">
+        {match}
+      </mark>
+      {after}
+    </>
+  );
+}
+
+function nodeMatchesQuery(node: FileNode, query: string): boolean {
+  if (!query.trim()) return true;
+  const q = query.toLowerCase();
+  if (node.name.toLowerCase().includes(q)) return true;
+  if (node.children) {
+    return node.children.some(child => nodeMatchesQuery(child, query));
+  }
+  return false;
+}
 
 function getFormatBadge(path: string): { label: string; color: string } | null {
   const ext = path.toLowerCase().slice(path.lastIndexOf("."));
@@ -52,21 +85,36 @@ function FileTreeNode({
   expandedPaths,
   onToggleExpand,
   onFileClick,
+  onDirectoryClick,
+  searchQuery = "",
 }: {
   node: FileNode;
   depth: number;
   expandedPaths: string[];
   onToggleExpand: (path: string) => void;
   onFileClick: (path: string) => void;
+  onDirectoryClick?: (path: string) => void;
+  searchQuery?: string;
 }) {
-  const isExpanded = expandedPaths.includes(node.path);
+  const isExpanded = searchQuery ? true : expandedPaths.includes(node.path);
   const badge = useMemo(() => getFormatBadge(node.path), [node.path]);
 
+  const matchesSelf = searchQuery
+    ? node.name.toLowerCase().includes(searchQuery.toLowerCase())
+    : true;
+
   if (!node.isDirectory) {
+    if (searchQuery && !matchesSelf) return null;
+
     return (
-      <div className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--color-hover)] rounded transition-colors group">
+      <div
+        className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--color-hover)] rounded transition-colors group cursor-pointer"
+        onClick={() => onFileClick(node.path)}
+      >
         <span className="w-5" />
-        <span className="flex-1 truncate text-sm text-[var(--color-text)]">{node.name}</span>
+        <span className="flex-1 truncate text-sm text-[var(--color-text)]">
+          {highlightText(node.name, searchQuery)}
+        </span>
         {badge && (
           <span className={`px-1.5 py-0.5 text-xs font-medium rounded ${badge.color}`}>
             {badge.label}
@@ -76,13 +124,27 @@ function FileTreeNode({
     );
   }
 
+  const hasMatchingDescendant = searchQuery
+    ? node.children?.some(child => nodeMatchesQuery(child, searchQuery))
+    : true;
+
+  if (searchQuery && !matchesSelf && !hasMatchingDescendant) {
+    return null;
+  }
+
   return (
     <div>
       <div
-        className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--color-hover)] rounded transition-colors cursor-pointer"
-        onClick={() => onToggleExpand(node.path)}
+        className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--color-hover)] rounded transition-colors cursor-pointer group"
       >
-        <span className="w-5 flex items-center justify-center">
+        <span
+          className="w-5 flex items-center justify-center p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleExpand(node.path);
+          }}
+          title={isExpanded ? "Collapse" : "Expand"}
+        >
           {isExpanded ? (
             <svg className="w-4 h-4 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -96,7 +158,17 @@ function FileTreeNode({
         <svg className="w-5 h-5 text-[var(--color-text-muted)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
         </svg>
-        <span className="flex-1 truncate text-sm font-medium text-[var(--color-text)]">{node.name}</span>
+        <span
+          className="flex-1 truncate text-sm font-medium text-[var(--color-text)] hover:text-[var(--color-primary)] transition-colors"
+          onClick={() => {
+            onToggleExpand(node.path);
+            if (onDirectoryClick) {
+              onDirectoryClick(node.path);
+            }
+          }}
+        >
+          {highlightText(node.name, searchQuery)}
+        </span>
         {node.children && node.children.length > 0 && (
           <span className="text-xs text-[var(--color-text-muted)]">{node.children.length} items</span>
         )}
@@ -111,6 +183,8 @@ function FileTreeNode({
               expandedPaths={expandedPaths}
               onToggleExpand={onToggleExpand}
               onFileClick={onFileClick}
+              onDirectoryClick={onDirectoryClick}
+              searchQuery={searchQuery}
             />
           ))}
         </div>
@@ -119,7 +193,7 @@ function FileTreeNode({
   );
 }
 
-export function FileTree({ rootPath, onFileClick }: FileTreeProps) {
+export function FileTree({ rootPath, onFileClick, onDirectoryChange, searchQuery = "" }: FileTreeProps) {
   const { expandedPaths, toggleExpandedPath, setCurrentRoot } = useUiStore();
   const [tree, setTree] = useState<FileNode | null>(null);
   const [loading, setLoading] = useState(true);
@@ -270,6 +344,8 @@ export function FileTree({ rootPath, onFileClick }: FileTreeProps) {
           expandedPaths={expandedPaths}
           onToggleExpand={handleToggleExpand}
           onFileClick={onFileClick}
+          onDirectoryClick={onDirectoryChange}
+          searchQuery={searchQuery}
         />
       )}
       {!rootPath && !loading && (

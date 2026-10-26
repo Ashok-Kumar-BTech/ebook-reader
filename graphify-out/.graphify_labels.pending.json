@@ -1,10 +1,10 @@
 {
-  "0": "RenderOptions",
+  "0": "BookInstance",
   "1": "package.json",
   "2": "bookStore.ts",
   "3": "lib.rs",
   "4": "tauri.conf.json",
-  "5": "VirtualizedFileList.tsx",
+  "5": "logger/index.ts",
   "6": "compilerOptions",
   "7": "PdfAdapter",
   "8": "EpubAdapter",
@@ -32,6 +32,17 @@
   "30": "postcss.config.js",
   "31": "vite-env.d.ts",
   "32": "App.tsx",
-  "33": "BookAdapter",
-  "38": "DEV-LOG.md"
+  "33": "registry.ts",
+  "34": "types.ts",
+  "35": "bookStore.ts",
+  "36": "DocxAdapter",
+  "37": "main.tsx",
+  "38": "DEV-LOG.md",
+  "39": "SearchResult",
+  "40": "HtmlAdapter",
+  "41": "formatRegistry",
+  "42": "BookAdapter",
+  "43": "Technical Tasks & Progress",
+  "44": "scripts",
+  "45": "vite.config.ts"
 }

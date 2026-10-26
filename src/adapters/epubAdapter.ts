@@ -153,47 +153,33 @@ export class EpubAdapter implements BookAdapter {
       });
     }
     
-    const spineItem = this.spineItems[pageNum];
+    const idx = (pageNum >= 1 && pageNum <= this.pageCount) ? pageNum - 1 : Math.max(0, pageNum);
+    const spineItem = this.spineItems[idx];
     if (spineItem) {
       await this.rendition.display(spineItem.href);
-      this.currentLocation = pageNum;
+      this.currentLocation = idx;
     }
   }
 
   async renderPageRange(
     startPage: number,
-    _endPage: number,
+    endPage: number,
     container: HTMLElement,
     options: RenderOptions
   ): Promise<void> {
     if (!this.book) return;
     container.innerHTML = '';
+    const boundedStart = Math.max(1, startPage);
+    const boundedEnd = Math.min(endPage, this.pageCount);
     
-    if (!this.rendition) {
-      this.rendition = this.book.renderTo(container, {
-        width: options.width - options.margin * 2,
-        height: 'auto',
-        spread: 'none',
-        styles: {
-          body: {
-            'font-family': this.getFontFamily(options.fontFamily),
-            'font-size': options.fontSize + 'px',
-            'line-height': options.lineHeight,
-            'margin': options.margin + 'px',
-            'color': this.getThemeColor(options.theme),
-            'background-color': this.getThemeBg(options.theme),
-          },
-        },
-      });
+    for (let pageNum = boundedStart; pageNum <= boundedEnd; pageNum++) {
+      const pageWrapper = document.createElement('div');
+      pageWrapper.className = 'epub-page-item';
+      pageWrapper.style.margin = `${options.margin / 2}px auto`;
+      container.appendChild(pageWrapper);
+      await this.renderPage(pageNum, pageWrapper, options);
     }
-    
-    if (startPage < this.pageCount) {
-      const spineItem = this.spineItems[startPage];
-      if (spineItem) {
-        await this.rendition.display(spineItem.href);
-        this.currentLocation = startPage;
-      }
-    }
+    this.currentLocation = boundedEnd;
   }
 
   private getFontFamily(fontFamily: string): string {

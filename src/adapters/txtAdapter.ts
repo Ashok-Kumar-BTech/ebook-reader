@@ -58,43 +58,51 @@ export class TxtAdapter implements BookAdapter {
           charCount += this.pages[i].length + 2;
           if (charCount > charIndex) { pageIndex = i; break; }
         }
-        results.push({ location: pageIndex, context: line.trim().substring(0, 200), matchedText: query });
+        results.push({ location: pageIndex + 1, context: line.trim().substring(0, 200), matchedText: query });
       }
     });
     return results;
   }
 
   async getTOC(): Promise<TOCItem[]> {
-    return this.pages.map((page, index) => {
+    const toc: TOCItem[] = [];
+    this.pages.forEach((page, index) => {
+      const pageNum = index + 1;
+      const chapterMatch = page.match(/(?:Chapter|Section|Act|Part)\s+[0-9IVXLCDM]+/i);
       const firstLine = page.split('\n')[0].trim().substring(0, 50);
-      return { id: 'page-' + index, label: firstLine || 'Page ' + (index + 1), location: index, level: 0 };
+      const label = chapterMatch ? chapterMatch[0] : (firstLine || `Page ${pageNum}`);
+      toc.push({ id: `page-${pageNum}`, label, location: pageNum, level: 0 });
     });
+    return toc;
   }
 
   async renderPage(pageNum: number, container: HTMLElement, options: RenderOptions): Promise<void> {
-    if (pageNum < 0 || pageNum >= this.pageCount) return;
-    const text = this.pages[pageNum];
+    const idx = (pageNum >= 1 && pageNum <= this.pageCount) ? pageNum - 1 : pageNum;
+    if (idx < 0 || idx >= this.pageCount) return;
+    const text = this.pages[idx];
     const div = document.createElement('div');
     div.style.whiteSpace = 'pre-wrap';
     div.style.fontFamily = this.getFontFamily(options.fontFamily);
     div.style.fontSize = options.fontSize + 'px';
     div.style.lineHeight = options.lineHeight.toString();
-    div.style.margin = options.margin + 'px';
     div.style.color = this.getThemeColor(options.theme);
     div.style.backgroundColor = this.getThemeBg(options.theme);
-    div.style.maxWidth = (options.width - options.margin * 2) + 'px';
+    div.style.width = '100%';
+    div.style.maxWidth = Math.max(400, (options.width - options.margin * 2)) + 'px';
     div.style.margin = '0 auto';
     div.style.padding = options.margin + 'px';
     div.textContent = text;
     container.innerHTML = '';
     container.appendChild(div);
-    this.currentPage = pageNum;
+    this.currentPage = idx;
   }
 
   async renderPageRange(startPage: number, endPage: number, container: HTMLElement, options: RenderOptions): Promise<void> {
     container.innerHTML = '';
     const fragment = document.createDocumentFragment();
-    for (let pageNum = startPage; pageNum <= endPage && pageNum < this.pageCount; pageNum++) {
+    const startIdx = (startPage >= 1 && startPage <= this.pageCount) ? startPage - 1 : startPage;
+    const endIdx = (endPage >= 1 && endPage <= this.pageCount) ? endPage - 1 : endPage;
+    for (let pageNum = startIdx; pageNum <= endIdx && pageNum < this.pageCount; pageNum++) {
       const text = this.pages[pageNum];
       const div = document.createElement('div');
       div.style.whiteSpace = 'pre-wrap';
@@ -111,7 +119,7 @@ export class TxtAdapter implements BookAdapter {
       fragment.appendChild(div);
     }
     container.appendChild(fragment);
-    this.currentPage = endPage;
+    this.currentPage = endIdx;
   }
 
   private getFontFamily(fontFamily: string): string {

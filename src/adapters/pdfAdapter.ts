@@ -175,10 +175,17 @@ export class PdfAdapter implements BookAdapter {
     container.innerHTML = '';
     container.appendChild(canvas);
     
-    await page.render({
-      canvasContext: context,
-      viewport: scaledViewport,
-    }).promise;
+    try {
+      await page.render({
+        canvasContext: context,
+        viewport: scaledViewport,
+      }).promise;
+    } catch (renderErr: unknown) {
+      const errName = (renderErr as { name?: string })?.name;
+      if (errName !== 'RenderingCancelledException') {
+        throw renderErr;
+      }
+    }
     
     this.currentPage = pageNum;
   }
@@ -192,44 +199,18 @@ export class PdfAdapter implements BookAdapter {
     if (!this.pdfDoc) return;
     
     container.innerHTML = '';
-    const fragment = document.createDocumentFragment();
+    const boundedStart = Math.max(1, startPage);
+    const boundedEnd = Math.min(endPage, this.pageCount);
     
-    for (let pageNum = startPage; pageNum <= endPage && pageNum <= this.pageCount; pageNum++) {
-      const page = await this.pdfDoc.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 1.5 });
-      
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d')!;
-      
-      const containerWidth = options.width - options.margin * 2;
-      const scale = Math.min(containerWidth / viewport.width, 2);
-      
-      const scaledViewport = page.getViewport({ scale });
-      canvas.width = scaledViewport.width;
-      canvas.height = scaledViewport.height;
-      
-      if (options.theme === 'dark') {
-        canvas.style.filter = 'invert(1) hue-rotate(180deg)';
-      } else if (options.theme === 'sepia') {
-        canvas.style.filter = 'sepia(1) contrast(1.2) brightness(0.9)';
-      }
-      
-      canvas.style.maxWidth = '100%';
-      canvas.style.height = 'auto';
-      canvas.style.display = 'block';
-      canvas.style.margin = (options.margin / 2) + 'px auto';
-      canvas.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-      
-      fragment.appendChild(canvas);
-      
-      await page.render({
-        canvasContext: context,
-        viewport: scaledViewport,
-      }).promise;
+    for (let pageNum = boundedStart; pageNum <= boundedEnd; pageNum++) {
+      const pageWrapper = document.createElement('div');
+      pageWrapper.className = 'pdf-page-item';
+      pageWrapper.style.margin = `${options.margin / 2}px auto`;
+      container.appendChild(pageWrapper);
+      await this.renderPage(pageNum, pageWrapper, options);
     }
     
-    container.appendChild(fragment);
-    this.currentPage = endPage;
+    this.currentPage = boundedEnd;
   }
 }
 

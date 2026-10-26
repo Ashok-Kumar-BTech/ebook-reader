@@ -85,9 +85,10 @@ export class CbzAdapter implements BookAdapter {
   }
 
   async renderPage(pageNum: number, container: HTMLElement, options: RenderOptions): Promise<void> {
-    if (!this.zip || pageNum < 0 || pageNum >= this.pageCount) return;
+    const idx = (pageNum >= 1 && pageNum <= this.pageCount) ? pageNum - 1 : pageNum;
+    if (!this.zip || idx < 0 || idx >= this.pageCount) return;
     
-    const fileName = this.imageFiles[pageNum];
+    const fileName = this.imageFiles[idx];
     const file = this.zip.files[fileName];
     if (!file) return;
     
@@ -127,36 +128,18 @@ export class CbzAdapter implements BookAdapter {
     if (!this.zip) return;
     
     container.innerHTML = '';
-    const fragment = document.createDocumentFragment();
+    const startIdx = (startPage >= 1 && startPage <= this.pageCount) ? startPage - 1 : Math.max(0, startPage);
+    const endIdx = (endPage >= 1 && endPage <= this.pageCount) ? endPage - 1 : Math.min(this.pageCount - 1, endPage);
     
-    for (let pageNum = startPage; pageNum <= endPage && pageNum < this.pageCount; pageNum++) {
-      const fileName = this.imageFiles[pageNum];
-      const file = this.zip.files[fileName];
-      if (!file) continue;
-      
-      const blob = await file.async('blob');
-      const url = URL.createObjectURL(blob);
-      
-      const img = document.createElement('img');
-      img.src = url;
-      img.style.maxWidth = '100%';
-      img.style.height = 'auto';
-      img.style.display = 'block';
-      img.style.margin = `${options.margin / 2}px auto`;
-      img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-      
-      if (options.theme === 'dark') {
-        img.style.filter = 'invert(1) hue-rotate(180deg)';
-      } else if (options.theme === 'sepia') {
-        img.style.filter = 'sepia(1) contrast(1.2) brightness(0.9)';
-      }
-      
-      fragment.appendChild(img);
-      img.onload = () => URL.revokeObjectURL(url);
+    for (let pageNum = startIdx; pageNum <= endIdx && pageNum < this.pageCount; pageNum++) {
+      const pageWrapper = document.createElement('div');
+      pageWrapper.className = 'cbz-page-item';
+      pageWrapper.style.margin = `${options.margin / 2}px auto`;
+      container.appendChild(pageWrapper);
+      await this.renderPage(pageNum + 1, pageWrapper, options);
     }
     
-    container.appendChild(fragment);
-    this.currentPage = endPage;
+    this.currentPage = endIdx + 1;
   }
 }
 

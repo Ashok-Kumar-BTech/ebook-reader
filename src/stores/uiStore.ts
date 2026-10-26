@@ -26,11 +26,18 @@ export interface UiState {
   recentFolders: string[];
   recentFiles: string[];
   
+  // Directory Navigation History
+  dirHistory: string[];
+  dirHistoryIndex: number;
+  
   // Actions
   toggleSidebar: () => void;
   setSidebarVisible: (visible: boolean) => void;
   setSidebarWidth: (width: number) => void;
   setCurrentRoot: (path: string | null) => void;
+  navigateToDir: (path: string | null) => void;
+  navigateBack: () => void;
+  navigateForward: () => void;
   toggleExpandedPath: (path: string) => void;
   setSort: (field: SortBy) => void;
   setSortOrder: (order: SortOrder) => void;
@@ -77,6 +84,8 @@ const loggedStoreCreator = createLoggedStore<UiState>(
     appTheme: 'dark',
     recentFolders: [],
     recentFiles: [],
+    dirHistory: [],
+    dirHistoryIndex: -1,
 
     // Actions
     toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
@@ -85,7 +94,55 @@ const loggedStoreCreator = createLoggedStore<UiState>(
 
     setSidebarWidth: (width: number) => set({ sidebarWidth: Math.max(200, Math.min(600, width)) }),
 
-    setCurrentRoot: (path: string | null) => set({ currentRoot: path }),
+    setCurrentRoot: (path: string | null) => set((state) => {
+      if (!path) {
+        return { currentRoot: null, dirHistory: [], dirHistoryIndex: -1 };
+      }
+      if (path === state.currentRoot) return {};
+      const newHistory = state.dirHistory.slice(0, state.dirHistoryIndex + 1);
+      newHistory.push(path);
+      return {
+        currentRoot: path,
+        dirHistory: newHistory,
+        dirHistoryIndex: newHistory.length - 1,
+      };
+    }),
+
+    navigateToDir: (path: string | null) => set((state) => {
+      if (!path) {
+        return { currentRoot: null, dirHistory: [], dirHistoryIndex: -1 };
+      }
+      if (path === state.currentRoot) return {};
+      const newHistory = state.dirHistory.slice(0, state.dirHistoryIndex + 1);
+      newHistory.push(path);
+      return {
+        currentRoot: path,
+        dirHistory: newHistory,
+        dirHistoryIndex: newHistory.length - 1,
+      };
+    }),
+
+    navigateBack: () => set((state) => {
+      if (state.dirHistoryIndex > 0) {
+        const newIndex = state.dirHistoryIndex - 1;
+        return {
+          dirHistoryIndex: newIndex,
+          currentRoot: state.dirHistory[newIndex],
+        };
+      }
+      return {};
+    }),
+
+    navigateForward: () => set((state) => {
+      if (state.dirHistoryIndex < state.dirHistory.length - 1) {
+        const newIndex = state.dirHistoryIndex + 1;
+        return {
+          dirHistoryIndex: newIndex,
+          currentRoot: state.dirHistory[newIndex],
+        };
+      }
+      return {};
+    }),
 
     toggleExpandedPath: (path: string) => set((state) => ({
       expandedPaths: state.expandedPaths.includes(path)
@@ -117,7 +174,12 @@ const loggedStoreCreator = createLoggedStore<UiState>(
       await uiStorePersist.load();
       const stored = uiStorePersist.get();
       if (stored) {
-        set((state) => ({ ...state, ...stored }));
+        set((state) => ({
+          ...state,
+          ...stored,
+          dirHistory: stored.currentRoot ? [stored.currentRoot] : [],
+          dirHistoryIndex: stored.currentRoot ? 0 : -1,
+        }));
       }
     },
   })

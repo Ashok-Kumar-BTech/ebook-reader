@@ -15,6 +15,8 @@ interface VirtualizedFileListProps {
   entries: FileEntry[];
   onFileClick: (path: string) => void;
   onDirectoryClick: (path: string) => void;
+  parentPath?: string | null;
+  onParentClick?: () => void;
   loading?: boolean;
   error?: string | null;
   emptyMessage?: string;
@@ -87,6 +89,8 @@ export function VirtualizedFileList({
   entries,
   onFileClick,
   onDirectoryClick,
+  parentPath,
+  onParentClick,
   loading = false,
   error = null,
   emptyMessage,
@@ -115,7 +119,7 @@ export function VirtualizedFileList({
     );
   }
 
-  if (entries.length === 0) {
+  if (entries.length === 0 && !parentPath) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center text-[var(--color-text-muted)] p-8">
@@ -129,14 +133,35 @@ export function VirtualizedFileList({
   }
 
   return (
-    <div className="flex-1 overflow-hidden border-t border-[var(--color-border)]" style={{ height: '100%' }}>
-      <List<RowProps>
-        rowCount={entries.length}
-        rowHeight={ITEM_HEIGHT}
-        rowComponent={FileListItem}
-        rowProps={itemData}
-        style={{ height: '100%', width: '100%' }}
-      />
+    <div className="flex-1 flex flex-col overflow-hidden border-t border-[var(--color-border)]" style={{ height: '100%' }}>
+      {parentPath && onParentClick && (
+        <div
+          onClick={onParentClick}
+          className="flex items-center gap-3 px-3 py-2 border-b border-[var(--color-border)] hover:bg-[var(--color-hover)] transition-colors cursor-pointer bg-[var(--color-surface)]/40 flex-shrink-0"
+          title={`Go up to ${parentPath}`}
+        >
+          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 text-[var(--color-primary)]">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm text-[var(--color-text)]">.. (Up to parent)</span>
+            </div>
+            <div className="text-xs text-[var(--color-text-muted)] truncate">{parentPath}</div>
+          </div>
+        </div>
+      )}
+      <div className="flex-1 overflow-hidden" style={{ height: '100%' }}>
+        <List<RowProps>
+          rowCount={entries.length}
+          rowHeight={ITEM_HEIGHT}
+          rowComponent={FileListItem}
+          rowProps={itemData}
+          style={{ height: '100%', width: '100%' }}
+        />
+      </div>
     </div>
   );
 }
