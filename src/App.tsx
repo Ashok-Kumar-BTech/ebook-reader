@@ -522,11 +522,24 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="flex-1 min-h-0 overflow-y-auto p-6">
-                    {filteredEntries.length === 0 && !canGoUp ? (
-                      <div className="flex flex-col items-center justify-center p-12 text-[var(--color-text-muted)]">
-                        <p className="text-base font-medium">
-                          {librarySearchQuery ? `No ebooks match "${librarySearchQuery}"` : "No books found in this folder"}
+                    {filteredEntries.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-12 text-[var(--color-text-muted)] text-center">
+                        <div className="w-12 h-12 rounded-xl bg-black/5 dark:bg-white/5 flex items-center justify-center mb-3">
+                          <BookIcon size={24} className="opacity-40" />
+                        </div>
+                        <p className="text-base font-medium mb-1">
+                          {librarySearchQuery ? `No ebooks match "${librarySearchQuery}"` : "No supported ebooks found in this folder"}
                         </p>
+                        <p className="text-xs mb-4 opacity-75 max-w-sm">
+                          Select a folder containing your EPUB, PDF, CBZ, TXT, HTML, or DOCX books.
+                        </p>
+                        <button
+                          onClick={() => handleOpenDirectory()}
+                          className="px-4 py-2 bg-[var(--color-primary)] text-white text-xs font-semibold rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        >
+                          <FileDirectoryFillIcon size={14} />
+                          <span>Open Folder</span>
+                        </button>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">

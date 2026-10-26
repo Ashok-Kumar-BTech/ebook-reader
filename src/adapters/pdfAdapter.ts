@@ -159,8 +159,13 @@ export class PdfAdapter implements BookAdapter {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;
     
-    const containerWidth = options.width - options.margin * 2;
-    const scale = Math.min(Math.max(containerWidth / baseViewport.width, 0.5), 2.5);
+    const availableWidth = Math.max(100, options.width - options.margin * 2);
+    const availableHeight = Math.max(100, options.height - options.margin * 2);
+    const scaleX = availableWidth / baseViewport.width;
+    const scaleY = availableHeight / baseViewport.height;
+    // Fit completely inside available viewport in both dimensions (contain)
+    const fitScale = Math.min(scaleX, scaleY);
+    const scale = Math.min(Math.max(fitScale, 0.1), 3.0);
     
     const scaledViewport = page.getViewport({ scale });
     canvas.width = scaledViewport.width;
@@ -173,11 +178,18 @@ export class PdfAdapter implements BookAdapter {
     }
     
     canvas.style.maxWidth = '100%';
-    canvas.style.height = 'auto';
+    canvas.style.maxHeight = '100%';
+    canvas.style.objectFit = 'contain';
     canvas.style.display = 'block';
-    canvas.style.margin = '0 auto';
+    canvas.style.margin = 'auto';
     
     container.innerHTML = '';
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.justifyContent = 'center';
+    container.style.width = '100%';
+    container.style.height = '100%';
+    container.style.overflow = 'hidden';
     container.appendChild(canvas);
     
     try {

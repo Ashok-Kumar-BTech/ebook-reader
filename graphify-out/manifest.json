@@ -30,15 +30,15 @@
     "semantic_hash": ""
   },
   "src-tauri/capabilities/default.json": {
-    "mtime": 1792912022.1564243,
-    "seen": 1792921923.4781568,
-    "ast_hash": "e5574a33d297e6f522dc1fd987545c1a",
+    "mtime": 1793013406.2949867,
+    "seen": 1793014045.4334524,
+    "ast_hash": "13997acbf50a533551efc34fea0ff437",
     "semantic_hash": ""
   },
   "src-tauri/src/lib.rs": {
-    "mtime": 1792997883.7353976,
-    "seen": 1793004659.5226798,
-    "ast_hash": "5150f322bd44adb00a482865a4459299",
+    "mtime": 1793013381.2379975,
+    "seen": 1793014045.4334524,
+    "ast_hash": "ff4043a1e0ebc15d803cbcdb79c27fc1",
     "semantic_hash": ""
   },
   "src-tauri/src/main.rs": {
@@ -54,21 +54,21 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1793009444.2393434,
-    "seen": 1793010109.5079052,
-    "ast_hash": "305d0c21ff09482b18d4308e9961d08c",
+    "mtime": 1793013888.554371,
+    "seen": 1793014045.4334524,
+    "ast_hash": "13c371bb298bd78b87a37dded52757db",
     "semantic_hash": ""
   },
   "src/adapters/cbzAdapter.ts": {
-    "mtime": 1793004198.5752976,
-    "seen": 1793004659.5226798,
-    "ast_hash": "f128369b1ec289762c7ec818c7f0d5e9",
+    "mtime": 1793013580.6287386,
+    "seen": 1793014045.4334524,
+    "ast_hash": "1d3c7f2c0affe60c577b963d70aced7e",
     "semantic_hash": ""
   },
   "src/adapters/epubAdapter.ts": {
-    "mtime": 1793004218.54014,
-    "seen": 1793004659.5226798,
-    "ast_hash": "b7d5efe73d231d1ecb26f70460646072",
+    "mtime": 1793013635.1090589,
+    "seen": 1793014045.4334524,
+    "ast_hash": "ab112870865567d3252c8f66c7c6b1fd",
     "semantic_hash": ""
   },
   "src/adapters/htmlAdapter.ts": {
@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "src/adapters/pdfAdapter.ts": {
-    "mtime": 1793004178.8811347,
-    "seen": 1793004659.5226798,
-    "ast_hash": "08972be03814a709d733bc18524ddaad",
+    "mtime": 1793013565.2829537,
+    "seen": 1793014045.4334524,
+    "ast_hash": "119f325b0b53416371b4e9a1cad577f6",
     "semantic_hash": ""
   },
   "src/adapters/registry.ts": {
@@ -288,21 +288,21 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793010092.4251263,
-    "seen": 1793010109.5079052,
-    "ast_hash": "f19d5e9dfd8aad649ae51c51373dc001",
+    "mtime": 1793012140.025443,
+    "seen": 1793014045.4334524,
+    "ast_hash": "f703b1311318d12876160dae483a02af",
     "semantic_hash": ""
   },
   "PLAN-PROGRESS.md": {
-    "mtime": 1793010068.885341,
-    "seen": 1793010109.5079052,
-    "ast_hash": "b9b4a250ed9d15ef135af655bf1c0a81",
+    "mtime": 1793013931.9589787,
+    "seen": 1793014045.4334524,
+    "ast_hash": "fc6eecfbb0aaae499ccd33139e7ed73b",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
-    "mtime": 1793008826.0620394,
-    "seen": 1793010109.5079052,
-    "ast_hash": "d4e61ba96efca29dfc012ab64cf1a2f7",
+    "mtime": 1793013543.5365453,
+    "seen": 1793014045.4334524,
+    "ast_hash": "fd1f03f8f3540397b546fab3d7a19e9b",
     "semantic_hash": ""
   },
   "src/components/ErrorBoundary.tsx": {
@@ -318,9 +318,9 @@
     "semantic_hash": ""
   },
   "src/components/ReaderView.tsx": {
-    "mtime": 1793009463.8001878,
-    "seen": 1793010109.5079052,
-    "ast_hash": "78dfdcaae33f8bf76439cb45df4b1992",
+    "mtime": 1793013670.6697052,
+    "seen": 1793014045.4334524,
+    "ast_hash": "47ce3cb80fa27af06cb8c26cd8dca756",
     "semantic_hash": ""
   },
   "src/components/SearchAndTOCDrawer.tsx": {
@@ -432,9 +432,9 @@
     "semantic_hash": ""
   },
   "src/utils/windowState.ts": {
-    "mtime": 1793001875.8639145,
-    "seen": 1793004659.5236838,
-    "ast_hash": "29b74460e61ba443e91d0ea50b825457",
+    "mtime": 1793011385.2929032,
+    "seen": 1793014045.4334524,
+    "ast_hash": "66daa3003b51e4829a8b5b80b2d9cd5c",
     "semantic_hash": ""
   }
 }

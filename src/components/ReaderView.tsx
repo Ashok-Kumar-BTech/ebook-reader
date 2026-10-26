@@ -217,13 +217,20 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     const width = container.clientWidth || 800;
     const height = container.clientHeight || 600;
 
+    // Use actual measured dimensions of page containers for perfect aspect-ratio contain fit
+    const singleWidth = pageContainerRef.current?.clientWidth || (width - 32);
+    const singleHeight = pageContainerRef.current?.clientHeight || (height - 32);
+
+    const spreadWidth = leftPageRef.current?.clientWidth || Math.floor((width - 48) / 2);
+    const spreadHeight = leftPageRef.current?.clientHeight || (height - 32);
+
     const baseOptions: RenderOptions = {
-      width,
-      height: height - 40,
+      width: viewMode === "two-page" ? spreadWidth : singleWidth,
+      height: viewMode === "two-page" ? spreadHeight : singleHeight,
       theme: readerTheme,
       fontSize,
       lineHeight,
-      margin,
+      margin: Math.min(margin, 16),
       fontFamily,
       twoPageView: viewMode === "two-page",
       continuousScroll: false,
@@ -233,15 +240,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       if (viewMode === "single" && pageContainerRef.current) {
         await adapter.renderPage(currentPage, pageContainerRef.current, baseOptions);
       } else if (viewMode === "two-page" && leftPageRef.current && rightPageRef.current) {
-        const spreadOptions: RenderOptions = {
-          ...baseOptions,
-          width: Math.floor((width - 64) / 2),
-          margin: 20,
-        };
-        await adapter.renderPage(currentPage, leftPageRef.current, spreadOptions);
+        await adapter.renderPage(currentPage, leftPageRef.current, baseOptions);
         if (currentPage + 1 <= totalPages) {
-          rightPageRef.current.style.display = "block";
-          await adapter.renderPage(currentPage + 1, rightPageRef.current, spreadOptions);
+          rightPageRef.current.style.display = "flex";
+          await adapter.renderPage(currentPage + 1, rightPageRef.current, baseOptions);
         } else {
           rightPageRef.current.innerHTML = "";
           rightPageRef.current.style.display = "none";
@@ -1051,7 +1053,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         className={`flex-1 relative ${
           viewMode === "scroll"
             ? "overflow-hidden flex flex-col"
-            : "overflow-auto flex items-center justify-center p-4"
+            : "overflow-hidden flex items-center justify-center p-2"
         }`}
         ref={containerRef}
         style={{ backgroundColor: themeStyle.pageBg }}
@@ -1064,7 +1066,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
         {/* Single Page View */}
         {viewMode === "single" && (
-          <div className="relative w-full h-full flex items-center justify-center p-2">
+          <div className="relative w-full h-full flex items-center justify-center p-1 overflow-hidden">
             {bookBookmarks.some(b => b.location === currentPage) && (
               <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage}`}>
                 <div className="bookmark-corner-ribbon-badge">
@@ -1074,7 +1076,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             )}
             <div
               ref={pageContainerRef}
-              className="w-full h-full flex items-center justify-center overflow-auto shadow-md rounded p-2"
+              className="reader-page-fit-container w-full h-full flex items-center justify-center overflow-hidden shadow-md rounded p-1"
               style={{ maxWidth: "100%", maxHeight: "100%" }}
             />
           </div>
@@ -1082,9 +1084,9 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
         {/* Two-Page Spread View */}
         {viewMode === "two-page" && (
-          <div className="w-full h-full flex items-center justify-center gap-4 overflow-auto p-2">
+          <div className="w-full h-full flex items-center justify-center gap-3 overflow-hidden p-1">
             <div
-              className="flex-1 h-full relative flex items-center justify-center overflow-auto border-r shadow-sm p-4 rounded-l"
+              className="flex-1 h-full relative flex items-center justify-center overflow-hidden border-r shadow-sm p-1 rounded-l"
               style={{ borderColor: themeStyle.border }}
             >
               {bookBookmarks.some(b => b.location === currentPage) && (
@@ -1094,10 +1096,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                   </div>
                 </div>
               )}
-              <div ref={leftPageRef} className="w-full h-full flex items-center justify-center" />
+              <div ref={leftPageRef} className="reader-page-fit-container w-full h-full flex items-center justify-center overflow-hidden" />
             </div>
             <div
-              className="flex-1 h-full relative flex items-center justify-center overflow-auto shadow-sm p-4 rounded-r"
+              className="flex-1 h-full relative flex items-center justify-center overflow-hidden shadow-sm p-1 rounded-r"
             >
               {bookBookmarks.some(b => b.location === currentPage + 1) && (
                 <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage + 1}`}>
@@ -1106,7 +1108,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                   </div>
                 </div>
               )}
-              <div ref={rightPageRef} className="w-full h-full flex items-center justify-center" />
+              <div ref={rightPageRef} className="reader-page-fit-container w-full h-full flex items-center justify-center overflow-hidden" />
             </div>
           </div>
         )}

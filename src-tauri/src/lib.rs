@@ -114,9 +114,10 @@ async fn list_directory(path: String) -> Result<Vec<FileEntry>, String> {
 }
 
 #[tauri::command]
-async fn read_file(path: String) -> Result<Vec<u8>, String> {
+async fn read_file(path: String) -> Result<tauri::ipc::Response, String> {
     let path = PathBuf::from(path);
-    fs::read(path).map_err(|e| e.to_string())
+    let bytes = fs::read(path).map_err(|e| e.to_string())?;
+    Ok(tauri::ipc::Response::new(bytes))
 }
 
 #[tauri::command]

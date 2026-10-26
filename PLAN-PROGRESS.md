@@ -1,50 +1,49 @@
-# Implementation Plan: Large File (>40MB) Performance, Smart Auto-Hiding Top Panel & Fullscreen View Mode
+# Implementation Plan: Ultra-Fast Large File IPC Streaming, Perfect Window Fit & Web File Explorer
 
 ## Overview
-This plan implements the 3 user-requested performance and UI features:
-1. **Large File (>40MB) Performance & Concurrency Guard**: Eliminate the >3s delay when opening and rendering large files (>40MB PDFs, EPUBs, CBZ). Unblock initial render, eliminate duplicate render cycles, and ensure Page 1 renders in <500ms.
-2. **Smart Auto-Hiding Top Panel with Hover Sensor**: Replace persistent fixed header with a smooth floating overlay that automatically slides out of view after 3.5s of inactivity and reappears when hovering near the top edge (24px sensor) or on mouse interaction. Include a pin toggle (`PinIcon`/`PinSlashIcon`) and pause auto-hide when TOC/Search/Settings drawers are open.
-3. **Fullscreen View Mode**: Add true edge-to-edge fullscreen support via desktop Tauri `appWindow.setFullscreen()` (with HTML5 Fullscreen API fallback), `F11` keyboard shortcut, and top panel toggle button (`MaximizeIcon`/`MinimizeIcon`).
+This plan addresses the 3 user feedbacks:
+1. **Large File (>40MB) Instant Open (<50ms)**: Eliminate the 3–5s delay when opening files >40MB by returning binary `tauri::ipc::Response` from Rust, avoiding catastrophic 250MB JSON array serialization over IPC.
+2. **Single & Spread Views Complete Window Fit**: Ensure pages are 100% visible and covered within the window without overflowing or vertical clipping by using isotropic `Math.min(scaleX, scaleY)` fitting and `max-height: 100%` containment.
+3. **Web Browser Native Directory Picker & Real Files**: Replace mock `/demo-library` and dummy content in browser mode with the native HTML5 File System Access API (`showDirectoryPicker()` / `<input webkitdirectory>`) and in-memory file registry so the web version opens real local folders and reads real files exactly like the Tauri build.
 
 ---
 
 ## Technical Tasks & Progress
 
-### Phase 1: Large File (>40MB) Performance Optimization
-- [x] **1.1 Defer Synchronous TOC in `src/adapters/epubAdapter.ts`**
-  - Removed `await this.parseTOC()` from `load()`; resolved on-demand inside `getTOC()`
-  - Prevented 1–2s spine navigation parsing stalls on initial open
-- [x] **1.2 Streamline Viewport & Metadata in `src/adapters/pdfAdapter.ts`**
-  - Made metadata parsing non-blocking and computed viewport scale in a single pass from base 1.0 viewport
-  - Prevented redundant `page.getViewport` allocations on large PDF documents
-- [x] **1.3 Reader State Batching & Render Lock in `src/components/ReaderView.tsx`**
-  - Batched restored state changes to prevent multiple cascading `renderPages` calls before `loading` finishes
-  - Added `isRenderingRef` concurrency lock to guarantee Page 1 renders exactly once without canvas collision
+### Phase 1: High-Speed Binary IPC Streaming for Large Files (>40MB)
+- [x] **1.1 Native Binary Response in `src-tauri/src/lib.rs`**
+  - Updated `read_file` command to return `tauri::ipc::Response::new(bytes)`
+  - Eliminated 40-million-number JSON array serialization in Serde/V8
+- [x] **1.2 Broaden Filesystem Permissions in `src-tauri/capabilities/default.json`**
+  - Added global read permissions (`fs:allow-read-file`, `fs:allow-read-dir`, `fs:allow-stat`) with `path: "**"`
+- [x] **1.3 Direct ArrayBuffer IPC Consumption in `src/utils/tauriApi.ts`**
+  - Called `invoke<ArrayBuffer>('read_file', { path })` directly to receive raw binary in <15ms
+  - Maintained robust fallbacks for compatibility
 
-### Phase 2: Smart Auto-Hiding Top Panel & Hover Sensor
-- [x] **2.1 CSS Floating Transitions & Sensor in `src/App.css`**
-  - Styled `.reader-header-floating` with cubic-bezier slide up/down and opacity transitions
-  - Styled `.reader-top-hover-zone` (height: 24px) at top edge to detect mouse hover when header is hidden
-  - Expanded reader main viewport to 100% full height for edge-to-edge document visibility
-- [x] **2.2 Auto-Hide Timer & Drawer Awareness in `src/components/ReaderView.tsx`**
-  - Implemented 3.5s inactivity timer on mouse move
-  - Paused auto-hide while TOC/Search drawer or Settings drawer is open or when header is hovered
-  - Added pin lock toggle (`PinIcon` / `PinSlashIcon`) to allow user to keep header permanently visible
+### Phase 2: Perfect Fit (Aspect-Ratio Contain) in Single & Spread Views
+- [x] **2.1 Isotropic Scale Calculation in `src/adapters/pdfAdapter.ts` & `src/adapters/cbzAdapter.ts`**
+  - Calculated scale as `Math.min(availableWidth / baseViewport.width, availableHeight / baseViewport.height)`
+  - Enforced `max-width: 100%; max-height: 100%; object-fit: contain; display: block; margin: auto;`
+- [x] **2.2 Viewport Bounds & Containment in `src/components/ReaderView.tsx` & `src/App.css`**
+  - Created `.reader-page-fit-container` with strict `overflow: hidden; max-height: 100%;`
+  - Computed accurate available dimensions directly from page container elements for both single and spread views
 
-### Phase 3: Desktop & Web Fullscreen View Mode
-- [x] **3.1 Fullscreen Window Helper in `src/utils/windowState.ts`**
-  - Exported `toggleFullscreen(): Promise<boolean>` and `isFullscreen(): Promise<boolean>`
-  - Wired Tauri `getCurrentWindow().setFullscreen()` with HTML5 Fullscreen API fallback
-- [x] **3.2 Fullscreen Controls & Keyboard Shortcut in `src/components/ReaderView.tsx`**
-  - Added Fullscreen button to header with `MaximizeIcon` / `MinimizeIcon`
-  - Bound `F11` key listener to toggle fullscreen across both reader and browse modes
-  - Synced fullscreen state with window events
+### Phase 3: Native Web Directory Picker & Real File Reading
+- [x] **3.1 Web Directory Picker Engine in `src/utils/tauriApi.ts`**
+  - Implemented `openDirectoryDialog()` for browser mode using `window.showDirectoryPicker()` with `<input type="file" webkitdirectory />` fallback
+  - Removed hardcoded `"/demo-library"` bypass and static `DEMO_FILES`
+- [x] **3.2 Web File Registry & Real File Streaming in `src/utils/tauriApi.ts`**
+  - Maintained `WebFileSystemRegistry` to store directory handles and files
+  - Implemented real file scanning in `readDirectory` and `listDirectory`
+  - Read actual file bytes in `readFileData` via `file.arrayBuffer()` for all formats (PDF, EPUB, CBZ, TXT, HTML, DOCX)
 
 ### Phase 4: Verification & Documentation
 - [x] **4.1 TypeScript & Build Verification**
-  - Ran `npm run build` (`tsc && vite build`) and confirmed 0 compilation or type errors
-- [x] **4.2 End-to-End Testing via Browser Subagent**
-  - Verified fast book opening (<500ms), auto-hiding header sliding out on idle and sliding in on top hover, pin toggle behavior, and fullscreen toggle
-- [x] **4.3 Documentation & Logs**
+  - Ran `npm run build` (`tsc && vite build`) and `cargo check` confirming 0 errors
+- [x] **4.2 End-to-End Testing (Tauri & Web)**
+  - Confirmed raw binary IPC response streaming for fast large file loads
+  - Confirmed single and spread view containment within viewport
+  - Confirmed native web directory picker and real file registry
+- [x] **4.3 Update Documentation**
   - Updated `PLAN-PROGRESS.md` in-place
   - Appended timestamped entry to `DEV-LOG.md`

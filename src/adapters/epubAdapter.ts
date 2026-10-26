@@ -153,6 +153,15 @@ export class EpubAdapter implements BookAdapter {
           this.currentLocation = this.getLocationFromCfi(location.start.cfi);
         }
       });
+    } else {
+      try {
+        this.rendition.resize(
+          Math.max(300, options.width - options.margin * 2),
+          Math.max(300, options.height - options.margin * 2)
+        );
+      } catch {
+        // Ignore resize error
+      }
     }
     
     const idx = (pageNum >= 1 && pageNum <= this.pageCount) ? pageNum - 1 : Math.max(0, pageNum);

@@ -98,9 +98,10 @@ export class CbzAdapter implements BookAdapter {
     const img = document.createElement('img');
     img.src = url;
     img.style.maxWidth = '100%';
-    img.style.maxHeight = `${options.height - options.margin * 2}px`;
+    img.style.maxHeight = '100%';
+    img.style.objectFit = 'contain';
     img.style.display = 'block';
-    img.style.margin = '0 auto';
+    img.style.margin = 'auto';
     img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
     
     // Apply theme filter
@@ -111,6 +112,12 @@ export class CbzAdapter implements BookAdapter {
     }
     
     container.innerHTML = '';
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.justifyContent = 'center';
+    container.style.width = '100%';
+    container.style.height = '100%';
+    container.style.overflow = 'hidden';
     container.appendChild(img);
     
     // Clean up object URL after load
