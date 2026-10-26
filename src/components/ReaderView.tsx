@@ -86,6 +86,18 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const renderedPagesRef = useRef<Set<number>>(new Set());
   const isScrollingToPageRef = useRef<boolean>(false);
 
+  // Zoom & Pan Engine state (0.5x to 3.0x, default 1.0x / Fit)
+  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const zoomLevelRef = useRef<number>(1.0);
+  zoomLevelRef.current = zoomLevel;
+  const panOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  panOffsetRef.current = panOffset;
+  const dragStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const touchDistanceRef = useRef<number | null>(null);
+  const touchStartZoomRef = useRef<number>(1.0);
+
   const scrollPages = useMemo(() => Array.from({ length: totalPages }, (_, i) => i + 1), [totalPages]);
 
   // Load Book Adapter and File Data
@@ -399,6 +411,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const goToPage = useCallback((pageNum: number) => {
     const clamped = Math.max(1, Math.min(totalPages, pageNum));
     setCurrentPage(clamped);
+    setPanOffset({ x: 0, y: 0 });
     if (currentBookPath) {
       updateLocation(currentBookPath, clamped, totalPages);
     }
@@ -424,6 +437,70 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     const step = viewMode === "two-page" ? 2 : 1;
     goToPage(currentPage + step);
   }, [currentPage, viewMode, goToPage]);
+
+  // Zoom & Pan handlers
+  const handleZoomIn = useCallback(() => {
+    setZoomLevel(prev => Math.min(3.0, +(prev + 0.1).toFixed(2)));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoomLevel(prev => {
+      const next = Math.max(0.5, +(prev - 0.1).toFixed(2));
+      if (next <= 1.0) setPanOffset({ x: 0, y: 0 });
+      return next;
+    });
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    setZoomLevel(1.0);
+    setPanOffset({ x: 0, y: 0 });
+  }, []);
+
+  const handleViewportMouseDown = (e: React.MouseEvent) => {
+    if (zoomLevel > 1.0 && e.button === 0) {
+      setIsDragging(true);
+      dragStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        panX: panOffset.x,
+        panY: panOffset.y,
+      };
+    }
+  };
+
+  const handleViewportMouseMove = (e: React.MouseEvent) => {
+    resetAutoHideTimer();
+    if (isDragging && dragStartRef.current) {
+      const dx = e.clientX - dragStartRef.current.x;
+      const dy = e.clientY - dragStartRef.current.y;
+      const container = containerRef.current;
+      const w = container?.clientWidth || 800;
+      const h = container?.clientHeight || 600;
+      const maxPanX = Math.max(80, (w * (zoomLevel - 1)) / 2 + 100);
+      const maxPanY = Math.max(80, (h * (zoomLevel - 1)) / 2 + 100);
+
+      setPanOffset({
+        x: Math.min(maxPanX, Math.max(-maxPanX, dragStartRef.current.panX + dx)),
+        y: Math.min(maxPanY, Math.max(-maxPanY, dragStartRef.current.panY + dy)),
+      });
+    }
+  };
+
+  const handleViewportMouseUp = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      dragStartRef.current = null;
+    }
+  };
+
+  const handleDoubleClick = () => {
+    if (zoomLevel > 1.0) {
+      handleResetZoom();
+    } else {
+      setZoomLevel(1.75);
+      setPanOffset({ x: 0, y: 0 });
+    }
+  };
 
   // Sync window fullscreen state
   useEffect(() => {
@@ -554,15 +631,16 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         case "+":
         case "=":
           e.preventDefault();
-          setFontSize(s => Math.min(36, s + 2));
+          handleZoomIn();
           break;
         case "-":
+        case "_":
           e.preventDefault();
-          setFontSize(s => Math.max(12, s - 2));
+          handleZoomOut();
           break;
         case "0":
           e.preventDefault();
-          setFontSize(16);
+          handleResetZoom();
           break;
         case "t":
         case "T":
@@ -591,18 +669,51 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     drawerTab,
     isWindowFullscreen,
     handleToggleFullscreen,
+    handleZoomIn,
+    handleZoomOut,
+    handleResetZoom,
   ]);
 
-  // Touch Swipe handlers
+  // Touch Swipe & Multi-Touch Pinch handlers
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartXRef.current = e.touches[0].clientX;
+    if (e.touches.length === 2) {
+      // 2-finger pinch gesture
+      touchStartXRef.current = null;
+      touchDistanceRef.current = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      touchStartZoomRef.current = zoomLevelRef.current;
+    } else if (e.touches.length === 1) {
+      touchStartXRef.current = e.touches[0].clientX;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && touchDistanceRef.current !== null) {
+      const currentDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const factor = currentDist / touchDistanceRef.current;
+      const nextZoom = Math.min(3.0, Math.max(0.5, +(touchStartZoomRef.current * factor).toFixed(2)));
+      setZoomLevel(nextZoom);
+      if (nextZoom <= 1.0) {
+        setPanOffset({ x: 0, y: 0 });
+      }
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchDistanceRef.current !== null) {
+      touchDistanceRef.current = null;
+      touchStartXRef.current = null;
+      return;
+    }
     if (touchStartXRef.current === null) return;
     const diff = e.changedTouches[0].clientX - touchStartXRef.current;
     touchStartXRef.current = null;
-    if (Math.abs(diff) > 50) {
+    if (zoomLevelRef.current <= 1.0 && Math.abs(diff) > 50) {
       if (diff < 0) {
         nextPage();
       } else {
@@ -610,6 +721,46 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       }
     }
   };
+
+  // Native Trackpad Pinch-to-Zoom & Two-Finger Panning listener (passive: false)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        // Trackpad pinch-to-zoom gesture or Ctrl + MouseWheel
+        e.preventDefault();
+        const delta = -e.deltaY * 0.005;
+        setZoomLevel(prev => {
+          const next = Math.min(3.0, Math.max(0.5, +(prev + delta).toFixed(2)));
+          if (next <= 1.0) {
+            setPanOffset({ x: 0, y: 0 });
+          }
+          return next;
+        });
+      } else if (zoomLevelRef.current > 1.0 && viewMode !== "scroll") {
+        // Two-finger trackpad panning across zoomed document
+        e.preventDefault();
+        setPanOffset(prev => {
+          const c = containerRef.current;
+          const w = c?.clientWidth || 800;
+          const h = c?.clientHeight || 600;
+          const maxPanX = Math.max(80, (w * (zoomLevelRef.current - 1)) / 2 + 100);
+          const maxPanY = Math.max(80, (h * (zoomLevelRef.current - 1)) / 2 + 100);
+          return {
+            x: Math.min(maxPanX, Math.max(-maxPanX, prev.x - e.deltaX)),
+            y: Math.min(maxPanY, Math.max(-maxPanY, prev.y - e.deltaY)),
+          };
+        });
+      }
+    };
+
+    container.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      container.removeEventListener("wheel", onWheel);
+    };
+  }, [viewMode]);
 
   // Theme styling constants
   const getThemeStyles = () => {
@@ -974,22 +1125,29 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             </button>
           </div>
 
-          {/* Font Size Zoom Controls */}
+          {/* Document Zoom Controls */}
           <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
             <button
-              onClick={() => setFontSize(s => Math.max(12, s - 2))}
-              className="px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5"
-              title="Decrease Font Size (-)"
+              onClick={handleZoomOut}
+              className="px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-30"
+              title="Zoom Out (- / Pinch In)"
+              disabled={zoomLevel <= 0.5}
             >
               <ZoomOutIcon size={13} />
             </button>
-            <span className="px-2 py-1 text-xs font-medium border-l border-r" style={{ borderColor: themeStyle.border }}>
-              {fontSize}px
-            </span>
             <button
-              onClick={() => setFontSize(s => Math.min(36, s + 2))}
-              className="px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5"
-              title="Increase Font Size (+)"
+              onClick={handleResetZoom}
+              className="px-2 py-1 text-xs font-semibold border-l border-r hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              style={{ borderColor: themeStyle.border }}
+              title="Reset Zoom to 100% Fit (0 / Double Click)"
+            >
+              {Math.round(zoomLevel * 100)}%
+            </button>
+            <button
+              onClick={handleZoomIn}
+              className="px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-30"
+              title="Zoom In (+ / Pinch Out)"
+              disabled={zoomLevel >= 3.0}
             >
               <ZoomInIcon size={13} />
             </button>
@@ -1057,6 +1215,9 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         }`}
         ref={containerRef}
         style={{ backgroundColor: themeStyle.pageBg }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         {rendering && (
           <div className="absolute top-4 right-4 z-30">
@@ -1066,7 +1227,14 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
         {/* Single Page View */}
         {viewMode === "single" && (
-          <div className="relative w-full h-full flex items-center justify-center p-1 overflow-hidden">
+          <div
+            className="relative w-full h-full flex items-center justify-center p-1 overflow-hidden"
+            onMouseDown={handleViewportMouseDown}
+            onMouseMove={handleViewportMouseMove}
+            onMouseUp={handleViewportMouseUp}
+            onDoubleClick={handleDoubleClick}
+            style={{ cursor: zoomLevel > 1.0 ? (isDragging ? "grabbing" : "grab") : "default" }}
+          >
             {bookBookmarks.some(b => b.location === currentPage) && (
               <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage}`}>
                 <div className="bookmark-corner-ribbon-badge">
@@ -1075,40 +1243,65 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               </div>
             )}
             <div
-              ref={pageContainerRef}
-              className="reader-page-fit-container w-full h-full flex items-center justify-center overflow-hidden shadow-md rounded p-1"
-              style={{ maxWidth: "100%", maxHeight: "100%" }}
-            />
+              className={`reader-zoom-wrapper w-full h-full flex items-center justify-center ${zoomLevel > 1.0 ? "is-zoomed" : ""}`}
+              style={{
+                transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomLevel})`,
+                transformOrigin: "center center",
+                transition: isDragging ? "none" : "transform 100ms ease-out",
+              }}
+            >
+              <div
+                ref={pageContainerRef}
+                className="reader-page-fit-container w-full h-full flex items-center justify-center overflow-hidden shadow-md rounded p-1"
+                style={{ maxWidth: "100%", maxHeight: "100%" }}
+              />
+            </div>
           </div>
         )}
 
         {/* Two-Page Spread View */}
         {viewMode === "two-page" && (
-          <div className="w-full h-full flex items-center justify-center gap-3 overflow-hidden p-1">
+          <div
+            className="w-full h-full flex items-center justify-center overflow-hidden p-1 relative"
+            onMouseDown={handleViewportMouseDown}
+            onMouseMove={handleViewportMouseMove}
+            onMouseUp={handleViewportMouseUp}
+            onDoubleClick={handleDoubleClick}
+            style={{ cursor: zoomLevel > 1.0 ? (isDragging ? "grabbing" : "grab") : "default" }}
+          >
             <div
-              className="flex-1 h-full relative flex items-center justify-center overflow-hidden border-r shadow-sm p-1 rounded-l"
-              style={{ borderColor: themeStyle.border }}
+              className={`reader-zoom-wrapper w-full h-full flex items-center justify-center gap-3 ${zoomLevel > 1.0 ? "is-zoomed" : ""}`}
+              style={{
+                transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomLevel})`,
+                transformOrigin: "center center",
+                transition: isDragging ? "none" : "transform 100ms ease-out",
+              }}
             >
-              {bookBookmarks.some(b => b.location === currentPage) && (
-                <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage}`}>
-                  <div className="bookmark-corner-ribbon-badge">
-                    <BookmarkFillIcon size={14} />
+              <div
+                className="flex-1 h-full relative flex items-center justify-center overflow-hidden border-r shadow-sm p-1 rounded-l"
+                style={{ borderColor: themeStyle.border }}
+              >
+                {bookBookmarks.some(b => b.location === currentPage) && (
+                  <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage}`}>
+                    <div className="bookmark-corner-ribbon-badge">
+                      <BookmarkFillIcon size={14} />
+                    </div>
                   </div>
-                </div>
-              )}
-              <div ref={leftPageRef} className="reader-page-fit-container w-full h-full flex items-center justify-center overflow-hidden" />
-            </div>
-            <div
-              className="flex-1 h-full relative flex items-center justify-center overflow-hidden shadow-sm p-1 rounded-r"
-            >
-              {bookBookmarks.some(b => b.location === currentPage + 1) && (
-                <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage + 1}`}>
-                  <div className="bookmark-corner-ribbon-badge">
-                    <BookmarkFillIcon size={14} />
+                )}
+                <div ref={leftPageRef} className="reader-page-fit-container w-full h-full flex items-center justify-center overflow-hidden" />
+              </div>
+              <div
+                className="flex-1 h-full relative flex items-center justify-center overflow-hidden shadow-sm p-1 rounded-r"
+              >
+                {bookBookmarks.some(b => b.location === currentPage + 1) && (
+                  <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage + 1}`}>
+                    <div className="bookmark-corner-ribbon-badge">
+                      <BookmarkFillIcon size={14} />
+                    </div>
                   </div>
-                </div>
-              )}
-              <div ref={rightPageRef} className="reader-page-fit-container w-full h-full flex items-center justify-center overflow-hidden" />
+                )}
+                <div ref={rightPageRef} className="reader-page-fit-container w-full h-full flex items-center justify-center overflow-hidden" />
+              </div>
             </div>
           </div>
         )}
@@ -1117,7 +1310,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         {viewMode === "scroll" && (
           <div
             ref={scrollContainerRef}
-            className="w-full h-full overflow-y-auto overflow-x-hidden p-6 max-w-4xl mx-auto"
+            className="w-full h-full overflow-y-auto overflow-x-hidden p-6 mx-auto transition-all duration-150"
+            style={{
+              maxWidth: `${Math.round(860 * zoomLevel)}px`,
+            }}
           >
             {scrollPages.map((pageNum: number) => {
               const isBookmarked = bookBookmarks.some(b => b.location === pageNum);

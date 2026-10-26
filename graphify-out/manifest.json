@@ -66,9 +66,9 @@
     "semantic_hash": ""
   },
   "src/adapters/epubAdapter.ts": {
-    "mtime": 1793013635.1090589,
-    "seen": 1793014045.4334524,
-    "ast_hash": "ab112870865567d3252c8f66c7c6b1fd",
+    "mtime": 1793015838.3077345,
+    "seen": 1793016318.4195337,
+    "ast_hash": "cd56df9eed18a470db7d7557c37fd306",
     "semantic_hash": ""
   },
   "src/adapters/htmlAdapter.ts": {
@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "src/adapters/pdfAdapter.ts": {
-    "mtime": 1793013565.2829537,
-    "seen": 1793014045.4334524,
-    "ast_hash": "119f325b0b53416371b4e9a1cad577f6",
+    "mtime": 1793015872.0119703,
+    "seen": 1793016318.4195337,
+    "ast_hash": "973f2268298438e49dbfa6b8e1417916",
     "semantic_hash": ""
   },
   "src/adapters/registry.ts": {
@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "src/types/reader.ts": {
-    "mtime": 1792907902.364108,
-    "seen": 1792911249.9783158,
-    "ast_hash": "008ebda42894012b367ec3f62642322e",
+    "mtime": 1793015818.7162027,
+    "seen": 1793016318.4195337,
+    "ast_hash": "92e784823af0e1182ea7ab5b853ea1b5",
     "semantic_hash": ""
   },
   "src/utils/store.ts": {
@@ -288,15 +288,15 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793012140.025443,
-    "seen": 1793014045.4334524,
-    "ast_hash": "f703b1311318d12876160dae483a02af",
+    "mtime": 1793014061.241648,
+    "seen": 1793016318.420054,
+    "ast_hash": "b297565381d7b1ffc4ef1deaa8687a84",
     "semantic_hash": ""
   },
   "PLAN-PROGRESS.md": {
-    "mtime": 1793013931.9589787,
-    "seen": 1793014045.4334524,
-    "ast_hash": "fc6eecfbb0aaae499ccd33139e7ed73b",
+    "mtime": 1793015807.452031,
+    "seen": 1793016318.420054,
+    "ast_hash": "55ce0a14210853f191c7a735b1293224",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
@@ -318,9 +318,9 @@
     "semantic_hash": ""
   },
   "src/components/ReaderView.tsx": {
-    "mtime": 1793013670.6697052,
-    "seen": 1793014045.4334524,
-    "ast_hash": "47ce3cb80fa27af06cb8c26cd8dca756",
+    "mtime": 1793016165.2656822,
+    "seen": 1793016318.4195337,
+    "ast_hash": "74c1af2cbe56a9ce4da802c0f4965f91",
     "semantic_hash": ""
   },
   "src/components/SearchAndTOCDrawer.tsx": {

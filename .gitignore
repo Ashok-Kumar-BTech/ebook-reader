@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Tracker Files
+DEV-LOG.md
+PLAN-PROGRESS.md

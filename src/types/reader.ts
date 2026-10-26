@@ -14,6 +14,7 @@ export interface RenderOptions {
   fontFamily: 'serif' | 'sans' | 'mono';
   twoPageView: boolean;
   continuousScroll: boolean;
+  zoom?: number;
 }
 
 export interface SearchResult {

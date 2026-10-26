@@ -159,8 +159,21 @@ export class EpubAdapter implements BookAdapter {
           Math.max(300, options.width - options.margin * 2),
           Math.max(300, options.height - options.margin * 2)
         );
+        if (this.rendition.themes) {
+          this.rendition.themes.fontSize(`${options.fontSize}px`);
+          this.rendition.themes.default({
+            body: {
+              'font-family': this.getFontFamily(options.fontFamily),
+              'font-size': options.fontSize + 'px',
+              'line-height': options.lineHeight,
+              'margin': options.margin + 'px',
+              'color': this.getThemeColor(options.theme),
+              'background-color': this.getThemeBg(options.theme),
+            },
+          });
+        }
       } catch {
-        // Ignore resize error
+        // Ignore resize/themes error
       }
     }
     

@@ -223,3 +223,14 @@ html, body, #root {
   display: block !important;
 }
 
+/* Document Zoom Wrapper and Panning */
+.reader-zoom-wrapper {
+  transform-origin: center center;
+  will-change: transform;
+  user-select: none;
+}
+
+.reader-zoom-wrapper.is-zoomed {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+}
+

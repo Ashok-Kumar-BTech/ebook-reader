@@ -167,9 +167,12 @@ export class PdfAdapter implements BookAdapter {
     const fitScale = Math.min(scaleX, scaleY);
     const scale = Math.min(Math.max(fitScale, 0.1), 3.0);
     
-    const scaledViewport = page.getViewport({ scale });
+    const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2);
+    const scaledViewport = page.getViewport({ scale: scale * dpr });
     canvas.width = scaledViewport.width;
     canvas.height = scaledViewport.height;
+    canvas.style.width = `${Math.round(scaledViewport.width / dpr)}px`;
+    canvas.style.height = `${Math.round(scaledViewport.height / dpr)}px`;
     
     if (options.theme === 'dark') {
       canvas.style.filter = 'invert(1) hue-rotate(180deg)';
