@@ -138,12 +138,24 @@ export class EpubAdapter implements BookAdapter {
         minSpreadWidth: 800,
         styles: {
           body: {
-            'font-family': this.getFontFamily(options.fontFamily),
+            'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             'font-size': options.fontSize + 'px',
-            'line-height': options.lineHeight,
+            'line-height': `${options.lineHeight} !important`,
             'margin': options.margin + 'px',
             'color': this.getThemeColor(options.theme),
             'background-color': this.getThemeBg(options.theme),
+          },
+          p: {
+            'line-height': `${options.lineHeight} !important`,
+          },
+          div: {
+            'line-height': `${options.lineHeight} !important`,
+          },
+          li: {
+            'line-height': `${options.lineHeight} !important`,
+          },
+          span: {
+            'line-height': `${options.lineHeight} !important`,
           },
         },
       });
@@ -163,12 +175,24 @@ export class EpubAdapter implements BookAdapter {
           this.rendition.themes.fontSize(`${options.fontSize}px`);
           this.rendition.themes.default({
             body: {
-              'font-family': this.getFontFamily(options.fontFamily),
+              'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
               'font-size': options.fontSize + 'px',
-              'line-height': options.lineHeight,
+              'line-height': `${options.lineHeight} !important`,
               'margin': options.margin + 'px',
               'color': this.getThemeColor(options.theme),
               'background-color': this.getThemeBg(options.theme),
+            },
+            p: {
+              'line-height': `${options.lineHeight} !important`,
+            },
+            div: {
+              'line-height': `${options.lineHeight} !important`,
+            },
+            li: {
+              'line-height': `${options.lineHeight} !important`,
+            },
+            span: {
+              'line-height': `${options.lineHeight} !important`,
             },
           });
         }
@@ -204,15 +228,6 @@ export class EpubAdapter implements BookAdapter {
       await this.renderPage(pageNum, pageWrapper, options);
     }
     this.currentLocation = boundedEnd;
-  }
-
-  private getFontFamily(fontFamily: string): string {
-    switch (fontFamily) {
-      case 'serif': return 'Georgia, "Times New Roman", serif';
-      case 'sans': return '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      case 'mono': return '"Fira Code", "Consolas", monospace';
-      default: return 'Georgia, "Times New Roman", serif';
-    }
   }
 
   private getThemeColor(theme: string): string {

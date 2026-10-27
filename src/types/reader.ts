@@ -11,7 +11,6 @@ export interface RenderOptions {
   fontSize: number;
   lineHeight: number;
   margin: number;
-  fontFamily: 'serif' | 'sans' | 'mono';
   twoPageView: boolean;
   continuousScroll: boolean;
   zoom?: number;

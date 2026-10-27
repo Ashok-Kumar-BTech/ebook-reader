@@ -27,7 +27,8 @@ import { readFileData } from "../utils/tauriApi";
 import { useLogger } from "../utils/logger";
 import { toggleFullscreen, isFullscreen } from "../utils/windowState";
 import { FormatBadge } from "./FormatBadge";
-import { SearchAndTOCDrawer, type DrawerTab } from "./SearchAndTOCDrawer";
+import { TableOfContentsDrawer } from "./TableOfContentsDrawer";
+import { SearchAndBookmarksDrawer, type SearchBookmarksTab } from "./SearchAndBookmarksDrawer";
 import { SettingsDrawer } from "./SettingsDrawer";
 import type { BookSettings } from "../stores/bookStore";
 import type { BookAdapter, BookInstance, RenderOptions, TOCItem } from "../types/reader";
@@ -57,7 +58,6 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const [fontSize, setFontSize] = useState<number>(16);
   const [lineHeight, setLineHeight] = useState<number>(1.6);
   const [margin, setMargin] = useState<number>(32);
-  const [fontFamily, setFontFamily] = useState<'serif' | 'sans' | 'mono'>('serif');
   const [isJumpModalOpen, setIsJumpModalOpen] = useState(false);
   const [jumpPageInput, setJumpPageInput] = useState("");
 
@@ -70,10 +70,11 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const isRenderingRef = useRef<boolean>(false);
   const renderPendingRef = useRef<boolean>(false);
 
-  // Search & TOC & Bookmark Drawer state
+  // Independent Drawers state
   const [toc, setToc] = useState<TOCItem[]>([]);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [drawerTab, setDrawerTab] = useState<DrawerTab>("toc");
+  const [isTocOpen, setIsTocOpen] = useState(false);
+  const [isSearchBookmarksOpen, setIsSearchBookmarksOpen] = useState(false);
+  const [searchBookmarksTab, setSearchBookmarksTab] = useState<SearchBookmarksTab>("search");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -139,7 +140,6 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         let initialFontSize = 16;
         let initialLineHeight = 1.6;
         let initialMargin = 32;
-        let initialFontFamily: 'serif' | 'sans' | 'mono' = 'serif';
         let initialViewMode: "single" | "two-page" | "scroll" = ['txt', 'html', 'docx'].includes(instance.format) ? "scroll" : "single";
 
         if (savedState) {
@@ -156,7 +156,6 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             initialFontSize = savedState.settings.fontSize;
             if (savedState.settings.lineHeight) initialLineHeight = savedState.settings.lineHeight;
             if (savedState.settings.margin) initialMargin = savedState.settings.margin;
-            if (savedState.settings.fontFamily) initialFontFamily = savedState.settings.fontFamily;
             if (savedState.settings.continuousScroll) {
               initialViewMode = "scroll";
             } else if (savedState.settings.twoPageView) {
@@ -173,7 +172,6 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         setFontSize(initialFontSize);
         setLineHeight(initialLineHeight);
         setMargin(initialMargin);
-        setFontFamily(initialFontFamily);
         setViewMode(initialViewMode);
 
         // Unblock reader immediately so Page 1 renders without latency
@@ -230,11 +228,16 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     const height = container.clientHeight || 600;
 
     // Use actual measured dimensions of page containers for perfect aspect-ratio contain fit
-    const singleWidth = pageContainerRef.current?.clientWidth || (width - 32);
-    const singleHeight = pageContainerRef.current?.clientHeight || (height - 32);
+    // Round to even integers to eliminate 0.5px fractional flexbox centering blur
+    const rawSingleWidth = pageContainerRef.current?.clientWidth || (width - 32);
+    const rawSingleHeight = pageContainerRef.current?.clientHeight || (height - 32);
+    const singleWidth = Math.floor(rawSingleWidth / 2) * 2;
+    const singleHeight = Math.floor(rawSingleHeight / 2) * 2;
 
-    const spreadWidth = leftPageRef.current?.clientWidth || Math.floor((width - 48) / 2);
-    const spreadHeight = leftPageRef.current?.clientHeight || (height - 32);
+    const rawSpreadWidth = leftPageRef.current?.clientWidth || Math.floor((width - 48) / 2);
+    const rawSpreadHeight = leftPageRef.current?.clientHeight || (height - 32);
+    const spreadWidth = Math.floor(rawSpreadWidth / 2) * 2;
+    const spreadHeight = Math.floor(rawSpreadHeight / 2) * 2;
 
     const baseOptions: RenderOptions = {
       width: viewMode === "two-page" ? spreadWidth : singleWidth,
@@ -243,9 +246,9 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       fontSize,
       lineHeight,
       margin: Math.min(margin, 16),
-      fontFamily,
       twoPageView: viewMode === "two-page",
       continuousScroll: false,
+      zoom: zoomLevel,
     };
 
     try {
@@ -271,7 +274,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         renderPages();
       }
     }
-  }, [loading, viewMode, currentPage, totalPages, readerTheme, fontSize, lineHeight, margin, fontFamily, logger]);
+  }, [loading, viewMode, currentPage, totalPages, readerTheme, fontSize, lineHeight, margin, zoomLevel, logger]);
 
   // Re-render when layout parameters change
   useEffect(() => {
@@ -279,6 +282,15 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       renderPages();
     }
   }, [loading, error, viewMode, renderPages]);
+
+  // Debounced re-render when zoomLevel stabilizes to ensure vector clarity on canvas
+  useEffect(() => {
+    if (loading || error || viewMode === "scroll") return;
+    const timer = setTimeout(() => {
+      renderPages();
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [zoomLevel, loading, error, viewMode, renderPages]);
 
   // Lazy-loaded page slots IntersectionObserver for Continuous Scroll View
   useEffect(() => {
@@ -288,19 +300,18 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
     const adapter = adapterRef.current;
     const container = containerRef.current;
-    const width = container?.clientWidth || 800;
     const height = container?.clientHeight || 600;
 
     const baseOptions: RenderOptions = {
-      width: Math.min(width - 48, 860),
+      width: Math.floor(860 * zoomLevel),
       height: height - 40,
       theme: readerTheme,
       fontSize,
       lineHeight,
       margin,
-      fontFamily,
       twoPageView: false,
       continuousScroll: true,
+      zoom: zoomLevel,
     };
 
     // Invalidate cached renders when layout/theme/font settings change so slots re-render
@@ -335,7 +346,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     return () => {
       observer.disconnect();
     };
-  }, [viewMode, totalPages, loading, readerTheme, fontSize, lineHeight, margin, fontFamily, logger]);
+  }, [viewMode, totalPages, loading, readerTheme, fontSize, lineHeight, margin, zoomLevel, logger]);
 
   // Initial scroll position restoration in scroll view
   useEffect(() => {
@@ -364,27 +375,36 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           ticking = false;
           if (!scrollEl) return;
           const containerRect = scrollEl.getBoundingClientRect();
-          const centerY = containerRect.top + containerRect.height / 3;
+          const anchorY = containerRect.top + Math.min(120, containerRect.height * 0.25);
 
           const slots = scrollEl.querySelectorAll(".reader-page-slot");
-          let closestPage = currentPage;
-          let minDistance = Infinity;
+          let anchorPage: number | null = null;
+          let maxVisibleHeight = -1;
+          let mostVisiblePage = currentPage;
 
           slots.forEach((slot) => {
             const rect = slot.getBoundingClientRect();
-            const slotCenterY = rect.top + rect.height / 2;
-            const distance = Math.abs(slotCenterY - centerY);
-            if (distance < minDistance) {
-              minDistance = distance;
+            // Check reading eye-level anchor
+            if (rect.top <= anchorY && rect.bottom >= anchorY) {
               const p = parseInt(slot.getAttribute("data-page-num") || "0", 10);
-              if (p) closestPage = p;
+              if (p) anchorPage = p;
+            }
+            // Check largest visible height
+            const visibleTop = Math.max(containerRect.top, rect.top);
+            const visibleBottom = Math.min(containerRect.bottom, rect.bottom);
+            const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+            if (visibleHeight > maxVisibleHeight) {
+              maxVisibleHeight = visibleHeight;
+              const p = parseInt(slot.getAttribute("data-page-num") || "0", 10);
+              if (p) mostVisiblePage = p;
             }
           });
 
-          if (closestPage !== currentPage && closestPage >= 1 && closestPage <= totalPages) {
-            setCurrentPage(closestPage);
+          const activePage = anchorPage ?? mostVisiblePage;
+          if (activePage !== currentPage && activePage >= 1 && activePage <= totalPages) {
+            setCurrentPage(activePage);
             if (currentBookPath) {
-              updateLocation(currentBookPath, closestPage, totalPages);
+              updateLocation(currentBookPath, activePage, totalPages);
             }
           }
         });
@@ -523,14 +543,14 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
     }
-    if (!isHeaderPinned && !isDrawerOpen && !isSettingsOpen && !isJumpModalOpen) {
+    if (!isHeaderPinned && !isTocOpen && !isSearchBookmarksOpen && !isSettingsOpen && !isJumpModalOpen) {
       hideTimerRef.current = setTimeout(() => {
-        if (!isHeaderHoveredRef.current && !isHeaderPinned && !isDrawerOpen && !isSettingsOpen && !isJumpModalOpen) {
+        if (!isHeaderHoveredRef.current && !isHeaderPinned && !isTocOpen && !isSearchBookmarksOpen && !isSettingsOpen && !isJumpModalOpen) {
           setIsHeaderVisible(false);
         }
       }, 3500);
     }
-  }, [isHeaderPinned, isDrawerOpen, isSettingsOpen, isJumpModalOpen]);
+  }, [isHeaderPinned, isTocOpen, isSearchBookmarksOpen, isSettingsOpen, isJumpModalOpen]);
 
   const handleMouseMove = useCallback(() => {
     resetAutoHideTimer();
@@ -538,13 +558,13 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
   // Keep header visible when drawers/settings/modals are active or header is pinned
   useEffect(() => {
-    if (isHeaderPinned || isDrawerOpen || isSettingsOpen || isJumpModalOpen) {
+    if (isHeaderPinned || isTocOpen || isSearchBookmarksOpen || isSettingsOpen || isJumpModalOpen) {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       setIsHeaderVisible(true);
     } else {
       resetAutoHideTimer();
     }
-  }, [isHeaderPinned, isDrawerOpen, isSettingsOpen, isJumpModalOpen, resetAutoHideTimer]);
+  }, [isHeaderPinned, isTocOpen, isSearchBookmarksOpen, isSettingsOpen, isJumpModalOpen, resetAutoHideTimer]);
 
   useEffect(() => {
     return () => {
@@ -597,8 +617,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             setIsJumpModalOpen(false);
           } else if (isSettingsOpen) {
             setIsSettingsOpen(false);
-          } else if (isDrawerOpen) {
-            setIsDrawerOpen(false);
+          } else if (isTocOpen) {
+            setIsTocOpen(false);
+          } else if (isSearchBookmarksOpen) {
+            setIsSearchBookmarksOpen(false);
           } else if (isWindowFullscreen) {
             handleToggleFullscreen();
           } else {
@@ -613,20 +635,19 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         case "f":
         case "F":
           e.preventDefault();
-          setDrawerTab("search");
-          setIsDrawerOpen(true);
+          setSearchBookmarksTab("search");
+          setIsSearchBookmarksOpen(true);
           break;
         case "c":
         case "C":
           e.preventDefault();
-          setDrawerTab("toc");
-          setIsDrawerOpen(curr => (drawerTab === "toc" ? !curr : true));
+          setIsTocOpen(curr => !curr);
           break;
         case "b":
         case "B":
           e.preventDefault();
-          setDrawerTab("bookmarks");
-          setIsDrawerOpen(curr => (drawerTab === "bookmarks" ? !curr : true));
+          setSearchBookmarksTab("bookmarks");
+          setIsSearchBookmarksOpen(curr => (searchBookmarksTab === "bookmarks" ? !curr : true));
           break;
         case "+":
         case "=":
@@ -665,8 +686,9 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     onClose,
     isJumpModalOpen,
     isSettingsOpen,
-    isDrawerOpen,
-    drawerTab,
+    isTocOpen,
+    isSearchBookmarksOpen,
+    searchBookmarksTab,
     isWindowFullscreen,
     handleToggleFullscreen,
     handleZoomIn,
@@ -674,66 +696,92 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     handleResetZoom,
   ]);
 
-  // Touch Swipe & Multi-Touch Pinch handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      // 2-finger pinch gesture
-      touchStartXRef.current = null;
-      touchDistanceRef.current = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      touchStartZoomRef.current = zoomLevelRef.current;
-    } else if (e.touches.length === 1) {
-      touchStartXRef.current = e.touches[0].clientX;
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && touchDistanceRef.current !== null) {
-      const currentDist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      const factor = currentDist / touchDistanceRef.current;
-      const nextZoom = Math.min(3.0, Math.max(0.5, +(touchStartZoomRef.current * factor).toFixed(2)));
-      setZoomLevel(nextZoom);
-      if (nextZoom <= 1.0) {
-        setPanOffset({ x: 0, y: 0 });
-      }
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchDistanceRef.current !== null) {
-      touchDistanceRef.current = null;
-      touchStartXRef.current = null;
-      return;
-    }
-    if (touchStartXRef.current === null) return;
-    const diff = e.changedTouches[0].clientX - touchStartXRef.current;
-    touchStartXRef.current = null;
-    if (zoomLevelRef.current <= 1.0 && Math.abs(diff) > 50) {
-      if (diff < 0) {
-        nextPage();
-      } else {
-        prevPage();
-      }
-    }
-  };
-
-  // Native Trackpad Pinch-to-Zoom & Two-Finger Panning listener (passive: false)
+  // Native Multi-Touch Pinch & Swipe Listeners (non-passive to prevent browser gesture cancellation)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        // Multi-touch pinch gesture - prevent browser from stealing touch
+        e.preventDefault();
+        touchStartXRef.current = null;
+        touchDistanceRef.current = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        touchStartZoomRef.current = zoomLevelRef.current;
+      } else if (e.touches.length === 1) {
+        touchStartXRef.current = e.touches[0].clientX;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && touchDistanceRef.current !== null && touchDistanceRef.current > 0) {
+        e.preventDefault();
+        const currentDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const scaleRatio = currentDist / touchDistanceRef.current;
+        const nextZoom = Math.min(3.0, Math.max(0.5, +(touchStartZoomRef.current * scaleRatio).toFixed(2)));
+        setZoomLevel(nextZoom);
+        if (nextZoom <= 1.0) {
+          setPanOffset({ x: 0, y: 0 });
+        }
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2 && touchDistanceRef.current !== null) {
+        touchDistanceRef.current = null;
+        touchStartXRef.current = null;
+      }
+      if (e.touches.length === 0 && touchStartXRef.current !== null) {
+        if (e.changedTouches.length > 0) {
+          const diff = e.changedTouches[0].clientX - touchStartXRef.current;
+          touchStartXRef.current = null;
+          if (zoomLevelRef.current <= 1.0 && Math.abs(diff) > 50) {
+            if (diff < 0) {
+              nextPage();
+            } else {
+              prevPage();
+            }
+          }
+        } else {
+          touchStartXRef.current = null;
+        }
+      }
+    };
+
+    const onTouchCancel = () => {
+      touchDistanceRef.current = null;
+      touchStartXRef.current = null;
+    };
+
+    container.addEventListener("touchstart", onTouchStart, { passive: false });
+    container.addEventListener("touchmove", onTouchMove, { passive: false });
+    container.addEventListener("touchend", onTouchEnd, { passive: true });
+    container.addEventListener("touchcancel", onTouchCancel, { passive: true });
+
+    return () => {
+      container.removeEventListener("touchstart", onTouchStart);
+      container.removeEventListener("touchmove", onTouchMove);
+      container.removeEventListener("touchend", onTouchEnd);
+      container.removeEventListener("touchcancel", onTouchCancel);
+    };
+  }, [nextPage, prevPage]);
+
+  // Native Trackpad Pinch-to-Zoom & Two-Finger Panning listener (passive: false, window-captured)
+  useEffect(() => {
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         // Trackpad pinch-to-zoom gesture or Ctrl + MouseWheel
         e.preventDefault();
-        const delta = -e.deltaY * 0.005;
+        const normalizedDelta = Math.abs(e.deltaY) >= 50 ? Math.sign(e.deltaY) * 15 : e.deltaY;
+        const factor = Math.exp(-normalizedDelta * 0.01);
         setZoomLevel(prev => {
-          const next = Math.min(3.0, Math.max(0.5, +(prev + delta).toFixed(2)));
+          const next = Math.min(3.0, Math.max(0.5, +(prev * factor).toFixed(3)));
           if (next <= 1.0) {
             setPanOffset({ x: 0, y: 0 });
           }
@@ -756,9 +804,38 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       }
     };
 
-    container.addEventListener("wheel", onWheel, { passive: false });
+    // WebKit GestureEvent support (macOS trackpad parity)
+    const onGestureStart = (e: Event) => {
+      e.preventDefault();
+      touchStartZoomRef.current = zoomLevelRef.current;
+    };
+
+    const onGestureChange = (e: Event) => {
+      e.preventDefault();
+      const scale = (e as unknown as { scale: number }).scale;
+      if (typeof scale === "number") {
+        const next = Math.min(3.0, Math.max(0.5, +(touchStartZoomRef.current * scale).toFixed(2)));
+        setZoomLevel(next);
+        if (next <= 1.0) {
+          setPanOffset({ x: 0, y: 0 });
+        }
+      }
+    };
+
+    const onGestureEnd = (e: Event) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    window.addEventListener("gesturestart", onGestureStart, { passive: false });
+    window.addEventListener("gesturechange", onGestureChange, { passive: false });
+    window.addEventListener("gestureend", onGestureEnd, { passive: false });
+
     return () => {
-      container.removeEventListener("wheel", onWheel);
+      window.removeEventListener("wheel", onWheel, { capture: true });
+      window.removeEventListener("gesturestart", onGestureStart);
+      window.removeEventListener("gesturechange", onGestureChange);
+      window.removeEventListener("gestureend", onGestureEnd);
     };
   }, [viewMode]);
 
@@ -808,42 +885,11 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         fontSize,
         lineHeight,
         margin,
-        fontFamily,
         twoPageView: viewMode === "two-page",
         continuousScroll: viewMode === "scroll",
       });
     }
-  }, [readerTheme, fontSize, lineHeight, margin, fontFamily, viewMode, currentBookPath, updateSettings]);
-
-  // Auto-save reading position on scroll in continuous scroll view
-  useEffect(() => {
-    if (viewMode !== "scroll" || !scrollContainerRef.current) return;
-    const container = scrollContainerRef.current;
-
-    let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
-    const handleScroll = () => {
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        const scrollHeight = container.scrollHeight - container.clientHeight;
-        if (scrollHeight > 0 && totalPages > 1) {
-          const scrollFraction = Math.max(0, Math.min(1, container.scrollTop / scrollHeight));
-          const approxPage = Math.min(totalPages, Math.max(1, Math.round(scrollFraction * (totalPages - 1)) + 1));
-          if (approxPage !== currentPage) {
-            setCurrentPage(approxPage);
-            if (currentBookPath) {
-              updateLocation(currentBookPath, approxPage, totalPages);
-            }
-          }
-        }
-      }, 150);
-    };
-
-    container.addEventListener("scroll", handleScroll, { passive: true });
-    return () => {
-      container.removeEventListener("scroll", handleScroll);
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-    };
-  }, [viewMode, totalPages, currentPage, currentBookPath, updateLocation]);
+  }, [readerTheme, fontSize, lineHeight, margin, viewMode, currentBookPath, updateSettings]);
 
   // Auto-save reading position on unmount / window beforeunload
   useEffect(() => {
@@ -866,7 +912,6 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     if (updates.fontSize !== undefined) setFontSize(updates.fontSize);
     if (updates.lineHeight !== undefined) setLineHeight(updates.lineHeight);
     if (updates.margin !== undefined) setMargin(updates.margin);
-    if (updates.fontFamily !== undefined) setFontFamily(updates.fontFamily);
     if (updates.theme !== undefined) setReaderTheme(updates.theme);
     if (updates.continuousScroll !== undefined && updates.continuousScroll) {
       setViewMode("scroll");
@@ -881,7 +926,6 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     setFontSize(16);
     setLineHeight(1.6);
     setMargin(32);
-    setFontFamily("serif");
     setReaderTheme("dark");
     setViewMode("single");
   };
@@ -923,8 +967,6 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       className="flex-1 flex flex-col h-full overflow-hidden select-none relative"
       style={{ backgroundColor: themeStyle.bg, color: themeStyle.text }}
       onMouseMove={handleMouseMove}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
     >
       {/* Top Hover Sensor Zone: hovering within top 24px reveals top header */}
       <div
@@ -983,35 +1025,15 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
         {/* View Mode & Theme Controls */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Drawer Navigation Buttons */}
+          {/* Search & Bookmarks Top Bar Buttons */}
           <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
             <button
               onClick={() => {
-                setDrawerTab("toc");
-                setIsDrawerOpen(curr => (drawerTab === "toc" ? !curr : true));
+                setSearchBookmarksTab("search");
+                setIsSearchBookmarksOpen(curr => (searchBookmarksTab === "search" ? !curr : true));
               }}
               className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors ${
-                isDrawerOpen && drawerTab === "toc"
-                  ? "bg-[var(--color-primary)] text-white"
-                  : "hover:bg-black/5 dark:hover:bg-white/5"
-              }`}
-              title="Table of Contents (C)"
-            >
-              <ListUnorderedIcon size={14} />
-              <span>Contents</span>
-              {toc.length > 0 && (
-                <span className="opacity-75 text-[10px] px-1 py-0.2 bg-black/10 dark:bg-white/10 rounded-full">
-                  {toc.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => {
-                setDrawerTab("search");
-                setIsDrawerOpen(curr => (drawerTab === "search" ? !curr : true));
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
-                isDrawerOpen && drawerTab === "search"
+                isSearchBookmarksOpen && searchBookmarksTab === "search"
                   ? "bg-[var(--color-primary)] text-white"
                   : "hover:bg-black/5 dark:hover:bg-white/5"
               }`}
@@ -1023,11 +1045,11 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             </button>
             <button
               onClick={() => {
-                setDrawerTab("bookmarks");
-                setIsDrawerOpen(curr => (drawerTab === "bookmarks" ? !curr : true));
+                setSearchBookmarksTab("bookmarks");
+                setIsSearchBookmarksOpen(curr => (searchBookmarksTab === "bookmarks" ? !curr : true));
               }}
               className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
-                isDrawerOpen && drawerTab === "bookmarks"
+                isSearchBookmarksOpen && searchBookmarksTab === "bookmarks"
                   ? "bg-[var(--color-primary)] text-white"
                   : "hover:bg-black/5 dark:hover:bg-white/5"
               }`}
@@ -1206,18 +1228,46 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         </div>
       </header>
 
+      {/* Left-Side Content / Table of Contents Button (just below top panel menu) */}
+      <div
+        className={`absolute left-4 z-40 transition-all duration-300 pointer-events-auto ${
+          isHeaderVisible || isHeaderPinned ? "top-14" : "top-4"
+        }`}
+      >
+        <button
+          onClick={() => {
+            setIsTocOpen(curr => !curr);
+          }}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border shadow-md backdrop-blur-md text-xs font-medium transition-all ${
+            isTocOpen
+              ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-lg scale-105"
+              : "hover:scale-105 hover:bg-black/5 dark:hover:bg-white/10"
+          }`}
+          style={{
+            backgroundColor: isTocOpen ? undefined : themeStyle.barBg,
+            borderColor: themeStyle.border,
+          }}
+          title="Table of Contents (C)"
+        >
+          <ListUnorderedIcon size={14} />
+          <span>Contents</span>
+          {toc.length > 0 && (
+            <span className="opacity-80 text-[10px] px-1.5 py-0.2 bg-black/10 dark:bg-white/10 rounded-full font-bold">
+              {toc.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Main Reading Viewport */}
       <main
-        className={`flex-1 relative ${
+        className={`flex-1 relative reader-viewport-main ${
           viewMode === "scroll"
             ? "overflow-hidden flex flex-col"
             : "overflow-hidden flex items-center justify-center p-2"
         }`}
         ref={containerRef}
         style={{ backgroundColor: themeStyle.pageBg }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
         {rendering && (
           <div className="absolute top-4 right-4 z-30">
@@ -1245,7 +1295,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             <div
               className={`reader-zoom-wrapper w-full h-full flex items-center justify-center ${zoomLevel > 1.0 ? "is-zoomed" : ""}`}
               style={{
-                transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomLevel})`,
+                transform:
+                  zoomLevel === 1.0 && panOffset.x === 0 && panOffset.y === 0
+                    ? "none"
+                    : `translate3d(${Math.round(panOffset.x)}px, ${Math.round(panOffset.y)}px, 0) scale(${zoomLevel})`,
                 transformOrigin: "center center",
                 transition: isDragging ? "none" : "transform 100ms ease-out",
               }}
@@ -1272,7 +1325,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             <div
               className={`reader-zoom-wrapper w-full h-full flex items-center justify-center gap-3 ${zoomLevel > 1.0 ? "is-zoomed" : ""}`}
               style={{
-                transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomLevel})`,
+                transform:
+                  zoomLevel === 1.0 && panOffset.x === 0 && panOffset.y === 0
+                    ? "none"
+                    : `translate3d(${Math.round(panOffset.x)}px, ${Math.round(panOffset.y)}px, 0) scale(${zoomLevel})`,
                 transformOrigin: "center center",
                 transition: isDragging ? "none" : "transform 100ms ease-out",
               }}
@@ -1310,45 +1366,50 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         {viewMode === "scroll" && (
           <div
             ref={scrollContainerRef}
-            className="w-full h-full overflow-y-auto overflow-x-hidden p-6 mx-auto transition-all duration-150"
-            style={{
-              maxWidth: `${Math.round(860 * zoomLevel)}px`,
-            }}
+            className="w-full h-full overflow-y-auto overflow-x-auto p-6 transition-all duration-150"
           >
-            {scrollPages.map((pageNum: number) => {
-              const isBookmarked = bookBookmarks.some(b => b.location === pageNum);
-              return (
-                <div
-                  key={pageNum}
-                  id={`reader-page-${pageNum}`}
-                  data-page-num={pageNum}
-                  className="reader-page-slot my-6 mx-auto rounded shadow-sm border relative transition-all"
-                  style={{
-                    minHeight: "700px",
-                    backgroundColor: themeStyle.pageBg,
-                    borderColor: themeStyle.border,
-                    maxWidth: "100%",
-                  }}
-                >
-                  {isBookmarked && (
-                    <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${pageNum}`}>
-                      <div className="bookmark-corner-ribbon-badge">
-                        <BookmarkFillIcon size={14} />
+            <div
+              className="mx-auto flex flex-col items-center"
+              style={{
+                width: `${Math.floor(860 * zoomLevel)}px`,
+                minWidth: `${Math.floor(860 * zoomLevel)}px`,
+              }}
+            >
+              {scrollPages.map((pageNum: number) => {
+                const isBookmarked = bookBookmarks.some(b => b.location === pageNum);
+                return (
+                  <div
+                    key={pageNum}
+                    id={`reader-page-${pageNum}`}
+                    data-page-num={pageNum}
+                    className="reader-page-slot my-6 rounded shadow-sm border relative transition-all"
+                    style={{
+                      width: `${Math.floor(860 * zoomLevel)}px`,
+                      minHeight: "700px",
+                      backgroundColor: themeStyle.pageBg,
+                      borderColor: themeStyle.border,
+                    }}
+                  >
+                    {isBookmarked && (
+                      <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${pageNum}`}>
+                        <div className="bookmark-corner-ribbon-badge">
+                          <BookmarkFillIcon size={14} />
+                        </div>
+                      </div>
+                    )}
+                    <div
+                      id={`reader-page-content-${pageNum}`}
+                      className="w-full h-full min-h-[700px] flex items-center justify-center p-2"
+                    >
+                      <div className="text-xs text-[var(--color-text-muted)] opacity-50 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
+                        Page {pageNum} of {totalPages}
                       </div>
                     </div>
-                  )}
-                  <div
-                    id={`reader-page-content-${pageNum}`}
-                    className="w-full h-full min-h-[700px] flex items-center justify-center p-2"
-                  >
-                    <div className="text-xs text-[var(--color-text-muted)] opacity-50 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
-                      Page {pageNum} of {totalPages}
-                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </main>
@@ -1532,17 +1593,29 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         </div>
       )}
 
-      {/* Search, TOC, and Bookmark Drawer */}
-      <SearchAndTOCDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        activeTab={drawerTab}
-        onTabChange={setDrawerTab}
+      {/* Table of Contents Drawer (Left-Docked) */}
+      <TableOfContentsDrawer
+        isOpen={isTocOpen}
+        onClose={() => setIsTocOpen(false)}
         toc={toc}
         currentPage={currentPage}
         onNavigateToPage={(page) => {
           goToPage(page);
-          setIsDrawerOpen(false);
+          setIsTocOpen(false);
+        }}
+        theme={readerTheme}
+      />
+
+      {/* Search and Bookmarks Drawer (Right-Docked) */}
+      <SearchAndBookmarksDrawer
+        isOpen={isSearchBookmarksOpen}
+        onClose={() => setIsSearchBookmarksOpen(false)}
+        activeTab={searchBookmarksTab}
+        onTabChange={setSearchBookmarksTab}
+        currentPage={currentPage}
+        onNavigateToPage={(page) => {
+          goToPage(page);
+          setIsSearchBookmarksOpen(false);
         }}
         onSearch={async (query) => {
           if (!adapterRef.current) return [];
@@ -1562,7 +1635,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         theme={readerTheme}
       />
 
-      {/* Settings Drawer */}
+      {/* Settings Drawer (Right-Docked) */}
       <SettingsDrawer
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -1570,7 +1643,6 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           fontSize,
           lineHeight,
           margin,
-          fontFamily,
           theme: readerTheme,
           twoPageView: viewMode === "two-page",
           continuousScroll: viewMode === "scroll",

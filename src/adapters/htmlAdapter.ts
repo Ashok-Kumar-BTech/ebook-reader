@@ -88,7 +88,7 @@ export class HtmlAdapter implements BookAdapter {
     const html = this.sections[pageNum] || this.content;
     const wrapper = document.createElement('div');
     wrapper.className = 'html-book-content prose max-w-none';
-    wrapper.style.fontFamily = this.getFontFamily(options.fontFamily);
+    wrapper.style.fontFamily = 'Inter, system-ui, -apple-system, sans-serif';
     wrapper.style.fontSize = `${options.fontSize}px`;
     wrapper.style.lineHeight = String(options.lineHeight);
     wrapper.style.padding = `${options.margin}px`;
@@ -98,6 +98,14 @@ export class HtmlAdapter implements BookAdapter {
     wrapper.style.backgroundColor = this.getThemeBg(options.theme);
     wrapper.innerHTML = html;
 
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+      .html-book-content p, .html-book-content li, .html-book-content div {
+        line-height: ${options.lineHeight} !important;
+      }
+    `;
+    wrapper.appendChild(styleEl);
+
     container.innerHTML = '';
     container.appendChild(wrapper);
     this.currentPage = pageNum;
@@ -105,14 +113,6 @@ export class HtmlAdapter implements BookAdapter {
 
   async renderPageRange(startPage: number, _endPage: number, container: HTMLElement, options: RenderOptions): Promise<void> {
     await this.renderPage(startPage, container, options);
-  }
-
-  private getFontFamily(font: 'serif' | 'sans' | 'mono'): string {
-    switch (font) {
-      case 'serif': return 'Georgia, Cambria, "Times New Roman", Times, serif';
-      case 'sans': return 'Inter, system-ui, -apple-system, sans-serif';
-      case 'mono': return 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-    }
   }
 
   private getThemeColor(theme: 'light' | 'dark' | 'sepia'): string {
@@ -210,7 +210,7 @@ export class DocxAdapter implements BookAdapter {
   async renderPage(_pageNum: number, container: HTMLElement, options: RenderOptions): Promise<void> {
     const wrapper = document.createElement('div');
     wrapper.className = 'docx-book-content prose max-w-none';
-    wrapper.style.fontFamily = options.fontFamily === 'serif' ? 'Georgia, serif' : options.fontFamily === 'mono' ? 'monospace' : 'sans-serif';
+    wrapper.style.fontFamily = 'Inter, system-ui, -apple-system, sans-serif';
     wrapper.style.fontSize = `${options.fontSize}px`;
     wrapper.style.lineHeight = String(options.lineHeight);
     wrapper.style.padding = `${options.margin}px`;
@@ -219,6 +219,14 @@ export class DocxAdapter implements BookAdapter {
     wrapper.style.color = options.theme === 'dark' ? '#f3f4f6' : options.theme === 'sepia' ? '#5f4b32' : '#111827';
     wrapper.style.backgroundColor = options.theme === 'dark' ? '#111827' : options.theme === 'sepia' ? '#fbf0d9' : '#ffffff';
     wrapper.innerHTML = this.content;
+
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+      .docx-book-content p, .docx-book-content li, .docx-book-content div {
+        line-height: ${options.lineHeight} !important;
+      }
+    `;
+    wrapper.appendChild(styleEl);
 
     container.innerHTML = '';
     container.appendChild(wrapper);

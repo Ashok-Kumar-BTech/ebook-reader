@@ -163,28 +163,54 @@ export class PdfAdapter implements BookAdapter {
     const availableHeight = Math.max(100, options.height - options.margin * 2);
     const scaleX = availableWidth / baseViewport.width;
     const scaleY = availableHeight / baseViewport.height;
-    // Fit completely inside available viewport in both dimensions (contain)
-    const fitScale = Math.min(scaleX, scaleY);
-    const scale = Math.min(Math.max(fitScale, 0.1), 3.0);
+
+    // For continuous scroll, fit to available width; for paginated views, fit completely (contain)
+    const fitScale = options.continuousScroll ? scaleX : Math.min(scaleX, scaleY);
     
-    const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2);
-    const scaledViewport = page.getViewport({ scale: scale * dpr });
-    canvas.width = scaledViewport.width;
-    canvas.height = scaledViewport.height;
-    canvas.style.width = `${Math.round(scaledViewport.width / dpr)}px`;
-    canvas.style.height = `${Math.round(scaledViewport.height / dpr)}px`;
+    // Pixel-perfect integer geometry: ensure CSS display dimensions are exact integers
+    const cssWidth = Math.floor(baseViewport.width * fitScale);
+    const cssHeight = Math.floor(baseViewport.height * fitScale);
+
+    // Native display pixel ratio and zoom factor
+    const effectiveZoom = options.zoom && options.zoom > 0 ? options.zoom : 1.0;
+    const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+    
+    // Exact integer physical backing store buffer
+    const pixelWidth = Math.floor(cssWidth * effectiveZoom * dpr);
+    const pixelHeight = Math.floor(cssHeight * effectiveZoom * dpr);
+    
+    // Safety guard against exceeding maximum canvas texture dimensions (8192px)
+    let renderScale = pixelWidth / baseViewport.width;
+    const maxDimension = 8192;
+    if (pixelWidth > maxDimension || pixelHeight > maxDimension) {
+      const maxScale = maxDimension / Math.max(baseViewport.width, baseViewport.height);
+      renderScale = maxScale;
+      canvas.width = Math.floor(baseViewport.width * maxScale);
+      canvas.height = Math.floor(baseViewport.height * maxScale);
+    } else {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
+
+    const scaledViewport = page.getViewport({ scale: renderScale });
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
+
+    // Enable high-quality smoothing for any downscaled raster elements inside the PDF
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
     
     if (options.theme === 'dark') {
       canvas.style.filter = 'invert(1) hue-rotate(180deg)';
     } else if (options.theme === 'sepia') {
       canvas.style.filter = 'sepia(1) contrast(1.2) brightness(0.9)';
+    } else {
+      canvas.style.filter = 'none';
     }
     
-    canvas.style.maxWidth = '100%';
-    canvas.style.maxHeight = '100%';
-    canvas.style.objectFit = 'contain';
     canvas.style.display = 'block';
     canvas.style.margin = 'auto';
+    canvas.style.imageRendering = '-webkit-optimize-contrast';
     
     container.innerHTML = '';
     container.style.display = 'flex';

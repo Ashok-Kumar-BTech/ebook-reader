@@ -17,7 +17,6 @@ export interface BookSettings {
   theme: 'light' | 'dark' | 'sepia';
   twoPageView: boolean;
   continuousScroll: boolean;
-  fontFamily: 'serif' | 'sans' | 'mono';
 }
 
 export interface BookState {
@@ -51,7 +50,6 @@ const DEFAULT_BOOK_SETTINGS: BookSettings = {
   theme: 'dark',
   twoPageView: false,
   continuousScroll: true,
-  fontFamily: 'serif',
 };
 
 const EMPTY_BOOK_STATE: BookState = {

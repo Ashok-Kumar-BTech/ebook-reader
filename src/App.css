@@ -214,7 +214,6 @@ html, body, #root {
   overflow: hidden !important;
 }
 
-.reader-page-fit-container canvas,
 .reader-page-fit-container img {
   max-width: 100% !important;
   max-height: 100% !important;
@@ -223,14 +222,27 @@ html, body, #root {
   display: block !important;
 }
 
+.reader-page-fit-container canvas {
+  display: block !important;
+  margin: auto !important;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
 /* Document Zoom Wrapper and Panning */
 .reader-zoom-wrapper {
   transform-origin: center center;
-  will-change: transform;
   user-select: none;
 }
 
 .reader-zoom-wrapper.is-zoomed {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
 }
+
+/* Enable multi-touch pinch gestures in reader without browser conflict */
+.reader-viewport-main {
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
 

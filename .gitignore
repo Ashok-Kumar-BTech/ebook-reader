@@ -24,5 +24,4 @@ dist-ssr
 *.sw?
 
 # Tracker Files
-DEV-LOG.md
 PLAN-PROGRESS.md

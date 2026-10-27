@@ -82,7 +82,7 @@ export class TxtAdapter implements BookAdapter {
     const text = this.pages[idx];
     const div = document.createElement('div');
     div.style.whiteSpace = 'pre-wrap';
-    div.style.fontFamily = this.getFontFamily(options.fontFamily);
+    div.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     div.style.fontSize = options.fontSize + 'px';
     div.style.lineHeight = options.lineHeight.toString();
     div.style.color = this.getThemeColor(options.theme);
@@ -106,7 +106,7 @@ export class TxtAdapter implements BookAdapter {
       const text = this.pages[pageNum];
       const div = document.createElement('div');
       div.style.whiteSpace = 'pre-wrap';
-      div.style.fontFamily = this.getFontFamily(options.fontFamily);
+      div.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       div.style.fontSize = options.fontSize + 'px';
       div.style.lineHeight = options.lineHeight.toString();
       div.style.marginBottom = options.margin * 2 + 'px';
@@ -120,10 +120,6 @@ export class TxtAdapter implements BookAdapter {
     }
     container.appendChild(fragment);
     this.currentPage = endIdx;
-  }
-
-  private getFontFamily(fontFamily: string): string {
-    switch (fontFamily) { case 'serif': return 'Georgia, "Times New Roman", serif'; case 'sans': return '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'; case 'mono': return '"Fira Code", "Consolas", monospace'; default: return 'Georgia, "Times New Roman", serif'; }
   }
 
   private getThemeColor(theme: string): string {

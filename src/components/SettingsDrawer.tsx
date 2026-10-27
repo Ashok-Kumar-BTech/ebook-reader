@@ -92,124 +92,7 @@ export function SettingsDrawer({
 
       {/* Settings Scrollable Body */}
       <div className="flex-1 overflow-y-auto p-5 space-y-6">
-        {/* Section 1: Typography */}
-        <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)] mb-3">
-            Typography
-          </h4>
-          <div className="space-y-4">
-            {/* Font Family */}
-            <div className="rounded-lg p-3 border" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
-              <label className="text-xs font-medium block mb-2">Font Family</label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {(["serif", "sans", "mono"] as const).map((fam) => (
-                  <button
-                    key={fam}
-                    onClick={() => onUpdateSettings({ fontFamily: fam })}
-                    className={`px-2.5 py-1.5 text-xs rounded-md border font-medium transition-colors ${
-                      settings.fontFamily === fam
-                        ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-sm"
-                        : "hover:bg-black/5 dark:hover:bg-white/5 border-transparent"
-                    }`}
-                    style={{
-                      fontFamily: fam === "serif" ? "Georgia, serif" : fam === "mono" ? "monospace" : "sans-serif"
-                    }}
-                  >
-                    {fam === "serif" ? "Serif" : fam === "sans" ? "Sans" : "Mono"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Font Size */}
-            <div className="rounded-lg p-3 border" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-medium">Font Size</label>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-                  {settings.fontSize}px
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => onUpdateSettings({ fontSize: Math.max(12, settings.fontSize - 1) })}
-                  className="w-7 h-7 flex items-center justify-center rounded border hover:bg-black/5 dark:hover:bg-white/5 text-xs font-bold"
-                  style={{ borderColor: cardBorder }}
-                  title="Decrease font size (-)"
-                >
-                  -
-                </button>
-                <input
-                  type="range"
-                  min="12"
-                  max="36"
-                  value={settings.fontSize}
-                  onChange={(e) => onUpdateSettings({ fontSize: parseInt(e.target.value, 10) })}
-                  className="flex-1 accent-[var(--color-primary)] cursor-pointer h-1.5 bg-black/10 dark:bg-white/10 rounded-lg"
-                />
-                <button
-                  onClick={() => onUpdateSettings({ fontSize: Math.min(36, settings.fontSize + 1) })}
-                  className="w-7 h-7 flex items-center justify-center rounded border hover:bg-black/5 dark:hover:bg-white/5 text-xs font-bold"
-                  style={{ borderColor: cardBorder }}
-                  title="Increase font size (+)"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {/* Line Height */}
-            <div className="rounded-lg p-3 border" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-medium">Line Height</label>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-                  {settings.lineHeight.toFixed(1)}
-                </span>
-              </div>
-              <div className="grid grid-cols-4 gap-1.5">
-                {[1.4, 1.6, 1.8, 2.0].map((lh) => (
-                  <button
-                    key={lh}
-                    onClick={() => onUpdateSettings({ lineHeight: lh })}
-                    className={`py-1 text-xs rounded-md border font-medium transition-colors ${
-                      Math.abs(settings.lineHeight - lh) < 0.05
-                        ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
-                        : "hover:bg-black/5 dark:hover:bg-white/5 border-transparent"
-                    }`}
-                  >
-                    {lh.toFixed(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Margins */}
-            <div className="rounded-lg p-3 border" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-medium">Page Margin</label>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-                  {settings.margin}px
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[20, 32, 48].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => onUpdateSettings({ margin: m })}
-                    className={`py-1 text-xs rounded-md border font-medium transition-colors ${
-                      settings.margin === m
-                        ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
-                        : "hover:bg-black/5 dark:hover:bg-white/5 border-transparent"
-                    }`}
-                  >
-                    {m === 20 ? "Compact" : m === 32 ? "Normal" : "Wide"}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 2: View Mode & Themes */}
+        {/* Section 1: Layout & Theme */}
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)] mb-3">
             Layout & Theme
@@ -299,7 +182,7 @@ export function SettingsDrawer({
           </div>
         </div>
 
-        {/* Section 3: Book Information */}
+        {/* Section 2: Book Information */}
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)] mb-3">
             Book Information

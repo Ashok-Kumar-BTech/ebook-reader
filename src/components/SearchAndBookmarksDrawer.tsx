@@ -4,20 +4,17 @@ import {
   SearchIcon,
   BookmarkIcon,
   TrashIcon,
-  ChevronRightIcon,
-  BookIcon,
 } from "@primer/octicons-react";
-import type { TOCItem, SearchResult } from "../types/reader";
+import type { SearchResult } from "../types/reader";
 import type { Bookmark } from "../stores/bookStore";
 
-export type DrawerTab = "toc" | "search" | "bookmarks";
+export type SearchBookmarksTab = "search" | "bookmarks";
 
-interface SearchAndTOCDrawerProps {
+export interface SearchAndBookmarksDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  activeTab: DrawerTab;
-  onTabChange: (tab: DrawerTab) => void;
-  toc: TOCItem[];
+  activeTab: SearchBookmarksTab;
+  onTabChange: (tab: SearchBookmarksTab) => void;
   currentPage: number;
   onNavigateToPage: (page: number) => void;
   onSearch: (query: string) => Promise<SearchResult[]>;
@@ -27,12 +24,11 @@ interface SearchAndTOCDrawerProps {
   theme: "light" | "dark" | "sepia";
 }
 
-export function SearchAndTOCDrawer({
+export function SearchAndBookmarksDrawer({
   isOpen,
   onClose,
   activeTab,
   onTabChange,
-  toc,
   currentPage,
   onNavigateToPage,
   onSearch,
@@ -40,7 +36,7 @@ export function SearchAndTOCDrawer({
   onAddBookmark,
   onRemoveBookmark,
   theme,
-}: SearchAndTOCDrawerProps) {
+}: SearchAndBookmarksDrawerProps) {
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -128,7 +124,7 @@ export function SearchAndTOCDrawer({
 
   return (
     <aside
-      className="fixed inset-y-0 right-0 w-80 sm:w-96 shadow-2xl z-40 flex flex-col border-l transition-all select-none"
+      className="fixed inset-y-0 right-0 w-80 sm:w-96 shadow-2xl z-50 flex flex-col border-l transition-transform duration-200 ease-out select-none"
       style={{ backgroundColor: style.bg, borderColor: style.border, color: style.text }}
     >
       {/* Drawer Header */}
@@ -136,7 +132,9 @@ export function SearchAndTOCDrawer({
         className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0"
         style={{ backgroundColor: style.barBg, borderColor: style.border }}
       >
-        <span className="font-semibold text-sm">Navigation & Search</span>
+        <span className="font-semibold text-sm">
+          {activeTab === "search" ? "Search Book" : "Bookmarks"}
+        </span>
         <button
           onClick={onClose}
           className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
@@ -146,27 +144,11 @@ export function SearchAndTOCDrawer({
         </button>
       </div>
 
-      {/* Tabs Switcher */}
+      {/* Tabs Switcher: Search vs Bookmarks */}
       <div
         className="flex border-b text-xs font-semibold flex-shrink-0"
         style={{ backgroundColor: style.barBg, borderColor: style.border }}
       >
-        <button
-          onClick={() => onTabChange("toc")}
-          className={`flex-1 py-2.5 text-center border-b-2 transition-colors flex items-center justify-center gap-1.5 ${
-            activeTab === "toc"
-              ? "border-[var(--color-primary)] text-[var(--color-primary)] font-bold"
-              : "border-transparent opacity-70 hover:opacity-100"
-          }`}
-        >
-          <span>Contents</span>
-          {toc.length > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/10">
-              {toc.length}
-            </span>
-          )}
-        </button>
-
         <button
           onClick={() => onTabChange("search")}
           className={`flex-1 py-2.5 text-center border-b-2 transition-colors flex items-center justify-center gap-1.5 ${
@@ -175,6 +157,7 @@ export function SearchAndTOCDrawer({
               : "border-transparent opacity-70 hover:opacity-100"
           }`}
         >
+          <SearchIcon size={14} />
           <span>Search</span>
           {hasSearched && (
             <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/10">
@@ -191,6 +174,7 @@ export function SearchAndTOCDrawer({
               : "border-transparent opacity-70 hover:opacity-100"
           }`}
         >
+          <BookmarkIcon size={14} />
           <span>Bookmarks</span>
           {bookmarks.length > 0 && (
             <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/10">
@@ -202,30 +186,7 @@ export function SearchAndTOCDrawer({
 
       {/* Tab Panels */}
       <div className="flex-1 overflow-y-auto p-4">
-        {/* TAB 1: TABLE OF CONTENTS */}
-        {activeTab === "toc" && (
-          <div className="space-y-1">
-            {toc.length === 0 ? (
-              <div className="text-center py-12" style={{ color: style.textMuted }}>
-                <BookIcon size={36} className="mx-auto mb-3 opacity-30" />
-                <p className="text-sm font-medium">No Table of Contents</p>
-                <p className="text-xs mt-1">This book does not contain outline markers.</p>
-              </div>
-            ) : (
-              toc.map((item) => (
-                <TOCNodeItem
-                  key={item.id}
-                  item={item}
-                  currentPage={currentPage}
-                  onNavigate={onNavigateToPage}
-                  themeStyle={style}
-                />
-              ))
-            )}
-          </div>
-        )}
-
-        {/* TAB 2: IN-BOOK SEARCH */}
+        {/* TAB 1: IN-BOOK SEARCH */}
         {activeTab === "search" && (
           <div className="space-y-4">
             <form onSubmit={handleSearchSubmit} className="flex gap-2">
@@ -281,7 +242,10 @@ export function SearchAndTOCDrawer({
                   {searchResults.map((result, idx) => (
                     <div
                       key={idx}
-                      onClick={() => onNavigateToPage(result.location)}
+                      onClick={() => {
+                        onNavigateToPage(result.location);
+                        onClose();
+                      }}
                       className="p-3 rounded border text-xs cursor-pointer transition-colors"
                       style={{ borderColor: style.border }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = style.hover)}
@@ -311,7 +275,7 @@ export function SearchAndTOCDrawer({
           </div>
         )}
 
-        {/* TAB 3: BOOKMARKS */}
+        {/* TAB 2: BOOKMARKS */}
         {activeTab === "bookmarks" && (
           <div className="space-y-4">
             {/* Quick Add Bookmark Card */}
@@ -358,6 +322,7 @@ export function SearchAndTOCDrawer({
                       const pageNum = typeof bm.location === "number" ? bm.location : parseInt(bm.location, 10);
                       if (!isNaN(pageNum)) {
                         onNavigateToPage(pageNum);
+                        onClose();
                       }
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = style.hover)}
@@ -399,83 +364,6 @@ export function SearchAndTOCDrawer({
   );
 }
 
-// Hierarchical TOC Tree Node Component
-function TOCNodeItem({
-  item,
-  currentPage,
-  onNavigate,
-  themeStyle,
-}: {
-  item: TOCItem;
-  currentPage: number;
-  onNavigate: (page: number) => void;
-  themeStyle: { hover: string; activeItem: string; border: string; textMuted: string };
-}) {
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = item.children && item.children.length > 0;
-  const isCurrent = currentPage === item.location;
-
-  return (
-    <div className="text-xs">
-      <div
-        className="flex items-center justify-between py-1.5 px-2 rounded cursor-pointer transition-colors"
-        style={{
-          paddingLeft: `${Math.max(8, item.level * 16 + 8)}px`,
-          backgroundColor: isCurrent ? themeStyle.activeItem : "transparent",
-        }}
-        onClick={() => onNavigate(item.location)}
-        onMouseEnter={(e) => {
-          if (!isCurrent) e.currentTarget.style.backgroundColor = themeStyle.hover;
-        }}
-        onMouseLeave={(e) => {
-          if (!isCurrent) e.currentTarget.style.backgroundColor = "transparent";
-        }}
-      >
-        <div className="flex items-center gap-1.5 min-w-0 truncate">
-          {hasChildren && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setExpanded(!expanded);
-              }}
-              className="p-0.5 rounded opacity-60 hover:opacity-100 flex-shrink-0 flex items-center"
-            >
-              <ChevronRightIcon
-                size={12}
-                className={`transform transition-transform ${expanded ? "rotate-90" : ""}`}
-              />
-            </button>
-          )}
-          {!hasChildren && <span className="w-3.5 flex-shrink-0" />}
-          <span className={`truncate ${isCurrent ? "font-bold text-[var(--color-primary)]" : ""}`}>
-            {item.label}
-          </span>
-        </div>
-
-        {item.location > 0 && (
-          <span className="text-[10px] ml-2 flex-shrink-0" style={{ color: themeStyle.textMuted }}>
-            {item.location}
-          </span>
-        )}
-      </div>
-
-      {hasChildren && expanded && (
-        <div className="space-y-0.5">
-          {item.children!.map((child) => (
-            <TOCNodeItem
-              key={child.id}
-              item={child}
-              currentPage={currentPage}
-              onNavigate={onNavigate}
-              themeStyle={themeStyle}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // Highlight matched search snippet
 function renderHighlightedContext(context: string, query: string) {
   if (!query) return context;
@@ -497,4 +385,3 @@ function renderHighlightedContext(context: string, query: string) {
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-
