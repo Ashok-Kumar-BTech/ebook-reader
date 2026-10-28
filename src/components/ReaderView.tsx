@@ -86,6 +86,11 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const touchStartXRef = useRef<number | null>(null);
   const renderedPagesRef = useRef<Set<number>>(new Set());
   const isScrollingToPageRef = useRef<boolean>(false);
+  const bookPathRef = useRef<string | null>(currentBookPath);
+
+  useEffect(() => {
+    if (currentBookPath) bookPathRef.current = currentBookPath;
+  }, [currentBookPath]);
 
   // Zoom & Pan Engine state (0.5x to 3.0x, default 1.0x / Fit)
   const [zoomLevel, setZoomLevel] = useState<number>(1.0);
@@ -133,8 +138,9 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         const count = Math.max(1, adapter.getPageCount());
         setTotalPages(count);
 
-        // Restore saved book state
-        const savedState = getBookState(currentBookPath!);
+        // Ensure bookStore is hydrated before restoring saved state
+        await useBookStore.getState().hydrate();
+        const savedState = useBookStore.getState().getBookState(currentBookPath!);
         let initialPage = 1;
         let initialTheme: "light" | "dark" | "sepia" = "dark";
         let initialFontSize = 16;
@@ -973,15 +979,17 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   // Auto-save reading position on unmount / window beforeunload
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (currentBookPath) {
-        updateLocation(currentBookPath, currentPage, totalPages);
+      const pathToSave = currentBookPath || bookPathRef.current;
+      if (pathToSave) {
+        updateLocation(pathToSave, currentPage, totalPages);
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      if (currentBookPath) {
-        updateLocation(currentBookPath, currentPage, totalPages);
+      const pathToSave = currentBookPath || bookPathRef.current;
+      if (pathToSave) {
+        updateLocation(pathToSave, currentPage, totalPages);
       }
     };
   }, [currentBookPath, currentPage, totalPages, updateLocation]);
@@ -998,6 +1006,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       setViewMode("two-page");
     } else if (updates.continuousScroll === false || updates.twoPageView === false) {
       setViewMode("single");
+    }
+    const pathToSave = currentBookPath || bookPathRef.current;
+    if (pathToSave) {
+      updateSettings(pathToSave, updates);
     }
   };
 

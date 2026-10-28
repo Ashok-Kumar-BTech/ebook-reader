@@ -46,6 +46,7 @@ export interface UiState {
   addRecentFolder: (path: string) => void;
   addRecentFile: (path: string) => void;
   clearRecents: () => void;
+  isHydrated: boolean;
   hydrate: () => Promise<void>;
 }
 
@@ -87,6 +88,7 @@ const loggedStoreCreator = createLoggedStore<UiState>(
     recentFiles: [],
     dirHistory: [],
     dirHistoryIndex: -1,
+    isHydrated: false,
 
     // Actions
     toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
@@ -183,7 +185,10 @@ const loggedStoreCreator = createLoggedStore<UiState>(
           recentFolders: (stored.recentFolders || []).slice(0, MAX_RECENT_DIRECTORIES),
           dirHistory: stored.currentRoot ? [stored.currentRoot] : [],
           dirHistoryIndex: stored.currentRoot ? 0 : -1,
+          isHydrated: true,
         }));
+      } else {
+        set({ isHydrated: true });
       }
     },
   })
@@ -191,9 +196,10 @@ const loggedStoreCreator = createLoggedStore<UiState>(
 
 export const useUiStore = create<UiState>()(loggedStoreCreator);
 
-// Subscribe to changes and persist to Tauri store
+// Subscribe to changes and persist to Tauri store (only after initial hydration)
 useUiStore.subscribe(
   (newState: UiState, _oldState: UiState) => {
+    if (!newState.isHydrated) return;
     uiStorePersist.set({
       sidebarVisible: newState.sidebarVisible,
       sidebarWidth: newState.sidebarWidth,

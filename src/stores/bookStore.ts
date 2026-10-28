@@ -39,6 +39,7 @@ export interface BookStoreState {
   updateBookmark: (path: string, bookmarkId: string, updates: Partial<Bookmark>) => void;
   updateSettings: (path: string, settings: Partial<BookSettings>) => void;
   clearBookState: (path: string) => void;
+  isHydrated: boolean;
   hydrate: () => Promise<void>;
 }
 
@@ -73,6 +74,7 @@ const loggedStoreCreator = createLoggedStore<BookStoreState>(
   (set, get) => ({
     bookStates: {},
     currentBookPath: null,
+    isHydrated: false,
 
     setCurrentBookPath: (path: string | null) => set({ currentBookPath: path }),
 
@@ -170,7 +172,9 @@ const loggedStoreCreator = createLoggedStore<BookStoreState>(
       await bookStorePersist.load();
       const stored = bookStorePersist.get();
       if (stored && Object.keys(stored).length > 0) {
-        set({ bookStates: stored });
+        set({ bookStates: stored, isHydrated: true });
+      } else {
+        set({ isHydrated: true });
       }
     },
   })
@@ -178,9 +182,11 @@ const loggedStoreCreator = createLoggedStore<BookStoreState>(
 
 export const useBookStore = create<BookStoreState>()(loggedStoreCreator);
 
-// Subscribe to changes and persist to Tauri store
+// Subscribe to changes and persist to Tauri store (only after initial hydration)
 useBookStore.subscribe(
   (newState: BookStoreState, _oldState: BookStoreState) => {
-    bookStorePersist.set(newState.bookStates);
+    if (newState.isHydrated) {
+      bookStorePersist.set(newState.bookStates);
+    }
   }
 );

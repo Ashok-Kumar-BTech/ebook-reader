@@ -57,10 +57,10 @@ export default function App() {
     setTheme,
     addRecentFolder,
     addRecentFile,
-    hydrate,
+    hydrate: hydrateUiStore,
   } = useUiStore();
 
-  const { setCurrentBookPath } = useBookStore();
+  const { setCurrentBookPath, hydrate: hydrateBookStore } = useBookStore();
 
   const [mode, setMode] = useState<AppMode>("browse");
   const [entries, setEntries] = useState<FileEntry[]>([]);
@@ -155,11 +155,12 @@ export default function App() {
     entriesCount: entries.length 
   });
 
-  // Hydrate store on mount
+  // Hydrate stores on mount
   useEffect(() => {
     logger.info('HYDRATE_START');
-    hydrate();
-  }, [hydrate, logger]);
+    hydrateUiStore();
+    hydrateBookStore();
+  }, [hydrateUiStore, hydrateBookStore, logger]);
 
   // Initialize window state persistence
   useEffect(() => {
@@ -287,8 +288,8 @@ export default function App() {
   };
 
   const handleCloseBook = () => {
-    setCurrentBookPath(null);
     setMode("browse");
+    setTimeout(() => setCurrentBookPath(null), 50);
   };
 
   return (
