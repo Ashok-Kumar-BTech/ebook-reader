@@ -78,24 +78,42 @@ export class PdfAdapter implements BookAdapter {
     if (!this.pdfDoc || !query.trim()) return [];
     
     const results: SearchResult[] = [];
-    const searchTerm = query.toLowerCase();
+    const searchTerm = query.toLowerCase().trim();
     
     for (let pageNum = 1; pageNum <= this.pageCount; pageNum++) {
       try {
         const page = await this.pdfDoc.getPage(pageNum);
         const textContent = await page.getTextContent();
-        const text = textContent.items.map((item: any) => item.str).join(' ');
         
-        if (text.toLowerCase().includes(searchTerm)) {
-          const index = text.toLowerCase().indexOf(searchTerm);
-          const start = Math.max(0, index - 100);
-          const end = Math.min(text.length, index + query.length + 100);
+        // Assemble text stream respecting EOL and natural word spaces
+        let rawText = '';
+        for (const item of textContent.items as any[]) {
+          if (!item.str) continue;
+          rawText += item.str;
+          if (item.hasEOL) {
+            rawText += '\n';
+          } else if (!item.str.endsWith(' ') && !item.str.endsWith('\t')) {
+            rawText += ' ';
+          }
+        }
+        
+        // Clean multi-spaces while keeping single spaces
+        const normalizedText = rawText.replace(/[ \t]+/g, ' ');
+        const lowerText = normalizedText.toLowerCase();
+        
+        let searchIndex = lowerText.indexOf(searchTerm);
+        while (searchIndex !== -1 && results.length < 500) {
+          const start = Math.max(0, searchIndex - 80);
+          const end = Math.min(normalizedText.length, searchIndex + searchTerm.length + 80);
+          const snippet = normalizedText.substring(start, end).replace(/\n+/g, ' ').trim();
           
           results.push({
             location: pageNum,
-            context: text.substring(start, end),
+            context: snippet,
             matchedText: query,
           });
+          
+          searchIndex = lowerText.indexOf(searchTerm, searchIndex + searchTerm.length);
         }
       } catch (e) {
         console.warn('Failed to search page ' + pageNum + ':', e);
@@ -216,9 +234,17 @@ export class PdfAdapter implements BookAdapter {
     container.style.display = 'flex';
     container.style.alignItems = 'center';
     container.style.justifyContent = 'center';
-    container.style.width = '100%';
-    container.style.height = '100%';
-    container.style.overflow = 'hidden';
+    if (options.continuousScroll) {
+      container.style.width = '100%';
+      container.style.height = '100%';
+      container.style.overflow = 'hidden';
+    } else {
+      container.style.width = 'max-content';
+      container.style.height = 'max-content';
+      container.style.minWidth = '100%';
+      container.style.minHeight = '100%';
+      container.style.overflow = 'visible';
+    }
     container.appendChild(canvas);
     
     try {

@@ -11,6 +11,8 @@ import {
   MoonIcon,
   ColumnsIcon,
   RowsIcon,
+  ChevronDownIcon,
+  HistoryIcon,
 } from "@primer/octicons-react";
 import { useUiStore, type SortBy } from "./stores/uiStore";
 import { useBookStore } from "./stores/bookStore";
@@ -47,6 +49,8 @@ export default function App() {
     sortOrder,
     viewMode,
     appTheme,
+    recentFolders,
+    clearRecents,
     setSort,
     setSortOrder,
     setViewMode,
@@ -63,7 +67,21 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [librarySearchQuery, setLibrarySearchQuery] = useState("");
+  const [isRecentOpen, setIsRecentOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const recentDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close recent folders dropdown when clicking outside
+  useEffect(() => {
+    if (!isRecentOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (recentDropdownRef.current && !recentDropdownRef.current.contains(e.target as Node)) {
+        setIsRecentOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isRecentOpen]);
 
   // Directory navigation state
   const parentPath = useMemo(() => (currentRoot ? getParentPath(currentRoot) : null), [currentRoot]);
@@ -296,14 +314,95 @@ export default function App() {
                 </h1>
               </div>
 
-              <button
-                onClick={() => handleOpenDirectory()}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] transition-all shadow-sm cursor-pointer"
-                title="Open Folder (Select directory containing ebooks)"
-              >
-                <FileDirectoryFillIcon size={14} />
-                <span>Open Folder</span>
-              </button>
+              <div className="relative flex items-center" ref={recentDropdownRef}>
+                <button
+                  onClick={() => handleOpenDirectory()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-l-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] transition-all shadow-sm cursor-pointer"
+                  title="Open Folder (Select directory containing ebooks)"
+                >
+                  <FileDirectoryFillIcon size={14} />
+                  <span>Open Folder</span>
+                </button>
+                <button
+                  onClick={() => setIsRecentOpen((prev) => !prev)}
+                  className="flex items-center px-1.5 py-1.5 text-xs font-semibold rounded-r-lg border-l border-white/20 bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] transition-all shadow-sm cursor-pointer"
+                  title="Recent Directories History (Up to 5)"
+                >
+                  <ChevronDownIcon size={14} />
+                </button>
+
+                {/* Dropdown Menu */}
+                {isRecentOpen && (
+                  <div
+                    className="absolute left-0 top-full mt-1.5 w-72 rounded-xl border shadow-xl z-50 p-1.5 flex flex-col gap-1 backdrop-blur-md"
+                    style={{
+                      backgroundColor: 'var(--color-surface)',
+                      borderColor: 'var(--color-border)',
+                      color: 'var(--color-text)',
+                    }}
+                  >
+                    <div className="flex items-center justify-between px-2.5 py-1.5 border-b text-[11px] font-bold tracking-wider uppercase opacity-70" style={{ borderColor: 'var(--color-border)' }}>
+                      <span className="flex items-center gap-1.5">
+                        <HistoryIcon size={13} />
+                        Recent Folders ({recentFolders.slice(0, 5).length}/5)
+                      </span>
+                      {recentFolders.length > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearRecents();
+                          }}
+                          className="text-[10px] lowercase text-[var(--color-text-muted)] hover:text-[var(--color-error)] cursor-pointer"
+                        >
+                          clear
+                        </button>
+                      )}
+                    </div>
+
+                    {recentFolders.length === 0 ? (
+                      <div className="px-3 py-4 text-center text-xs opacity-60">
+                        No recent folders
+                      </div>
+                    ) : (
+                      <div className="max-h-60 overflow-y-auto flex flex-col gap-0.5">
+                        {recentFolders.slice(0, 5).map((folderPath, idx) => {
+                          const name = folderPath.split(/[/\\]/).filter(Boolean).pop() || folderPath;
+                          const isCurrent = folderPath === currentRoot;
+                          return (
+                            <button
+                              key={folderPath}
+                              onClick={() => {
+                                setIsRecentOpen(false);
+                                handleOpenDirectory(folderPath);
+                              }}
+                              className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer group ${
+                                isCurrent
+                                  ? "bg-[var(--color-primary)]/15 font-semibold text-[var(--color-primary)]"
+                                  : "hover:bg-black/5 dark:hover:bg-white/5"
+                              }`}
+                            >
+                              <div className="w-6 h-6 rounded bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center flex-shrink-0">
+                                <FileDirectoryFillIcon size={13} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="truncate font-medium leading-tight">
+                                  {name}
+                                </div>
+                                <div className="text-[10px] opacity-60 truncate font-mono mt-0.5">
+                                  {folderPath}
+                                </div>
+                              </div>
+                              <span className="text-[10px] opacity-40 font-mono">
+                                #{idx + 1}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Center: Search Bar */}
@@ -604,7 +703,7 @@ export default function App() {
               </div>
             ) : (
               // Welcome screen when no directory is opened
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-[var(--color-text-muted)]">
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-[var(--color-text-muted)] overflow-y-auto">
                 <div className="w-20 h-20 rounded-2xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center mb-6 shadow-sm">
                   <BookIcon size={40} />
                 </div>
@@ -619,6 +718,50 @@ export default function App() {
                   <FileDirectoryFillIcon size={16} />
                   <span>Open Folder</span>
                 </button>
+
+                {recentFolders.length > 0 && (
+                  <div className="w-full max-w-md mt-8 text-left">
+                    <div className="flex items-center justify-between mb-3 px-1">
+                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5">
+                        <HistoryIcon size={14} />
+                        Recent Folders (Latest to Oldest)
+                      </span>
+                      <button
+                        onClick={clearRecents}
+                        className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-error)] transition-colors cursor-pointer"
+                      >
+                        Clear History
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {recentFolders.slice(0, 5).map((folderPath, idx) => {
+                        const name = folderPath.split(/[/\\]/).filter(Boolean).pop() || folderPath;
+                        return (
+                          <div
+                            key={folderPath}
+                            onClick={() => handleOpenDirectory(folderPath)}
+                            className="flex items-center gap-3 p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-md transition-all cursor-pointer group"
+                          >
+                            <div className="w-9 h-9 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                              <FileDirectoryFillIcon size={18} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-semibold text-[var(--color-text)] truncate group-hover:text-[var(--color-primary)] transition-colors">
+                                {name}
+                              </div>
+                              <div className="text-[11px] text-[var(--color-text-muted)] truncate opacity-75 font-mono mt-0.5">
+                                {folderPath}
+                              </div>
+                            </div>
+                            <span className="text-[10px] text-[var(--color-text-muted)] opacity-50 font-mono">
+                              #{idx + 1}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </main>

@@ -46,6 +46,20 @@ export function SearchAndBookmarksDrawer({
   // Bookmark Input State
   const [newBookmarkLabel, setNewBookmarkLabel] = useState("");
 
+  const handleQueryChange = (val: string) => {
+    setSearchQuery(val);
+    if (!val.trim()) {
+      setSearchResults([]);
+      setHasSearched(false);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setHasSearched(false);
+  };
+
   // Close on Escape key
   useEffect(() => {
     if (!isOpen) return;
@@ -195,7 +209,7 @@ export function SearchAndBookmarksDrawer({
                   type="text"
                   placeholder="Search in book..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleQueryChange(e.target.value)}
                   className="w-full px-3 py-2 pl-8 text-sm rounded border bg-transparent focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                   style={{ borderColor: style.border }}
                   autoFocus
@@ -206,7 +220,7 @@ export function SearchAndBookmarksDrawer({
                 {searchQuery && (
                   <button
                     type="button"
-                    onClick={() => setSearchQuery("")}
+                    onClick={handleClearSearch}
                     className="absolute right-2.5 top-2.5 opacity-50 hover:opacity-100 flex items-center"
                   >
                     <XIcon size={14} />
@@ -244,7 +258,6 @@ export function SearchAndBookmarksDrawer({
                       key={idx}
                       onClick={() => {
                         onNavigateToPage(result.location);
-                        onClose();
                       }}
                       className="p-3 rounded border text-xs cursor-pointer transition-colors"
                       style={{ borderColor: style.border }}

@@ -71,7 +71,11 @@ export class EpubAdapter implements BookAdapter {
   }
 
   private getLocationFromHref(href: string): number {
-    const index = this.spineItems.findIndex(item => item.href === href);
+    const cleanHref = href.split('#')[0].replace(/^\.\//, '');
+    const index = this.spineItems.findIndex(item => {
+      const itemClean = item.href.split('#')[0].replace(/^\.\//, '');
+      return itemClean === cleanHref || itemClean.endsWith(cleanHref) || cleanHref.endsWith(itemClean);
+    });
     return index >= 0 ? index : 0;
   }
 

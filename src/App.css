@@ -202,16 +202,16 @@ html, body, #root {
   box-shadow: none;
 }
 
-/* Page Fit & Overflow Prevention for Single and Spread Views */
+/* Page Fit & Sizing for Single and Spread Views */
 .reader-page-fit-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
-  overflow: hidden !important;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
 }
 
 .reader-page-fit-container img {
@@ -240,9 +240,25 @@ html, body, #root {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
 }
 
-/* Enable multi-touch pinch gestures in reader without browser conflict */
+/* Enable multi-touch pinch gestures in reader without browser gesture cancellation */
 .reader-viewport-main {
-  touch-action: pan-x pan-y pinch-zoom;
+  touch-action: none;
+}
+
+/* Ensure canvas and images dynamically scale with slot width during real-time zoom in Scroll View */
+.reader-page-slot canvas,
+.reader-page-slot img {
+  width: 100% !important;
+  height: auto !important;
+  max-width: none !important;
+  display: block;
+}
+
+/* Two-page spread open book styling */
+.reader-spread-book {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 

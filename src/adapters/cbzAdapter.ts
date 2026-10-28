@@ -115,9 +115,17 @@ export class CbzAdapter implements BookAdapter {
     container.style.display = 'flex';
     container.style.alignItems = 'center';
     container.style.justifyContent = 'center';
-    container.style.width = '100%';
-    container.style.height = '100%';
-    container.style.overflow = 'hidden';
+    if (options.continuousScroll) {
+      container.style.width = '100%';
+      container.style.height = '100%';
+      container.style.overflow = 'hidden';
+    } else {
+      container.style.width = 'max-content';
+      container.style.height = 'max-content';
+      container.style.minWidth = '100%';
+      container.style.minHeight = '100%';
+      container.style.overflow = 'visible';
+    }
     container.appendChild(img);
     
     // Clean up object URL after load

@@ -49,6 +49,7 @@ export interface UiState {
   hydrate: () => Promise<void>;
 }
 
+const MAX_RECENT_DIRECTORIES = 5;
 const MAX_RECENTS = 10;
 
 // Tauri store for persistence
@@ -159,8 +160,10 @@ const loggedStoreCreator = createLoggedStore<UiState>(
     setTheme: (theme: AppTheme) => set({ appTheme: theme }),
 
     addRecentFolder: (path: string) => set((state) => {
-      const filtered = state.recentFolders.filter((p) => p !== path);
-      return { recentFolders: [path, ...filtered].slice(0, MAX_RECENTS) };
+      const cleanPath = path.trim();
+      if (!cleanPath) return {};
+      const filtered = state.recentFolders.filter((p) => p !== cleanPath);
+      return { recentFolders: [cleanPath, ...filtered].slice(0, MAX_RECENT_DIRECTORIES) };
     }),
 
     addRecentFile: (path: string) => set((state) => {
@@ -177,6 +180,7 @@ const loggedStoreCreator = createLoggedStore<UiState>(
         set((state) => ({
           ...state,
           ...stored,
+          recentFolders: (stored.recentFolders || []).slice(0, MAX_RECENT_DIRECTORIES),
           dirHistory: stored.currentRoot ? [stored.currentRoot] : [],
           dirHistoryIndex: stored.currentRoot ? 0 : -1,
         }));
