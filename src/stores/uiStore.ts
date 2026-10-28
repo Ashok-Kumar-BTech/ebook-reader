@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { createStore } from '../utils/store';
-import { createLoggedStore } from '../utils/logger';
+import { createLoggedStore, logManager } from '../utils/logger';
+
+const logger = logManager.getLogger('store:uiStore');
 
 export type SortBy = 'name' | 'date' | 'size' | 'type';
 export type SortOrder = 'asc' | 'desc';
@@ -176,18 +178,23 @@ const loggedStoreCreator = createLoggedStore<UiState>(
     clearRecents: () => set({ recentFolders: [], recentFiles: [] }),
 
     hydrate: async () => {
-      await uiStorePersist.load();
-      const stored = uiStorePersist.get();
-      if (stored) {
-        set((state) => ({
-          ...state,
-          ...stored,
-          recentFolders: (stored.recentFolders || []).slice(0, MAX_RECENT_DIRECTORIES),
-          dirHistory: stored.currentRoot ? [stored.currentRoot] : [],
-          dirHistoryIndex: stored.currentRoot ? 0 : -1,
-          isHydrated: true,
-        }));
-      } else {
+      try {
+        await uiStorePersist.load();
+        const stored = uiStorePersist.get();
+        if (stored) {
+          set((state) => ({
+            ...state,
+            ...stored,
+            recentFolders: (stored.recentFolders || []).slice(0, MAX_RECENT_DIRECTORIES),
+            dirHistory: stored.currentRoot ? [stored.currentRoot] : [],
+            dirHistoryIndex: stored.currentRoot ? 0 : -1,
+            isHydrated: true,
+          }));
+        } else {
+          set({ isHydrated: true });
+        }
+      } catch (err) {
+        logger.warn('UI_STORE_HYDRATE_ERROR', { error: err instanceof Error ? err.message : String(err) });
         set({ isHydrated: true });
       }
     },

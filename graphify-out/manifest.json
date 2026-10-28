@@ -54,33 +54,33 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1793013888.554371,
-    "seen": 1793014045.4334524,
-    "ast_hash": "13c371bb298bd78b87a37dded52757db",
+    "mtime": 1793169495.4113674,
+    "seen": 1793170928.3603032,
+    "ast_hash": "da2ef348d86800c4a25e28d977034b11",
     "semantic_hash": ""
   },
   "src/adapters/cbzAdapter.ts": {
-    "mtime": 1793013580.6287386,
-    "seen": 1793014045.4334524,
-    "ast_hash": "1d3c7f2c0affe60c577b963d70aced7e",
+    "mtime": 1793169317.5128257,
+    "seen": 1793170928.3603032,
+    "ast_hash": "fdb7d4b934322e28c286e37adf7e3846",
     "semantic_hash": ""
   },
   "src/adapters/epubAdapter.ts": {
-    "mtime": 1793015838.3077345,
-    "seen": 1793016318.4195337,
-    "ast_hash": "cd56df9eed18a470db7d7557c37fd306",
+    "mtime": 1793102169.500135,
+    "seen": 1793170928.3603032,
+    "ast_hash": "d6665a81487bf97f4027046187d3c6c1",
     "semantic_hash": ""
   },
   "src/adapters/htmlAdapter.ts": {
-    "mtime": 1792999450.844884,
-    "seen": 1793004659.5226798,
-    "ast_hash": "6319a18b252370cf6e803b1715a3360f",
+    "mtime": 1793095982.349403,
+    "seen": 1793170928.3603032,
+    "ast_hash": "242fd51a81d01a8b577e906dcb9b04ec",
     "semantic_hash": ""
   },
   "src/adapters/pdfAdapter.ts": {
-    "mtime": 1793015872.0119703,
-    "seen": 1793016318.4195337,
-    "ast_hash": "973f2268298438e49dbfa6b8e1417916",
+    "mtime": 1793169303.1723754,
+    "seen": 1793170928.3603032,
+    "ast_hash": "cd476244f6fb3b98f7f6b3382f506d00",
     "semantic_hash": ""
   },
   "src/adapters/registry.ts": {
@@ -90,9 +90,9 @@
     "semantic_hash": ""
   },
   "src/adapters/txtAdapter.ts": {
-    "mtime": 1793001251.7908504,
-    "seen": 1793004659.5226798,
-    "ast_hash": "52f7374c0008b69c13b0dc5fda073527",
+    "mtime": 1793095946.2229297,
+    "seen": 1793170928.3603032,
+    "ast_hash": "fc4d4014cc96f5ce096e36314217222e",
     "semantic_hash": ""
   },
   "src/main.tsx": {
@@ -102,21 +102,21 @@
     "semantic_hash": ""
   },
   "src/stores/bookStore.ts": {
-    "mtime": 1792998080.8100367,
-    "seen": 1793004659.5226798,
-    "ast_hash": "2097a36f84128cbec60f8e8173ca27bd",
+    "mtime": 1793095924.4948163,
+    "seen": 1793170928.3603032,
+    "ast_hash": "1c68dbf7388a5d0da6a144a27c4fb07e",
     "semantic_hash": ""
   },
   "src/stores/uiStore.ts": {
-    "mtime": 1793009242.2839346,
-    "seen": 1793010109.5079052,
-    "ast_hash": "2f352162987b61ba8da880828b4e39f0",
+    "mtime": 1793169379.202703,
+    "seen": 1793170928.3603032,
+    "ast_hash": "41aed40b8a83244758ee00b68eb7171d",
     "semantic_hash": ""
   },
   "src/types/reader.ts": {
-    "mtime": 1793015818.7162027,
-    "seen": 1793016318.4195337,
-    "ast_hash": "92e784823af0e1182ea7ab5b853ea1b5",
+    "mtime": 1793095906.5127492,
+    "seen": 1793170928.3603032,
+    "ast_hash": "1e45da157dbd58fc08495e446f40d1f3",
     "semantic_hash": ""
   },
   "src/utils/store.ts": {
@@ -288,15 +288,9 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793014061.241648,
-    "seen": 1793016318.420054,
-    "ast_hash": "b297565381d7b1ffc4ef1deaa8687a84",
-    "semantic_hash": ""
-  },
-  "PLAN-PROGRESS.md": {
-    "mtime": 1793015807.452031,
-    "seen": 1793016318.420054,
-    "ast_hash": "55ce0a14210853f191c7a735b1293224",
+    "mtime": 1793169569.2001345,
+    "seen": 1793170928.3603032,
+    "ast_hash": "7f65d21f2df6f64dd290280b458ae597",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
@@ -318,21 +312,15 @@
     "semantic_hash": ""
   },
   "src/components/ReaderView.tsx": {
-    "mtime": 1793016165.2656822,
-    "seen": 1793016318.4195337,
-    "ast_hash": "74c1af2cbe56a9ce4da802c0f4965f91",
-    "semantic_hash": ""
-  },
-  "src/components/SearchAndTOCDrawer.tsx": {
-    "mtime": 1793009136.4146152,
-    "seen": 1793010109.5079052,
-    "ast_hash": "22e63d05b00c4c6d4b9d46a9a40fabdd",
+    "mtime": 1793169343.5058315,
+    "seen": 1793170928.3603032,
+    "ast_hash": "0e5c9d365d71e00d3b5c4d867b96910b",
     "semantic_hash": ""
   },
   "src/components/SettingsDrawer.tsx": {
-    "mtime": 1793009191.3506868,
-    "seen": 1793010109.5079052,
-    "ast_hash": "1ad3c9799ad1bd5c18aab5c8002287d8",
+    "mtime": 1793097373.4208305,
+    "seen": 1793170928.3603032,
+    "ast_hash": "b68bc99df74d148e1a6b00cfbf4ec06d",
     "semantic_hash": ""
   },
   "src/utils/logger/LogManager.ts": {
@@ -435,6 +423,18 @@
     "mtime": 1793011385.2929032,
     "seen": 1793014045.4334524,
     "ast_hash": "66daa3003b51e4829a8b5b80b2d9cd5c",
+    "semantic_hash": ""
+  },
+  "src/components/SearchAndBookmarksDrawer.tsx": {
+    "mtime": 1793102222.6635182,
+    "seen": 1793170928.3603032,
+    "ast_hash": "c1af69c7ed0f9ed4e93cb3ba94f53b5f",
+    "semantic_hash": ""
+  },
+  "src/components/TableOfContentsDrawer.tsx": {
+    "mtime": 1793096123.7903984,
+    "seen": 1793170928.3603032,
+    "ast_hash": "0c59ab87aa3782e8536778c4dfaa3745",
     "semantic_hash": ""
   }
 }

@@ -334,7 +334,7 @@ export default function App() {
                   className={`flex items-center justify-center px-2 h-8 text-xs font-semibold rounded-r-lg border-l border-white/20 bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] transition-all shadow-sm cursor-pointer select-none ${
                     isRecentOpen ? "bg-[var(--color-primary-hover)] brightness-95" : ""
                   }`}
-                  title={recentFolders.length > 0 ? `Recent Directories History (${recentFolders.length}/5)` : "No recent directories"}
+                  title={recentFolders.length > 0 ? "Recent Directories" : "No recent directories"}
                 >
                   <ChevronDownIcon
                     size={14}
@@ -355,7 +355,7 @@ export default function App() {
                     <div className="flex items-center justify-between px-3 py-2 border-b text-[11px] font-bold tracking-wider uppercase opacity-75" style={{ borderColor: 'var(--color-border)' }}>
                       <span className="flex items-center gap-1.5">
                         <HistoryIcon size={14} />
-                        Recent Folders ({recentFolders.slice(0, 5).length}/5)
+                        Recent Directories
                       </span>
                       {recentFolders.length > 0 && (
                         <button
@@ -752,7 +752,7 @@ export default function App() {
                           <HistoryIcon size={14} />
                         </div>
                         <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text)]">
-                          Recent Directories ({recentFolders.slice(0, 5).length}/5)
+                          Recent Directories
                         </span>
                       </div>
                       <button
@@ -763,7 +763,7 @@ export default function App() {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="flex flex-col gap-2">
                       {recentFolders.slice(0, 5).map((folderPath, idx) => {
                         const name = folderPath.split(/[/\\]/).filter(Boolean).pop() || folderPath;
                         const isLatest = idx === 0;
@@ -771,19 +771,19 @@ export default function App() {
                           <div
                             key={folderPath}
                             onClick={() => handleOpenDirectory(folderPath)}
-                            className="flex items-start gap-3 p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] hover:border-[var(--color-primary)] hover:shadow-md transition-all cursor-pointer group relative overflow-hidden"
+                            className="flex items-center gap-3.5 p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] hover:border-[var(--color-primary)] hover:shadow-md transition-all cursor-pointer group select-none"
                             title={folderPath}
                           >
-                            <div className="w-9 h-9 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform mt-0.5">
+                            <div className="w-9 h-9 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
                               <FileDirectoryFillIcon size={18} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-[var(--color-text)] truncate group-hover:text-[var(--color-primary)] transition-colors">
                                   {name}
                                 </span>
                                 {isLatest && (
-                                  <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex-shrink-0">
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex-shrink-0">
                                     Latest
                                   </span>
                                 )}
@@ -791,6 +791,9 @@ export default function App() {
                               <div className="text-[11px] text-[var(--color-text-muted)] truncate font-mono mt-0.5 opacity-75">
                                 {folderPath}
                               </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0 text-[var(--color-text-muted)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--color-primary)] transition-all">
+                              <ArrowRightIcon size={14} className="group-hover:translate-x-0.5 transition-transform" />
                             </div>
                           </div>
                         );

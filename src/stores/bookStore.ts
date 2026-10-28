@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { createStore } from '../utils/store';
-import { createLoggedStore } from '../utils/logger';
+import { createLoggedStore, logManager } from '../utils/logger';
+
+const logger = logManager.getLogger('store:bookStore');
 
 export interface Bookmark {
   id: string;
@@ -169,11 +171,16 @@ const loggedStoreCreator = createLoggedStore<BookStoreState>(
     }),
 
     hydrate: async () => {
-      await bookStorePersist.load();
-      const stored = bookStorePersist.get();
-      if (stored && Object.keys(stored).length > 0) {
-        set({ bookStates: stored, isHydrated: true });
-      } else {
+      try {
+        await bookStorePersist.load();
+        const stored = bookStorePersist.get();
+        if (stored && Object.keys(stored).length > 0) {
+          set({ bookStates: stored, isHydrated: true });
+        } else {
+          set({ isHydrated: true });
+        }
+      } catch (err) {
+        logger.warn('BOOK_STORE_HYDRATE_ERROR', { error: err instanceof Error ? err.message : String(err) });
         set({ isHydrated: true });
       }
     },

@@ -138,8 +138,12 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         const count = Math.max(1, adapter.getPageCount());
         setTotalPages(count);
 
-        // Ensure bookStore is hydrated before restoring saved state
-        await useBookStore.getState().hydrate();
+        // Ensure bookStore is hydrated before restoring saved state (non-fatal)
+        try {
+          await useBookStore.getState().hydrate();
+        } catch (hydrateErr) {
+          logger.warn("BOOK_STORE_HYDRATE_FAILED", { error: String(hydrateErr) });
+        }
         const savedState = useBookStore.getState().getBookState(currentBookPath!);
         let initialPage = 1;
         let initialTheme: "light" | "dark" | "sepia" = "dark";
@@ -194,7 +198,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       } catch (err) {
         if (!isMounted) return;
         logger.error("LOAD_BOOK_ERROR", { currentBookPath }, err as Error);
-        setError(err instanceof Error ? err.message : "Failed to load ebook.");
+        const errorMsg = err instanceof Error ? err.message : (typeof err === 'string' ? err : "Failed to load ebook.");
+        setError(errorMsg);
         setLoading(false);
       }
     }

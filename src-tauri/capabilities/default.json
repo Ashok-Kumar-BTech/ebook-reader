@@ -11,6 +11,7 @@
     "opener:default",
     "dialog:default",
     "fs:default",
+    "store:default",
     "fs:allow-document-read",
     "fs:allow-document-write",
     "fs:allow-download-read",
