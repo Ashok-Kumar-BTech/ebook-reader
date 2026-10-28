@@ -25,7 +25,7 @@
   "23": "9. Format Support",
   "24": "2. Goals & Non-Goals",
   "25": "8. Book-Level Configuration",
-  "26": "Tauri + React + Typescript",
+  "26": "Ebook Reader",
   "27": "build.rs",
   "28": "main.rs",
   "29": "ebook-reader",
@@ -37,11 +37,8 @@
   "35": "main.tsx",
   "36": "DocxAdapter",
   "37": "BookAdapter",
-  "38": "DEV-LOG.md",
   "39": "App.tsx",
   "40": "HtmlAdapter",
-  "41": "uiStore.ts",
-  "42": "RenderOptions",
   "44": "scripts",
   "45": "vite.config.ts"
 }
