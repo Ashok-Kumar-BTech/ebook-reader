@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use std::sync::mpsc;
 use walkdir::WalkDir;
 use chrono::{DateTime, Local};
@@ -66,19 +67,28 @@ fn greet(name: &str) -> String {
 
 #[tauri::command]
 fn pick_directory(app: tauri::AppHandle) -> Result<Option<String>, String> {
-    use tauri_plugin_dialog::DialogExt;
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        use tauri_plugin_dialog::DialogExt;
 
-    let (tx, rx) = mpsc::channel();
+        let (tx, rx) = mpsc::channel();
 
-    app.dialog()
-        .file()
-        .set_title("Select a directory")
-        .pick_folder(move |path| {
-            let _ = tx.send(path.map(|p| p.to_string()));
-        });
+        app.dialog()
+            .file()
+            .set_title("Select a directory")
+            .pick_folder(move |path| {
+                let _ = tx.send(path.map(|p| p.to_string()));
+            });
 
-    // Wait for the callback (blocking is fine here since this runs on a Tauri command thread)
-    rx.recv().map_err(|e| e.to_string())
+        // Wait for the callback (blocking is fine here since this runs on a Tauri command thread)
+        rx.recv().map_err(|e| e.to_string())
+    }
+
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        let _ = app;
+        Err("Directory picking is not supported on mobile. Please open individual files.".to_string())
+    }
 }
 
 #[tauri::command]

@@ -36,9 +36,9 @@
     "semantic_hash": ""
   },
   "src-tauri/src/lib.rs": {
-    "mtime": 1793013381.2379975,
-    "seen": 1793014045.4334524,
-    "ast_hash": "ff4043a1e0ebc15d803cbcdb79c27fc1",
+    "mtime": 1793189651.0052605,
+    "seen": 1793189738.8747985,
+    "ast_hash": "33c2526e64a148bbf10d14fc43c29d85",
     "semantic_hash": ""
   },
   "src-tauri/src/main.rs": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793181208.7601817,
-    "seen": 1793183858.1625185,
-    "ast_hash": "d97bc79ac9573b1a597c70edd7c85784",
+    "mtime": 1793189720.5896292,
+    "seen": 1793189738.8747985,
+    "ast_hash": "c4849136db429f259610c528241f7ea2",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
@@ -435,6 +435,144 @@
     "mtime": 1793096123.7903984,
     "seen": 1793170928.3603032,
     "ast_hash": "0c59ab87aa3782e8536778c4dfaa3745",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/build.gradle.kts": {
+    "mtime": 1793188929.450125,
+    "seen": 1793189738.8747985,
+    "ast_hash": "6a9504e50b96405032270076a954540f",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/java/com/ebook/reader/MainActivity.kt": {
+    "mtime": 1793188083.563197,
+    "seen": 1793189738.8747985,
+    "ast_hash": "381522908dbb2c51cc066f13cb11436f",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/build.gradle.kts": {
+    "mtime": 1793188083.5378163,
+    "seen": 1793189738.8747985,
+    "ast_hash": "5ba0a5f9feff21c972b7816db34715ce",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/buildSrc/build.gradle.kts": {
+    "mtime": 1793188083.6024168,
+    "seen": 1793189738.8747985,
+    "ast_hash": "415e42bc9df5a27a27d50c980d2484ae",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/buildSrc/src/main/java/com/ebook/reader/kotlin/BuildTask.kt": {
+    "mtime": 1793188083.6044142,
+    "seen": 1793189738.8747985,
+    "ast_hash": "03080d9c71c5adf6d13b61bff7c5ce5a",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/buildSrc/src/main/java/com/ebook/reader/kotlin/RustPlugin.kt": {
+    "mtime": 1793188083.606413,
+    "seen": 1793189738.8747985,
+    "ast_hash": "633f17b36dc0188d2f9c536a4f4be393",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/gradlew": {
+    "mtime": 1793188083.5420847,
+    "seen": 1793189738.8747985,
+    "ast_hash": "a43be8432bac3ffd05b3769aa42fe996",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/settings.gradle": {
+    "mtime": 1793188083.546082,
+    "seen": 1793189738.8747985,
+    "ast_hash": "abd11d894caa36e33edcd381ba11f330",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-hdpi/ic_launcher.png": {
+    "mtime": 1793188083.5697372,
+    "seen": 1793189738.8747985,
+    "ast_hash": "331411a21199dcbb3fd3e9dc180ff090",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png": {
+    "mtime": 1793188083.5717704,
+    "seen": 1793189738.8747985,
+    "ast_hash": "c922c31dd0772e0569d6b9982345a3cc",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png": {
+    "mtime": 1793188083.57275,
+    "seen": 1793189738.8747985,
+    "ast_hash": "331411a21199dcbb3fd3e9dc180ff090",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher.png": {
+    "mtime": 1793188083.5737524,
+    "seen": 1793189738.8747985,
+    "ast_hash": "c988238f35e59dcfa66d0402fcef5454",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png": {
+    "mtime": 1793188083.5737524,
+    "seen": 1793189738.8747985,
+    "ast_hash": "b08cc46c43b78ade95ffa710f2c85ee9",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png": {
+    "mtime": 1793188083.5757523,
+    "seen": 1793189738.8747985,
+    "ast_hash": "c988238f35e59dcfa66d0402fcef5454",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png": {
+    "mtime": 1793188083.5792947,
+    "seen": 1793189738.8747985,
+    "ast_hash": "2bd12d99c8151b74c78129ad7ef78af8",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png": {
+    "mtime": 1793188083.5833025,
+    "seen": 1793189738.8747985,
+    "ast_hash": "8c4be6f31e044cc8a1ac39e45d50d9dd",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png": {
+    "mtime": 1793188083.587819,
+    "seen": 1793189738.8747985,
+    "ast_hash": "2bd12d99c8151b74c78129ad7ef78af8",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png": {
+    "mtime": 1793188083.5888453,
+    "seen": 1793189738.8747985,
+    "ast_hash": "7b9be1ceb98e9e2c1ac1562b705c679e",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png": {
+    "mtime": 1793188083.5908737,
+    "seen": 1793189738.8747985,
+    "ast_hash": "023cdbfd0bd363e1da6b48eb91d873f2",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png": {
+    "mtime": 1793188083.5918696,
+    "seen": 1793189738.8747985,
+    "ast_hash": "7b9be1ceb98e9e2c1ac1562b705c679e",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": {
+    "mtime": 1793188083.5928752,
+    "seen": 1793189738.8747985,
+    "ast_hash": "f83434b1cfc97752a5182da19b9869c8",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png": {
+    "mtime": 1793188083.5948637,
+    "seen": 1793189738.8747985,
+    "ast_hash": "56c4fd013ccd4ac84787fcba327abc37",
+    "semantic_hash": ""
+  },
+  "src-tauri/gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png": {
+    "mtime": 1793188083.5958662,
+    "seen": 1793189738.8747985,
+    "ast_hash": "f83434b1cfc97752a5182da19b9869c8",
     "semantic_hash": ""
   }
 }

@@ -1,17 +1,17 @@
 # Graph Report - ebook-reader  (2026-10-28)
 
 ## Corpus Check
-- 55 files · ~39,741 words
+- 63 files · ~49,015 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 6 file(s) not represented in the graph (top: (none) 3, .icns 1, .ico 1)
+- Unclassified: 23 file(s) not represented in the graph (top: .xml 9, (none) 6, .properties 2)
 
 ## Summary
-- 613 nodes · 1118 edges · 42 communities (34 shown, 8 thin omitted)
+- 650 nodes · 1163 edges · 50 communities (36 shown, 14 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 23 edges (avg confidence: 0.9)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6f2a837c`
+- Built from commit: `82d6b7f1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -46,12 +46,15 @@
 - ebook-reader
 - tauriApi.ts
 - registry.ts
-- types.ts
-- main.tsx
+- BuildTask.kt
+- logManager
 - DocxAdapter
+- formatRegistry
 - BookAdapter
-- App.tsx
+- bookStore.ts
 - HtmlAdapter
+- TOCItem
+- .onCreate
 - scripts
 - vite.config.ts
 
@@ -82,19 +85,19 @@
 ## Import Cycles
 - 2-file cycle: `src/utils/logger/index.ts -> src/utils/logger/react.ts -> src/utils/logger/index.ts`
 
-## Communities (42 total, 8 thin omitted)
+## Communities (50 total, 14 thin omitted)
 
 ### Community 0 - "BookInstance"
-Cohesion: 0.14
-Nodes (5): jszip, CbzAdapter, createCbzAdapter(), loadJSZip(), SearchResult
+Cohesion: 0.17
+Nodes (5): jszip, CbzAdapter, createCbzAdapter(), loadJSZip(), RenderOptions
 
 ### Community 1 - "package.json"
 Cohesion: 0.13
 Nodes (14): name, private, type, version, autoprefixer, postcss, tailwindcss, @tailwindcss/postcss (+6 more)
 
 ### Community 2 - "bookStore.ts"
-Cohesion: 0.07
-Nodes (13): @tauri-apps/plugin-store, AppTheme, loggedStoreCreator, logger, SortBy, SortOrder, UiState, uiStorePersist (+5 more)
+Cohesion: 0.10
+Nodes (5): @tauri-apps/plugin-store, createStore(), TypedStoreImpl, UnifiedStore, WebStore
 
 ### Community 3 - "lib.rs"
 Cohesion: 0.11
@@ -105,20 +108,20 @@ Cohesion: 0.11
 Nodes (18): app, security, windows, build, beforeBuildCommand, beforeDevCommand, devUrl, frontendDist (+10 more)
 
 ### Community 5 - "logger/index.ts"
-Cohesion: 0.06
-Nodes (35): zustand, LEVEL_COLORS, LogEntryComponent(), LogViewer(), LogViewerProps, getLoggerConfig(), correlationIdStack, generateCorrelationId() (+27 more)
+Cohesion: 0.07
+Nodes (44): RFC-5424, LEVEL_COLORS, LogEntryComponent(), LogViewer(), LogViewerProps, getLoggerConfig(), getTransports(), initializeLoggerWithTauri() (+36 more)
 
 ### Community 6 - "compilerOptions"
 Cohesion: 0.11
 Nodes (18): compilerOptions, allowImportingTsExtensions, isolatedModules, jsx, lib, module, moduleResolution, noEmit (+10 more)
 
 ### Community 7 - "PdfAdapter"
-Cohesion: 0.18
-Nodes (5): 4.1 High-Level, 4.2 FileSystemProvider Abstraction, 4.3 Reader Adapter Pattern, 4. Architecture, PdfAdapter
+Cohesion: 0.13
+Nodes (5): pdfjs-dist, createPdfAdapter(), loadPdfJs(), PdfAdapter, SearchResult
 
 ### Community 8 - "EpubAdapter"
-Cohesion: 0.13
-Nodes (5): epubjs, createEpubAdapter(), EpubAdapter, loadEpubJs(), TOCItem
+Cohesion: 0.15
+Nodes (4): epubjs, createEpubAdapter(), EpubAdapter, loadEpubJs()
 
 ### Community 10 - "Ebook Reader — Product & Technical Requirements Document"
 Cohesion: 0.18
@@ -189,32 +192,40 @@ Cohesion: 0.06
 Nodes (29): Architectural Overview, Architecture & Codebase Map, Basic Usage Instructions, Clone & Install, Codebase Directory Map, Contribution Guidelines, Development & Execution Commands, Development Setup & Execution (+21 more)
 
 ### Community 32 - "tauriApi.ts"
-Cohesion: 0.08
-Nodes (52): @tauri-apps/api, @tauri-apps/plugin-fs, getAdapterForPath(), App(), AppMode, FileEntry, sortEntries(), SUPPORTED_EXTENSIONS (+44 more)
+Cohesion: 0.06
+Nodes (70): @primer/octicons-react, react, react-window, @tauri-apps/api, @tauri-apps/plugin-fs, getAdapterForPath(), App(), AppMode (+62 more)
 
 ### Community 33 - "registry.ts"
-Cohesion: 0.12
-Nodes (12): dompurify, mammoth, pdfjs-dist, createDocxAdapter(), createHtmlAdapter(), createPdfAdapter(), loadPdfJs(), getSupportedExtensions() (+4 more)
+Cohesion: 0.16
+Nodes (9): dompurify, mammoth, createDocxAdapter(), createHtmlAdapter(), getSupportedExtensions(), createTxtAdapter(), Bookmark, Format (+1 more)
 
-### Community 34 - "types.ts"
-Cohesion: 0.13
-Nodes (21): RFC-5424, getTransports(), initializeLoggerWithTauri(), compactFormatter(), jsonFormatter(), formatContext(), formatError(), LEVEL_COLORS (+13 more)
+### Community 34 - "BuildTask.kt"
+Cohesion: 0.14
+Nodes (3): BuildTask, Config, RustPlugin
 
-### Community 35 - "main.tsx"
-Cohesion: 0.18
-Nodes (5): react-dom, ErrorBoundary, ErrorBoundaryProps, ErrorBoundaryState, loggerConfig
-
-### Community 37 - "BookAdapter"
-Cohesion: 0.12
-Nodes (5): formatRegistry, registerAdapter(), AdapterFactory, BookAdapter, Format
-
-### Community 39 - "App.tsx"
+### Community 35 - "logManager"
 Cohesion: 0.09
-Nodes (32): @primer/octicons-react, react, react-window, FormatBadge(), getFormatBadge(), SUPPORTED_EXTENSIONS, ReaderViewProps, escapeRegex() (+24 more)
+Nodes (9): react-dom, ErrorBoundary, ErrorBoundaryProps, ErrorBoundaryState, formatError(), getComponentStack(), logManager, redactContext() (+1 more)
+
+### Community 36 - "DocxAdapter"
+Cohesion: 0.17
+Nodes (5): 4.1 High-Level, 4.2 FileSystemProvider Abstraction, 4.3 Reader Adapter Pattern, 4. Architecture, DocxAdapter
+
+### Community 37 - "formatRegistry"
+Cohesion: 0.29
+Nodes (3): formatRegistry, registerAdapter(), AdapterFactory
+
+### Community 39 - "bookStore.ts"
+Cohesion: 0.08
+Nodes (28): zustand, escapeRegex(), renderHighlightedContext(), SearchAndBookmarksDrawer(), SearchAndBookmarksDrawerProps, SearchBookmarksTab, Bookmark, BookState (+20 more)
 
 ### Community 40 - "HtmlAdapter"
-Cohesion: 0.19
+Cohesion: 0.18
 Nodes (5): Core Functionality, Features & Support Status, Important Limitations, Supported Formats & Support Matrix, HtmlAdapter
+
+### Community 41 - "TOCItem"
+Cohesion: 0.38
+Nodes (4): TableOfContentsDrawer(), TableOfContentsDrawerProps, TOCNodeItem(), TOCItem
 
 ### Community 44 - "scripts"
 Cohesion: 0.40
@@ -222,23 +233,23 @@ Nodes (5): scripts, build, dev, preview, tauri
 
 ## Knowledge Gaps
 - **11 isolated node(s):** `@tauri-apps/plugin-opener`, `@tailwindcss/postcss`, `@tauri-apps/cli`, `@types/react`, `@types/react-dom` (+6 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 306 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 319 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **14 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `BookAdapter` connect `BookAdapter` to `BookInstance`, `registry.ts`, `DocxAdapter`, `PdfAdapter`, `EpubAdapter`, `HtmlAdapter`, `TxtAdapter`, `App.tsx`, `Ebook Reader`?**
-  _High betweenness centrality (0.225) - this node is a cross-community bridge._
+- **Why does `BookAdapter` connect `BookAdapter` to `BookInstance`, `registry.ts`, `tauriApi.ts`, `DocxAdapter`, `formatRegistry`, `PdfAdapter`, `EpubAdapter`, `HtmlAdapter`, `TxtAdapter`, `Ebook Reader`?**
+  _High betweenness centrality (0.200) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `BookAdapter` (e.g. with `Key Architectural Patterns` and `Where to Find Key Components`) actually correct?**
   _`BookAdapter` has 2 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `@tauri-apps/plugin-opener`, `@tailwindcss/postcss`, `@tauri-apps/cli` to the rest of the system?**
   _11 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `BookInstance` be split into smaller, more focused modules?**
-  _Cohesion score 0.13970588235294118 - nodes in this community are weakly interconnected._
-- **Why does `Ebook Reader — Product & Technical Requirements Document` connect `Ebook Reader — Product & Technical Requirements Document` to `PdfAdapter`, `12. Functional Requirements`, `15. Build & Distribution`, `5. Application Shell & UI/UX`, `6. File Navigation System`, `10. Error Reporting`, `18. Roadmap`, `3. Tech Stack`, `7. Reader Views`, `9. Format Support`, `2. Goals & Non-Goals`, `8. Book-Level Configuration`, `Ebook Reader`?**
-  _High betweenness centrality (0.167) - this node is a cross-community bridge._
-- **Are the 2 inferred relationships involving `EpubAdapter` (e.g. with `4.3 Reader Adapter Pattern` and `Supported Formats & Support Matrix`) actually correct?**
-  _`EpubAdapter` has 2 INFERRED edges - model-reasoned connections that need verification._
 - **Should `package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.13333333333333333 - nodes in this community are weakly interconnected._
+- **Why does `Ebook Reader — Product & Technical Requirements Document` connect `Ebook Reader — Product & Technical Requirements Document` to `DocxAdapter`, `12. Functional Requirements`, `15. Build & Distribution`, `5. Application Shell & UI/UX`, `6. File Navigation System`, `10. Error Reporting`, `18. Roadmap`, `3. Tech Stack`, `7. Reader Views`, `9. Format Support`, `2. Goals & Non-Goals`, `8. Book-Level Configuration`, `Ebook Reader`?**
+  _High betweenness centrality (0.148) - this node is a cross-community bridge._
+- **Are the 2 inferred relationships involving `EpubAdapter` (e.g. with `4.3 Reader Adapter Pattern` and `Supported Formats & Support Matrix`) actually correct?**
+  _`EpubAdapter` has 2 INFERRED edges - model-reasoned connections that need verification._
+- **Should `bookStore.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.0960591133004926 - nodes in this community are weakly interconnected._
