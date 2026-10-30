@@ -3,10 +3,20 @@ import type { RecentFolder } from "../../stores/uiStore";
 
 export interface LaunchpadProps {
   recentFolders: RecentFolder[];
-  onOpenDirectory: (selectedPath?: string) => void;
+  onOpenDirectory: (selectedPath?: RecentFolder | string) => void;
   onOpenFiles?: () => void;
   onClearRecents: () => void;
   isCompact?: boolean;
+}
+
+function getFolderSubtitle(folder: RecentFolder): string {
+  if (folder.id.startsWith('collection:') || folder.id.startsWith('virtual:')) {
+    return 'Custom ebook collection';
+  }
+  if (folder.id.startsWith('content://')) {
+    return `Android Storage • ${folder.name}`;
+  }
+  return folder.id;
 }
 
 export function Launchpad({
@@ -104,9 +114,9 @@ export function Launchpad({
               return (
                 <div
                   key={folder.id}
-                  onClick={() => onOpenDirectory(folder.id)}
+                  onClick={() => onOpenDirectory(folder)}
                   className="flex items-center gap-3.5 p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] hover:border-[var(--color-primary)] hover:shadow-sm transition-all cursor-pointer group select-none active:scale-[0.99]"
-                  title={folder.id}
+                  title={folder.name}
                 >
                   <div className="w-9 h-9 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
                     <FileDirectoryFillIcon size={18} />
@@ -123,7 +133,7 @@ export function Launchpad({
                       )}
                     </div>
                     <div className="text-[11px] text-[var(--color-text-muted)] truncate font-mono mt-0.5 opacity-75">
-                      {folder.id}
+                      {getFolderSubtitle(folder)}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0 text-[var(--color-text-muted)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--color-primary)] transition-all">

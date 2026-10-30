@@ -1,10 +1,31 @@
 import type { FileSystemProvider, DirRef, Entry, PickedFilesResult } from './types';
 import { formatRegistry } from '../../adapters/registry';
-import { getAllSupportedExtensions } from '../../formats/registry';
 import { AppError, toAppError } from '../../errors/appError';
 import { logManager } from '../../utils/logger';
+import {
+  showOpenDirPicker,
+  showOpenFilePicker,
+  readDir as androidReadDir,
+  readFile as androidReadFile,
+  getName as androidGetName,
+  getFileByteLength as androidGetFileByteLength,
+  persistPickerUriPermission,
+  checkPersistedPickerUriPermission,
+  UriPermissionState,
+  type FsUri,
+  type FileMetadata,
+} from 'tauri-plugin-android-fs-api';
 
 const logger = logManager.getLogger('fs:android');
+
+const VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX = 'ebook_reader_virtual_collection_';
+
+function toFsUri(uriString: string): FsUri {
+  return {
+    uri: uriString,
+    documentTopTreeUri: null,
+  };
+}
 
 export class AndroidFsProvider implements FileSystemProvider {
   readonly kind = 'android' as const;
@@ -16,6 +37,27 @@ export class AndroidFsProvider implements FileSystemProvider {
 
   private virtualCollections = new Map<string, Entry[]>();
 
+  constructor() {
+    // Rehydrate any persisted virtual collections from localStorage
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith(VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX)) {
+            const collectionId = key.replace(VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX, '');
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const entries = JSON.parse(raw) as Entry[];
+              this.virtualCollections.set(collectionId, entries);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      logger.warn('ANDROID_REHYDRATE_VIRTUAL_COLLECTIONS_FAILED', { error: String(e) });
+    }
+  }
+
   /**
    * Helper to decode a friendly folder or file name from a SAF URI or document segment.
    * Handles URL encoding (e.g. primary%3ADocuments -> Documents).
@@ -23,7 +65,6 @@ export class AndroidFsProvider implements FileSystemProvider {
   private decodeDisplayName(uriString: string): string {
     try {
       const decoded = decodeURIComponent(uriString);
-      // If it contains a colon (like primary:Documents or 1234-5678:Books)
       const afterColon = decoded.includes(':') ? decoded.split(':').pop() : decoded;
       const lastSegment = (afterColon || '').split('/').filter(Boolean).pop();
       return lastSegment || decoded;
@@ -33,60 +74,100 @@ export class AndroidFsProvider implements FileSystemProvider {
   }
 
   /**
-   * Native file picking flow on Android using @tauri-apps/plugin-dialog (ACTION_GET_CONTENT / OPEN_DOCUMENT).
-   * Works cleanly across all Android versions without requiring folder tree permissions.
+   * Resolves the real display name of a file or directory using ContentResolver metadata,
+   * falling back to URL segment decoding.
+   */
+  private async getFriendlyName(fsUri: FsUri | string): Promise<string> {
+    const uriStr = typeof fsUri === 'string' ? fsUri : fsUri.uri;
+    try {
+      const name = await androidGetName(typeof fsUri === 'string' ? toFsUri(fsUri) : fsUri);
+      if (name && name.trim()) {
+        return name.trim();
+      }
+    } catch {
+      // Fall back to decoded segment
+    }
+    return this.decodeDisplayName(uriStr);
+  }
+
+  /**
+   * Native file picking flow on Android using tauri-plugin-android-fs (ACTION_OPEN_DOCUMENT).
+   * Retrieves real file names, actual byte sizes, and persists ContentResolver permissions.
    */
   async pickFiles(title = 'Select Ebook File(s)'): Promise<PickedFilesResult | null> {
-    logger.info('ANDROID_PICK_FILES_START');
+    logger.info('ANDROID_PICK_FILES_START', { title });
     try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const selected = await open({
-        directory: false,
+      const fsUris = await showOpenFilePicker({
         multiple: true,
-        title,
-        filters: [
-          {
-            name: 'Ebooks',
-            extensions: getAllSupportedExtensions(),
-          },
+        mimeTypes: [
+          'application/pdf',
+          'application/epub+zip',
+          'application/x-cbz',
+          'application/vnd.comicbook+zip',
+          'text/plain',
+          '*/*',
         ],
       });
 
-      if (!selected) {
+      if (!fsUris || fsUris.length === 0) {
         logger.debug('ANDROID_PICK_FILES_CANCELLED');
         return null;
       }
 
-      const fileList: string[] = Array.isArray(selected) ? selected : [selected];
-      if (fileList.length === 0) return null;
+      const entries: Entry[] = [];
+      const dirId = `collection:selected_${Date.now()}`;
 
-      const entries: Entry[] = fileList.map((uri) => {
-        const name = this.decodeDisplayName(uri);
-        return {
-          id: uri,
-          parent: 'virtual:android_files',
+      for (const fsUri of fsUris) {
+        try {
+          await persistPickerUriPermission(fsUri);
+        } catch (permErr) {
+          logger.warn('ANDROID_PERSIST_PERMISSION_FAILED', { uri: fsUri.uri, error: String(permErr) });
+        }
+
+        const name = await this.getFriendlyName(fsUri);
+        let size = 0;
+        try {
+          size = await androidGetFileByteLength(fsUri);
+        } catch {
+          size = 0;
+        }
+
+        entries.push({
+          id: fsUri.uri,
+          parent: dirId,
           name,
           isDirectory: false,
-          size: 0,
+          size,
           modifiedMs: Date.now(),
           isSupported: formatRegistry.isSupported(name),
-        };
-      });
+        });
+      }
 
-      const dirId = `virtual:selected_books_${Date.now()}`;
+      const dirName = entries.length === 1 ? entries[0].name : `Selected Ebooks (${entries.length})`;
       const dir: DirRef = {
         id: dirId,
-        name: fileList.length === 1 ? entries[0].name : `Selected Books (${entries.length})`,
+        name: dirName,
         platform: 'android',
       };
 
+      // Store in memory and persistent storage
       this.virtualCollections.set(dirId, entries);
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem(
+            `${VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX}${dirId}`,
+            JSON.stringify(entries)
+          );
+        }
+      } catch (e) {
+        logger.warn('ANDROID_PERSIST_VIRTUAL_COLLECTION_STORAGE_FAILED', { error: String(e) });
+      }
 
       logger.info('ANDROID_PICK_FILES_SUCCESS', { count: entries.length, dirId });
       return {
         dir,
         files: entries,
-        singleFilePath: fileList.length === 1 ? fileList[0] : undefined,
+        singleFilePath: entries.length === 1 ? entries[0].id : undefined,
       };
     } catch (err) {
       logger.error('ANDROID_PICK_FILES_FAILED', { error: String(err) });
@@ -94,49 +175,33 @@ export class AndroidFsProvider implements FileSystemProvider {
     }
   }
 
+  /**
+   * Native directory picking flow on Android using SAF ACTION_OPEN_DOCUMENT_TREE.
+   * Lets users select folders (like Documents, SEM 8, Books, SD Card) and persist permissions.
+   */
   async pickDirectory(title = 'Select Ebook Folder'): Promise<DirRef | null> {
-    logger.info('ANDROID_PICK_DIRECTORY_START');
+    logger.info('ANDROID_PICK_DIRECTORY_START', { title });
     try {
-      // 1. Check for community or custom Tauri Android FS plugin
-      const globalWindow = window as any;
-      if (globalWindow.androidFs && typeof globalWindow.androidFs.pickDir === 'function') {
-        const picked = await globalWindow.androidFs.pickDir({ persist: true, title });
-        if (!picked || !picked.uri) return null;
-        return {
-          id: picked.uri,
-          name: picked.name || this.decodeDisplayName(picked.uri),
-          platform: 'android',
-        };
+      const dirUri = await showOpenDirPicker();
+      if (!dirUri) {
+        logger.debug('ANDROID_PICK_DIRECTORY_CANCELLED');
+        return null;
       }
 
-      // 2. Standard Tauri dialog plugin on Android with graceful fallback
       try {
-        const { open } = await import('@tauri-apps/plugin-dialog');
-        const selected = await open({
-          directory: true,
-          multiple: false,
-          title,
-        });
-
-        if (!selected || typeof selected !== 'string') {
-          return null;
-        }
-
-        return {
-          id: selected,
-          name: this.decodeDisplayName(selected),
-          platform: 'android',
-        };
-      } catch (dialogErr) {
-        const msg = String(dialogErr);
-        // If folder picking is not implemented on mobile, gracefully fall back to picking ebook files
-        if (msg.includes('Folder picker is not implemented on mobile') || msg.includes('not implemented')) {
-          logger.warn('ANDROID_FOLDER_PICKER_FALLBACK_TO_FILES');
-          const fileResult = await this.pickFiles(title);
-          return fileResult ? fileResult.dir : null;
-        }
-        throw dialogErr;
+        await persistPickerUriPermission(dirUri);
+      } catch (permErr) {
+        logger.warn('ANDROID_PERSIST_DIR_PERMISSION_FAILED', { dirUri: dirUri.uri, error: String(permErr) });
       }
+
+      const dirName = await this.getFriendlyName(dirUri);
+      logger.info('ANDROID_PICK_DIRECTORY_SUCCESS', { dirUri: dirUri.uri, dirName });
+
+      return {
+        id: dirUri.uri,
+        name: dirName,
+        platform: 'android',
+      };
     } catch (err) {
       logger.error('ANDROID_PICK_DIRECTORY_FAILED', { error: String(err) });
       throw toAppError(err);
@@ -146,33 +211,47 @@ export class AndroidFsProvider implements FileSystemProvider {
   async listChildren(dir: DirRef): Promise<Entry[]> {
     logger.info('ANDROID_LIST_CHILDREN_START', { dirId: dir.id });
     try {
-      // Virtual file collection check
-      if (dir.id.startsWith('virtual:')) {
-        return this.virtualCollections.get(dir.id) || [];
+      // 1. Virtual collection check (e.g. collection:selected_... or virtual:...)
+      if (dir.id.startsWith('collection:') || dir.id.startsWith('virtual:')) {
+        let entries = this.virtualCollections.get(dir.id);
+        if (!entries) {
+          try {
+            const raw = localStorage.getItem(`${VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX}${dir.id}`);
+            if (raw) {
+              entries = JSON.parse(raw) as Entry[];
+              this.virtualCollections.set(dir.id, entries);
+            }
+          } catch {}
+        }
+        return entries || [];
       }
 
-      const globalWindow = window as any;
-      if (globalWindow.androidFs && typeof globalWindow.androidFs.readDir === 'function') {
-        const rawEntries: Array<{ uri: string; name: string; isDirectory: boolean; size?: number; modified?: number }> =
-          await globalWindow.androidFs.readDir(dir.id);
+      // 2. Native SAF Directory Traversal via tauri-plugin-android-fs
+      if (dir.id.startsWith('content://')) {
+        const rawEntries = await androidReadDir(toFsUri(dir.id));
+        return rawEntries.map((e) => {
+          const isDir = e.type === 'Dir';
+          const fileMeta = !isDir ? (e as FileMetadata) : undefined;
+          const size = fileMeta?.byteLength || 0;
+          const modifiedMs = e.lastModified ? new Date(e.lastModified).getTime() : Date.now();
 
-        return rawEntries.map((e) => ({
-          id: e.uri,
-          parent: dir.id,
-          name: e.name,
-          isDirectory: e.isDirectory,
-          size: e.size || 0,
-          modifiedMs: e.modified || Date.now(),
-          isSupported: !e.isDirectory && formatRegistry.isSupported(e.name),
-        }));
+          return {
+            id: e.uri.uri,
+            parent: dir.id,
+            name: e.name,
+            isDirectory: isDir,
+            size,
+            modifiedMs,
+            isSupported: !isDir && formatRegistry.isSupported(e.name),
+          };
+        });
       }
 
-      // Fallback via Tauri core invocation if custom command is registered
+      // 3. Fallback for custom or POSIX paths if custom command is registered
       const { invoke } = await import('@tauri-apps/api/core');
-      const rawEntries = await invoke<Array<{ name: string; path: string; is_directory: boolean; size: number; modified: number }>>(
-        'list_directory',
-        { path: dir.id }
-      );
+      const rawEntries = await invoke<
+        Array<{ name: string; path: string; is_directory: boolean; size: number; modified: number }>
+      >('list_directory', { path: dir.id });
 
       return rawEntries.map((e) => ({
         id: e.path,
@@ -192,14 +271,15 @@ export class AndroidFsProvider implements FileSystemProvider {
   async readFile(entry: Pick<Entry, 'id' | 'name'>): Promise<Uint8Array> {
     logger.info('ANDROID_READ_FILE_START', { entryId: entry.id });
     try {
-      const globalWindow = window as any;
-      if (globalWindow.androidFs && typeof globalWindow.androidFs.readFile === 'function') {
-        return await globalWindow.androidFs.readFile(entry.id);
+      if (entry.id.startsWith('content://')) {
+        return await androidReadFile(toFsUri(entry.id));
       }
 
-      // Try invoke binary Response or plugin-fs
+      // Try invoke binary Response or plugin-fs for POSIX paths
       const { invoke } = await import('@tauri-apps/api/core');
-      const response = await invoke<ArrayBuffer | Uint8Array | number[]>('read_file', { path: entry.id });
+      const response = await invoke<ArrayBuffer | Uint8Array | number[]>('read_file', {
+        path: entry.id,
+      });
       if (response instanceof Uint8Array) return response;
       if (response instanceof ArrayBuffer) return new Uint8Array(response);
       if (Array.isArray(response)) return new Uint8Array(response);
@@ -214,11 +294,20 @@ export class AndroidFsProvider implements FileSystemProvider {
 
   async reopen(dir: DirRef): Promise<DirRef> {
     try {
-      const globalWindow = window as any;
-      if (globalWindow.androidFs && typeof globalWindow.androidFs.hasPermission === 'function') {
-        const hasPerm = await globalWindow.androidFs.hasPermission(dir.id);
+      if (dir.id.startsWith('collection:') || dir.id.startsWith('virtual:')) {
+        return dir;
+      }
+
+      if (dir.id.startsWith('content://')) {
+        const hasPerm = await checkPersistedPickerUriPermission(
+          toFsUri(dir.id),
+          UriPermissionState.Read
+        );
         if (!hasPerm) {
-          throw new AppError('PERMISSION_DENIED', `Permission for folder ${dir.name} has expired or was revoked.`);
+          throw new AppError(
+            'PERMISSION_DENIED',
+            `Permission for folder "${dir.name}" has expired or was revoked.`
+          );
         }
       }
       return dir;

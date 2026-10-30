@@ -70,7 +70,7 @@ export const USER_MESSAGES: Record<AppErrorCode, UserErrorInfo> = {
   },
   MISSING_COMPONENT: {
     message: "A required component for this format or action isn't available.",
-    hint: "On mobile devices, use 'Open Ebook File(s)' to select your books directly.",
+    hint: "Please ensure the file or folder is accessible and permissions are granted.",
   },
   UNKNOWN: {
     message: "Something went wrong while opening this book or directory.",

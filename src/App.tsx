@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useUiStore, type SortBy, type ViewMode, type AppTheme } from "./stores/uiStore";
+import { useUiStore, type SortBy, type ViewMode, type AppTheme, type RecentFolder } from "./stores/uiStore";
 import { useBookStore } from "./stores/bookStore";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import { VirtualizedFileList } from "./components/VirtualizedFileList";
@@ -202,7 +202,15 @@ export default function App() {
     setError(null);
     try {
       const provider = await getFileSystemProvider();
-      const dirName = path.split(/[/\\]/).filter(Boolean).pop() || path;
+      const existingRecent = useUiStore.getState().recentFolders.find((f) => f.id === path);
+      let dirName = existingRecent?.name;
+      if (!dirName) {
+        if (path.startsWith("collection:") || path.startsWith("virtual:")) {
+          dirName = "Selected Ebooks";
+        } else {
+          dirName = path.split(/[/\\]/).filter(Boolean).pop() || path;
+        }
+      }
       const dirRef: DirRef = { id: path, name: dirName, platform: provider.kind };
 
       const rawEntries = await provider.listChildren(dirRef);
@@ -236,16 +244,20 @@ export default function App() {
     }
   }, [currentRoot, loadDirectory]);
 
-  const handleOpenDirectory = async (selectedDir?: string | DirRef | unknown) => {
+  const handleOpenDirectory = async (selectedDir?: string | RecentFolder | DirRef | unknown) => {
     logger.info("OPEN_DIRECTORY");
     try {
       const provider = await getFileSystemProvider();
       let dir: DirRef | null = null;
-      if (typeof selectedDir === "string" && selectedDir) {
-        const name = selectedDir.split(/[/\\]/).filter(Boolean).pop() || selectedDir;
+      if (selectedDir && typeof selectedDir === "object" && "id" in selectedDir) {
+        const item = selectedDir as { id: string; name?: string };
+        const existingRecent = useUiStore.getState().recentFolders.find((f) => f.id === item.id);
+        const name = item.name || existingRecent?.name || item.id.split(/[/\\]/).filter(Boolean).pop() || item.id;
+        dir = { id: item.id, name, platform: provider.kind };
+      } else if (typeof selectedDir === "string" && selectedDir) {
+        const existingRecent = useUiStore.getState().recentFolders.find((f) => f.id === selectedDir);
+        const name = existingRecent?.name || selectedDir.split(/[/\\]/).filter(Boolean).pop() || selectedDir;
         dir = { id: selectedDir, name, platform: provider.kind };
-      } else if (selectedDir && typeof selectedDir === "object" && "id" in selectedDir) {
-        dir = selectedDir as DirRef;
       } else {
         dir = await provider.pickDirectory("Select a directory containing your ebooks");
       }

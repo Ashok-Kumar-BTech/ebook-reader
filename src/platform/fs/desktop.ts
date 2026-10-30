@@ -62,20 +62,31 @@ export class DesktopFsProvider implements FileSystemProvider {
       const fileList = Array.isArray(selected) ? selected : [selected];
       if (fileList.length === 0) return null;
 
-      const entries: Entry[] = fileList.map((filePath) => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const dirId = `collection:selected_${Date.now()}`;
+      const entries: Entry[] = [];
+
+      for (const filePath of fileList) {
         const name = filePath.split(/[/\\]/).filter(Boolean).pop() || filePath;
-        return {
+        let size = 0;
+        let modifiedMs = Date.now();
+        try {
+          const meta = await invoke<{ size: number; modified: number }>('get_file_metadata', { path: filePath });
+          size = meta.size;
+          modifiedMs = meta.modified;
+        } catch {}
+
+        entries.push({
           id: filePath,
-          parent: 'virtual:selected_books',
+          parent: dirId,
           name,
           isDirectory: false,
-          size: 0,
-          modifiedMs: Date.now(),
+          size,
+          modifiedMs,
           isSupported: formatRegistry.isSupported(name),
-        };
-      });
+        });
+      }
 
-      const dirId = `virtual:selected_books_${Date.now()}`;
       const dir: DirRef = {
         id: dirId,
         name: fileList.length === 1 ? entries[0].name : `Selected Books (${entries.length})`,
@@ -83,6 +94,11 @@ export class DesktopFsProvider implements FileSystemProvider {
       };
 
       this.virtualCollections.set(dirId, entries);
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem(`ebook_reader_virtual_collection_${dirId}`, JSON.stringify(entries));
+        }
+      } catch {}
 
       return {
         dir,
@@ -96,8 +112,18 @@ export class DesktopFsProvider implements FileSystemProvider {
   }
 
   async listChildren(dir: DirRef): Promise<Entry[]> {
-    if (dir.id.startsWith('virtual:')) {
-      return this.virtualCollections.get(dir.id) || [];
+    if (dir.id.startsWith('virtual:') || dir.id.startsWith('collection:')) {
+      let entries = this.virtualCollections.get(dir.id);
+      if (!entries) {
+        try {
+          const raw = localStorage.getItem(`ebook_reader_virtual_collection_${dir.id}`);
+          if (raw) {
+            entries = JSON.parse(raw) as Entry[];
+            this.virtualCollections.set(dir.id, entries);
+          }
+        } catch {}
+      }
+      return entries || [];
     }
 
     try {

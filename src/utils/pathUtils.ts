@@ -33,6 +33,16 @@ export function normalizePath(inputPath: string): string {
  */
 export function getParentPath(inputPath: string): string | null {
   if (!inputPath) return null;
+
+  // URIs and virtual collections cannot navigate "up" via path string operations
+  if (
+    inputPath.startsWith('content://') ||
+    inputPath.startsWith('collection:') ||
+    inputPath.startsWith('virtual:')
+  ) {
+    return null;
+  }
+
   const isBackslash = inputPath.includes('\\');
   const normalized = normalizePath(inputPath);
   
@@ -80,6 +90,27 @@ export function getParentPath(inputPath: string): string | null {
  */
 export function getBreadcrumbSegments(inputPath: string): BreadcrumbSegment[] {
   if (!inputPath) return [];
+
+  // SAF URIs and virtual collections
+  if (
+    inputPath.startsWith('content://') ||
+    inputPath.startsWith('collection:') ||
+    inputPath.startsWith('virtual:')
+  ) {
+    let friendlyName = inputPath;
+    try {
+      if (inputPath.startsWith('collection:') || inputPath.startsWith('virtual:')) {
+        friendlyName = 'Selected Ebooks';
+      } else {
+        const decoded = decodeURIComponent(inputPath);
+        const afterColon = decoded.includes(':') ? decoded.split(':').pop() : decoded;
+        friendlyName = (afterColon || '').split('/').filter(Boolean).pop() || decoded;
+      }
+    } catch {
+      friendlyName = inputPath;
+    }
+    return [{ name: friendlyName, path: inputPath, isLast: true }];
+  }
 
   const isBackslash = inputPath.includes('\\');
   const normalized = normalizePath(inputPath);

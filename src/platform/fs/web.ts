@@ -83,7 +83,7 @@ export class WebFsProvider implements FileSystemProvider {
         });
       }
 
-      const dirId = `virtual:selected_books_${Date.now()}`;
+      const dirId = `collection:selected_${Date.now()}`;
       const dir: DirRef = {
         id: dirId,
         name: entries.length === 1 ? entries[0].name : `Selected Books (${entries.length})`,
@@ -105,7 +105,7 @@ export class WebFsProvider implements FileSystemProvider {
   }
 
   async listChildren(dir: DirRef): Promise<Entry[]> {
-    if (dir.id.startsWith('virtual:')) {
+    if (dir.id.startsWith('virtual:') || dir.id.startsWith('collection:')) {
       return this.virtualCollections.get(dir.id) || [];
     }
 

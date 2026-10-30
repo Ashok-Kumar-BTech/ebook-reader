@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1793332028.4310813,
-    "seen": 1793332291.7551954,
-    "ast_hash": "b2daa1a45c298dc28605bf2fc223ff9e",
+    "mtime": 1793339544.9894226,
+    "seen": 1793340790.5076742,
+    "ast_hash": "59a2242741a2b6e85ca2818fc5205167",
     "semantic_hash": ""
   },
   "postcss.config.js": {
@@ -18,9 +18,9 @@
     "semantic_hash": ""
   },
   "src-tauri/Cargo.toml": {
-    "mtime": 1792911962.8272302,
-    "seen": 1792921923.4781568,
-    "ast_hash": "64dc393764f26f57af073deea0c26cd5",
+    "mtime": 1793339504.2926552,
+    "seen": 1793340790.5076742,
+    "ast_hash": "b08d2352f366c5def8acfa7448a2eaa9",
     "semantic_hash": ""
   },
   "src-tauri/build.rs": {
@@ -36,9 +36,9 @@
     "semantic_hash": ""
   },
   "src-tauri/src/lib.rs": {
-    "mtime": 1793337588.8531165,
-    "seen": 1793338188.3924057,
-    "ast_hash": "5cddf1d7720010a3f35da278241b2564",
+    "mtime": 1793339591.1244822,
+    "seen": 1793340790.5076742,
+    "ast_hash": "873e5bfd13ac3d64c35aaef4ad81b4ee",
     "semantic_hash": ""
   },
   "src-tauri/src/main.rs": {
@@ -54,9 +54,9 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1793337924.7126698,
-    "seen": 1793338188.3924057,
-    "ast_hash": "05d006ac6e6358e746c8e4b126cfa505",
+    "mtime": 1793340614.6331968,
+    "seen": 1793340790.5076742,
+    "ast_hash": "bd0da4b4a9ebbd84cfb2bd31b17f311f",
     "semantic_hash": ""
   },
   "src/adapters/cbzAdapter.ts": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793338169.3815944,
-    "seen": 1793338188.3924057,
-    "ast_hash": "0db105b4f62ad39f982e8443f69e2aca",
+    "mtime": 1793340773.9476767,
+    "seen": 1793340790.5076742,
+    "ast_hash": "40d12952712e446101a603bbfa475a3c",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
@@ -414,9 +414,9 @@
     "semantic_hash": ""
   },
   "src/utils/pathUtils.ts": {
-    "mtime": 1793194429.2901902,
-    "seen": 1793331316.1496773,
-    "ast_hash": "853f7587a36d1a18e5ae43af555b508c",
+    "mtime": 1793340540.7031746,
+    "seen": 1793340790.5076742,
+    "ast_hash": "762f78e14fd78a59e0e371bcbd608bbb",
     "semantic_hash": ""
   },
   "src/utils/windowState.ts": {
@@ -450,27 +450,27 @@
     "semantic_hash": ""
   },
   "src/errors/appError.ts": {
-    "mtime": 1793337982.2472892,
-    "seen": 1793338188.3924057,
-    "ast_hash": "5cb37779f75ec1137814a68d972edcee",
+    "mtime": 1793340632.4002757,
+    "seen": 1793340790.5076742,
+    "ast_hash": "cefa2d6c4bd313a3136733d95de98d3b",
     "semantic_hash": ""
   },
   "src-tauri/capabilities/mobile.json": {
-    "mtime": 1793337604.7510023,
-    "seen": 1793338188.3924057,
-    "ast_hash": "878cddec3e109399cfdb70c90ed6014d",
+    "mtime": 1793339660.4032333,
+    "seen": 1793340790.5076742,
+    "ast_hash": "4b427f2b9599efd301e1421439ac9bbb",
     "semantic_hash": ""
   },
   "src/platform/fs/android.ts": {
-    "mtime": 1793338036.244431,
-    "seen": 1793338188.3924057,
-    "ast_hash": "9209ec5412bf2911d2113ac58cda4938",
+    "mtime": 1793340682.5442355,
+    "seen": 1793340790.5076742,
+    "ast_hash": "77930d2a99593eef348d36b65e16c056",
     "semantic_hash": ""
   },
   "src/platform/fs/desktop.ts": {
-    "mtime": 1793338049.7727342,
-    "seen": 1793338188.3924057,
-    "ast_hash": "0743b6867a31614a9ddbc2b3b48f40b8",
+    "mtime": 1793340497.6435294,
+    "seen": 1793340790.5076742,
+    "ast_hash": "6f308a1212ebf62fc203477bccdb8bf4",
     "semantic_hash": ""
   },
   "src/platform/fs/index.ts": {
@@ -486,9 +486,9 @@
     "semantic_hash": ""
   },
   "src/platform/fs/web.ts": {
-    "mtime": 1793337793.7559195,
-    "seen": 1793338188.3924057,
-    "ast_hash": "3060e0aa78a61ee9571fa5e3e31b2441",
+    "mtime": 1793340519.9132633,
+    "seen": 1793340790.5076742,
+    "ast_hash": "8ec5c416189d21343fd14beb0ff9c4e0",
     "semantic_hash": ""
   },
   "src/components/shell/AppBar.tsx": {
@@ -510,9 +510,9 @@
     "semantic_hash": ""
   },
   "src/components/shell/Launchpad.tsx": {
-    "mtime": 1793338022.8861842,
-    "seen": 1793338188.3924057,
-    "ast_hash": "ca019034b49b3eda4e68ad9bee5368d2",
+    "mtime": 1793340563.4242046,
+    "seen": 1793340790.5076742,
+    "ast_hash": "6bf73f7a8c3475d62e79cd1f03654cca",
     "semantic_hash": ""
   },
   "src/components/shell/ViewOptionsSheet.tsx": {
@@ -558,9 +558,9 @@
     "semantic_hash": ""
   },
   "src-tauri/gen/android/buildSrc/src/main/java/com/ebook/reader/kotlin/BuildTask.kt": {
-    "mtime": 1793336021.7136488,
-    "seen": 1793338188.3924057,
-    "ast_hash": "03080d9c71c5adf6d13b61bff7c5ce5a",
+    "mtime": 1793339614.901487,
+    "seen": 1793340790.5076742,
+    "ast_hash": "196253c71bb2792cb7855b154b28501e",
     "semantic_hash": ""
   },
   "src-tauri/gen/android/buildSrc/src/main/java/com/ebook/reader/kotlin/RustPlugin.kt": {
