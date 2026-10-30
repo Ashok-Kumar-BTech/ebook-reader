@@ -86,8 +86,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const rightPageRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<BookAdapter | null>(null);
-  const touchStartXRef = useRef<number | null>(null);
-  const touchStartYRef = useRef<number | null>(null);
+  const gestureStartZoomRef = useRef<number>(1.0);
   const renderedPagesRef = useRef<Set<number>>(new Set());
   const isScrollingToPageRef = useRef<boolean>(false);
   const bookPathRef = useRef<string | null>(currentBookPath);
@@ -98,15 +97,24 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
   // Zoom & Pan Engine state (0.5x to 3.0x, default 1.0x / Fit)
   const [zoomLevel, setZoomLevel] = useState<number>(1.0);
+  const [debouncedZoomLevel, setDebouncedZoomLevel] = useState<number>(1.0);
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const zoomLevelRef = useRef<number>(1.0);
   zoomLevelRef.current = zoomLevel;
   const panOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   panOffsetRef.current = panOffset;
+  const currentPageRef = useRef<number>(currentPage);
+  currentPageRef.current = currentPage;
   const dragStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
-  const touchDistanceRef = useRef<number | null>(null);
-  const touchStartZoomRef = useRef<number>(1.0);
+
+  // Debounce zoom level updates so continuous scroll observer doesn't flush canvases at 60fps
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedZoomLevel(zoomLevel);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [zoomLevel]);
 
   const scrollPages = useMemo(() => Array.from({ length: totalPages }, (_, i) => i + 1), [totalPages]);
 
@@ -324,7 +332,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     const height = container?.clientHeight || 600;
 
     const baseOptions: RenderOptions = {
-      width: Math.floor(860 * zoomLevel),
+      width: Math.floor(860 * debouncedZoomLevel),
       height: height - 40,
       theme: readerTheme,
       fontSize,
@@ -332,7 +340,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       margin,
       twoPageView: false,
       continuousScroll: true,
-      zoom: zoomLevel,
+      zoom: debouncedZoomLevel,
     };
 
     // Invalidate cached renders when layout/theme/font settings change so slots re-render
@@ -367,7 +375,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     return () => {
       observer.disconnect();
     };
-  }, [viewMode, totalPages, loading, readerTheme, fontSize, lineHeight, margin, zoomLevel, logger]);
+  }, [viewMode, totalPages, loading, readerTheme, fontSize, lineHeight, margin, debouncedZoomLevel, logger]);
 
   // Initial scroll position restoration in scroll view
   useEffect(() => {
@@ -384,7 +392,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
   // Bidirectional scroll position tracking for Continuous Scroll View
   useEffect(() => {
-    if (viewMode !== "scroll" || !scrollContainerRef.current) return;
+    if (viewMode !== "scroll" || !scrollContainerRef.current || loading) return;
 
     const scrollEl = scrollContainerRef.current;
     let ticking = false;
@@ -396,19 +404,19 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           ticking = false;
           if (!scrollEl) return;
           const containerRect = scrollEl.getBoundingClientRect();
-          const anchorY = containerRect.top + Math.min(120, containerRect.height * 0.25);
+          const centerY = containerRect.top + containerRect.height / 2;
 
           const slots = scrollEl.querySelectorAll(".reader-page-slot");
-          let anchorPage: number | null = null;
+          let centerPage: number | null = null;
           let maxVisibleHeight = -1;
-          let mostVisiblePage = currentPage;
+          let mostVisiblePage = currentPageRef.current;
 
           slots.forEach((slot) => {
             const rect = slot.getBoundingClientRect();
-            // Check reading eye-level anchor
-            if (rect.top <= anchorY && rect.bottom >= anchorY) {
+            // Check reading eye-level anchor at viewport center
+            if (rect.top <= centerY && rect.bottom >= centerY) {
               const p = parseInt(slot.getAttribute("data-page-num") || "0", 10);
-              if (p) anchorPage = p;
+              if (p) centerPage = p;
             }
             // Check largest visible height
             const visibleTop = Math.max(containerRect.top, rect.top);
@@ -421,8 +429,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             }
           });
 
-          const activePage = anchorPage ?? mostVisiblePage;
-          if (activePage !== currentPage && activePage >= 1 && activePage <= totalPages) {
+          const activePage = centerPage ?? mostVisiblePage;
+          if (activePage !== currentPageRef.current && activePage >= 1 && activePage <= totalPages) {
             setCurrentPage(activePage);
             if (currentBookPath) {
               updateLocation(currentBookPath, activePage, totalPages);
@@ -433,9 +441,12 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       }
     };
 
+    // Immediately evaluate active page on mount
+    handleScroll();
+
     scrollEl.addEventListener("scroll", handleScroll, { passive: true });
     return () => scrollEl.removeEventListener("scroll", handleScroll);
-  }, [viewMode, currentPage, totalPages, currentBookPath, updateLocation]);
+  }, [viewMode, loading, totalPages, currentBookPath, updateLocation]);
 
   // Handle window resizing
   useEffect(() => {
@@ -717,148 +728,198 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     handleResetZoom,
   ]);
 
-  // Multi-Touch Pinch & Swipe Listeners (Pointer Events & Touch Events with touch-action: none)
+  // Multi-Touch Pinch, Pan, Swipe & Double-Tap Controller
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || loading) return;
 
-    // Pointer-events tracking map for reliable multi-touch gestures on Chromium / WebView2
-    const activeTouches = new Map<number, { x: number; y: number }>();
-    let initialPinchDist: number | null = null;
-    let initialPinchZoom = 1.0;
-
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.pointerType === "touch") {
-        activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (activeTouches.size === 2) {
-          e.preventDefault();
-          const pts = Array.from(activeTouches.values());
-          initialPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-          initialPinchZoom = zoomLevelRef.current;
-        } else if (activeTouches.size === 1) {
-          touchStartXRef.current = e.clientX;
-          touchStartYRef.current = e.clientY;
-        }
-      }
-    };
-
-    const onPointerMove = (e: PointerEvent) => {
-      if (e.pointerType === "touch" && activeTouches.has(e.pointerId)) {
-        activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (activeTouches.size === 2 && initialPinchDist && initialPinchDist > 0) {
-          e.preventDefault();
-          const pts = Array.from(activeTouches.values());
-          const currentDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-          const ratio = currentDist / initialPinchDist;
-          const nextZoom = Math.min(3.0, Math.max(0.5, +(initialPinchZoom * ratio).toFixed(2)));
-          setZoomLevel(nextZoom);
-          if (nextZoom <= 1.0) {
-            setPanOffset({ x: 0, y: 0 });
-          }
-        }
-      }
-    };
-
-    const onPointerUp = (e: PointerEvent) => {
-      if (e.pointerType === "touch") {
-        activeTouches.delete(e.pointerId);
-        if (activeTouches.size < 2) {
-          initialPinchDist = null;
-        }
-        if (activeTouches.size === 0 && touchStartXRef.current !== null && touchStartYRef.current !== null) {
-          const diffX = e.clientX - touchStartXRef.current;
-          const diffY = e.clientY - touchStartYRef.current;
-          touchStartXRef.current = null;
-          touchStartYRef.current = null;
-          if (viewMode !== "scroll" && zoomLevelRef.current <= 1.0 && Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY) * 1.2) {
-            if (diffX < 0) {
-              nextPage();
-            } else {
-              prevPage();
-            }
-          }
-        }
-      }
-    };
-
-    const onPointerCancel = (e: PointerEvent) => {
-      activeTouches.delete(e.pointerId);
-      if (activeTouches.size < 2) {
-        initialPinchDist = null;
-      }
-      touchStartXRef.current = null;
-      touchStartYRef.current = null;
+    const track = {
+      mode: "none" as "none" | "pan" | "pinch" | "swipe",
+      startX: 0,
+      startY: 0,
+      lastX: 0,
+      lastY: 0,
+      initialDist: 0,
+      initialZoom: 1.0,
+      focalX: 0,
+      focalY: 0,
+      lastTapTime: 0,
+      lastTapX: 0,
+      lastTapY: 0,
     };
 
     const onTouchStart = (e: TouchEvent) => {
+      resetAutoHideTimer();
+      const now = Date.now();
+
       if (e.touches.length === 2) {
-        // Multi-touch pinch gesture - prevent browser from stealing touch
+        // Multi-touch pinch gesture
         e.preventDefault();
-        touchStartXRef.current = null;
-        touchStartYRef.current = null;
-        touchDistanceRef.current = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
-        touchStartZoomRef.current = zoomLevelRef.current;
+        track.mode = "pinch";
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        track.initialDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        track.initialZoom = zoomLevelRef.current;
+        track.focalX = (t1.clientX + t2.clientX) / 2;
+        track.focalY = (t1.clientY + t2.clientY) / 2;
+        track.startX = track.focalX;
+        track.startY = track.focalY;
+        track.lastX = track.focalX;
+        track.lastY = track.focalY;
       } else if (e.touches.length === 1) {
-        touchStartXRef.current = e.touches[0].clientX;
-        touchStartYRef.current = e.touches[0].clientY;
+        const touch = e.touches[0];
+        const timeDiff = now - track.lastTapTime;
+        const distDiff = Math.hypot(touch.clientX - track.lastTapX, touch.clientY - track.lastTapY);
+
+        // Check for double-tap (< 300ms, < 24px)
+        if (timeDiff < 300 && distDiff < 24) {
+          e.preventDefault();
+          track.lastTapTime = 0;
+          if (zoomLevelRef.current > 1.05) {
+            setZoomLevel(1.0);
+            setPanOffset({ x: 0, y: 0 });
+          } else {
+            const targetZoom = 1.75;
+            setZoomLevel(targetZoom);
+            if (viewMode !== "scroll") {
+              const c = containerRef.current;
+              const rect = c?.getBoundingClientRect() || { left: 0, top: 0, width: 800, height: 600 };
+              const relX = touch.clientX - (rect.left + rect.width / 2);
+              const relY = touch.clientY - (rect.top + rect.height / 2);
+              setPanOffset({ x: -relX * 0.75, y: -relY * 0.75 });
+            } else if (scrollContainerRef.current) {
+              const scrollEl = scrollContainerRef.current;
+              const rect = scrollEl.getBoundingClientRect();
+              const tapFocalX = touch.clientX - rect.left;
+              const tapFocalY = touch.clientY - rect.top;
+              const ratio = targetZoom / zoomLevelRef.current;
+              scrollEl.scrollLeft = (scrollEl.scrollLeft + tapFocalX) * ratio - tapFocalX;
+              scrollEl.scrollTop = (scrollEl.scrollTop + tapFocalY) * ratio - tapFocalY;
+            }
+          }
+          return;
+        }
+
+        track.lastTapTime = now;
+        track.lastTapX = touch.clientX;
+        track.lastTapY = touch.clientY;
+        track.startX = touch.clientX;
+        track.startY = touch.clientY;
+        track.lastX = touch.clientX;
+        track.lastY = touch.clientY;
+
+        if (zoomLevelRef.current > 1.05) {
+          track.mode = "pan";
+          if (viewMode !== "scroll") {
+            e.preventDefault();
+          }
+        } else {
+          track.mode = "swipe";
+        }
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && touchDistanceRef.current !== null && touchDistanceRef.current > 0) {
+      if (e.touches.length === 2 && track.mode === "pinch" && track.initialDist > 0) {
         e.preventDefault();
-        const currentDist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
-        const scaleRatio = currentDist / touchDistanceRef.current;
-        const nextZoom = Math.min(3.0, Math.max(0.5, +(touchStartZoomRef.current * scaleRatio).toFixed(2)));
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const currentDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        const scaleRatio = currentDist / track.initialDist;
+        const nextZoom = Math.min(3.0, Math.max(0.5, +(track.initialZoom * scaleRatio).toFixed(2)));
+
+        const currentFocalX = (t1.clientX + t2.clientX) / 2;
+        const currentFocalY = (t1.clientY + t2.clientY) / 2;
+
+        if (viewMode === "scroll" && scrollContainerRef.current) {
+          const scrollEl = scrollContainerRef.current;
+          const rect = scrollEl.getBoundingClientRect();
+          const focalLocalX = currentFocalX - rect.left;
+          const focalLocalY = currentFocalY - rect.top;
+
+          const prevZoom = zoomLevelRef.current;
+          if (prevZoom > 0 && Math.abs(nextZoom - prevZoom) > 0.005) {
+            const ratio = nextZoom / prevZoom;
+            scrollEl.scrollLeft = Math.max(0, (scrollEl.scrollLeft + focalLocalX) * ratio - focalLocalX);
+            scrollEl.scrollTop = Math.max(0, (scrollEl.scrollTop + focalLocalY) * ratio - focalLocalY);
+          }
+        } else if (viewMode !== "scroll") {
+          const prevZoom = zoomLevelRef.current;
+          if (nextZoom <= 1.0) {
+            setPanOffset({ x: 0, y: 0 });
+          } else if (prevZoom > 0 && Math.abs(nextZoom - prevZoom) > 0.005) {
+            const c = containerRef.current;
+            const rect = c?.getBoundingClientRect() || { left: 0, top: 0, width: 800, height: 600 };
+            const focalCenterX = currentFocalX - (rect.left + rect.width / 2);
+            const focalCenterY = currentFocalY - (rect.top + rect.height / 2);
+            const ratio = nextZoom / prevZoom;
+            setPanOffset(prev => ({
+              x: (prev.x - focalCenterX) * ratio + focalCenterX,
+              y: (prev.y - focalCenterY) * ratio + focalCenterY,
+            }));
+          }
+        }
+
         setZoomLevel(nextZoom);
-        if (nextZoom <= 1.0) {
-          setPanOffset({ x: 0, y: 0 });
+      } else if (e.touches.length === 1 && track.mode === "pan" && zoomLevelRef.current > 1.05) {
+        const touch = e.touches[0];
+        const dx = touch.clientX - track.lastX;
+        const dy = touch.clientY - track.lastY;
+        track.lastX = touch.clientX;
+        track.lastY = touch.clientY;
+
+        if (viewMode === "scroll" && scrollContainerRef.current) {
+          scrollContainerRef.current.scrollLeft -= dx;
+          scrollContainerRef.current.scrollTop -= dy;
+        } else if (viewMode !== "scroll") {
+          e.preventDefault();
+          const c = containerRef.current;
+          const w = c?.clientWidth || 800;
+          const h = c?.clientHeight || 600;
+          const maxPanX = Math.max(80, (w * (zoomLevelRef.current - 1)) / 2 + 100);
+          const maxPanY = Math.max(80, (h * (zoomLevelRef.current - 1)) / 2 + 100);
+
+          setPanOffset(prev => ({
+            x: Math.min(maxPanX, Math.max(-maxPanX, prev.x + dx)),
+            y: Math.min(maxPanY, Math.max(-maxPanY, prev.y + dy)),
+          }));
         }
       }
     };
 
     const onTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2 && touchDistanceRef.current !== null) {
-        touchDistanceRef.current = null;
-        touchStartXRef.current = null;
-        touchStartYRef.current = null;
-      }
-      if (e.touches.length === 0 && touchStartXRef.current !== null && touchStartYRef.current !== null) {
-        if (e.changedTouches.length > 0) {
-          const diffX = e.changedTouches[0].clientX - touchStartXRef.current;
-          const diffY = e.changedTouches[0].clientY - touchStartYRef.current;
-          touchStartXRef.current = null;
-          touchStartYRef.current = null;
-          if (viewMode !== "scroll" && zoomLevelRef.current <= 1.0 && Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY) * 1.2) {
-            if (diffX < 0) {
-              nextPage();
-            } else {
-              prevPage();
+      if (e.touches.length === 0) {
+        if (track.mode === "swipe" && viewMode !== "scroll" && zoomLevelRef.current <= 1.05) {
+          if (e.changedTouches.length > 0) {
+            const diffX = e.changedTouches[0].clientX - track.startX;
+            const diffY = e.changedTouches[0].clientY - track.startY;
+            if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY) * 1.3) {
+              if (diffX < 0) {
+                nextPage();
+              } else {
+                prevPage();
+              }
             }
           }
-        } else {
-          touchStartXRef.current = null;
-          touchStartYRef.current = null;
         }
+
+        if (zoomLevelRef.current <= 1.0) {
+          setPanOffset({ x: 0, y: 0 });
+        }
+
+        track.mode = "none";
+        track.initialDist = 0;
+      } else if (e.touches.length === 1 && track.mode === "pinch") {
+        track.mode = "pan";
+        track.lastX = e.touches[0].clientX;
+        track.lastY = e.touches[0].clientY;
       }
     };
 
     const onTouchCancel = () => {
-      touchDistanceRef.current = null;
-      touchStartXRef.current = null;
-      touchStartYRef.current = null;
+      track.mode = "none";
+      track.initialDist = 0;
     };
-
-    container.addEventListener("pointerdown", onPointerDown);
-    container.addEventListener("pointermove", onPointerMove);
-    container.addEventListener("pointerup", onPointerUp);
-    container.addEventListener("pointercancel", onPointerCancel);
 
     container.addEventListener("touchstart", onTouchStart, { passive: false });
     container.addEventListener("touchmove", onTouchMove, { passive: false });
@@ -866,17 +927,12 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     container.addEventListener("touchcancel", onTouchCancel, { passive: true });
 
     return () => {
-      container.removeEventListener("pointerdown", onPointerDown);
-      container.removeEventListener("pointermove", onPointerMove);
-      container.removeEventListener("pointerup", onPointerUp);
-      container.removeEventListener("pointercancel", onPointerCancel);
-
       container.removeEventListener("touchstart", onTouchStart);
       container.removeEventListener("touchmove", onTouchMove);
       container.removeEventListener("touchend", onTouchEnd);
       container.removeEventListener("touchcancel", onTouchCancel);
     };
-  }, [nextPage, prevPage, viewMode]);
+  }, [loading, nextPage, prevPage, viewMode, resetAutoHideTimer]);
 
   // Native Trackpad Pinch-to-Zoom & Two-Finger Panning listener (passive: false, window-captured)
   useEffect(() => {
@@ -913,14 +969,14 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     // WebKit GestureEvent support (macOS trackpad parity)
     const onGestureStart = (e: Event) => {
       e.preventDefault();
-      touchStartZoomRef.current = zoomLevelRef.current;
+      gestureStartZoomRef.current = zoomLevelRef.current;
     };
 
     const onGestureChange = (e: Event) => {
       e.preventDefault();
       const scale = (e as unknown as { scale: number }).scale;
       if (typeof scale === "number") {
-        const next = Math.min(3.0, Math.max(0.5, +(touchStartZoomRef.current * scale).toFixed(2)));
+        const next = Math.min(3.0, Math.max(0.5, +(gestureStartZoomRef.current * scale).toFixed(2)));
         setZoomLevel(next);
         if (next <= 1.0) {
           setPanOffset({ x: 0, y: 0 });
@@ -1528,12 +1584,15 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         {/* Single Page View */}
         {viewMode === "single" && (
           <div
-            className="relative w-full h-full flex overflow-auto p-4"
+            className="relative w-full h-full flex overflow-hidden p-4"
             onMouseDown={handleViewportMouseDown}
             onMouseMove={handleViewportMouseMove}
             onMouseUp={handleViewportMouseUp}
             onDoubleClick={handleDoubleClick}
-            style={{ cursor: zoomLevel > 1.0 ? (isDragging ? "grabbing" : "grab") : "default" }}
+            style={{
+              cursor: zoomLevel > 1.05 ? (isDragging ? "grabbing" : "grab") : "default",
+              touchAction: "none",
+            }}
           >
             {bookBookmarks.some(b => b.location === currentPage) && (
               <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage}`}>
@@ -1543,7 +1602,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               </div>
             )}
             <div
-              className={`reader-zoom-wrapper m-auto flex items-center justify-center ${zoomLevel > 1.0 ? "is-zoomed" : ""}`}
+              className={`reader-zoom-wrapper m-auto flex items-center justify-center ${zoomLevel > 1.05 ? "is-zoomed" : ""}`}
               style={{
                 transform:
                   zoomLevel === 1.0 && panOffset.x === 0 && panOffset.y === 0
@@ -1564,15 +1623,18 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         {/* Two-Page Spread View */}
         {viewMode === "two-page" && (
           <div
-            className="w-full h-full flex overflow-auto p-4 relative"
+            className="w-full h-full flex overflow-hidden p-4 relative"
             onMouseDown={handleViewportMouseDown}
             onMouseMove={handleViewportMouseMove}
             onMouseUp={handleViewportMouseUp}
             onDoubleClick={handleDoubleClick}
-            style={{ cursor: zoomLevel > 1.0 ? (isDragging ? "grabbing" : "grab") : "default" }}
+            style={{
+              cursor: zoomLevel > 1.05 ? (isDragging ? "grabbing" : "grab") : "default",
+              touchAction: "none",
+            }}
           >
             <div
-              className={`reader-zoom-wrapper m-auto flex items-center justify-center gap-0 reader-spread-book ${zoomLevel > 1.0 ? "is-zoomed" : ""}`}
+              className={`reader-zoom-wrapper m-auto flex items-center justify-center gap-0 reader-spread-book ${zoomLevel > 1.05 ? "is-zoomed" : ""}`}
               style={{
                 transform:
                   zoomLevel === 1.0 && panOffset.x === 0 && panOffset.y === 0
@@ -1615,7 +1677,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         {viewMode === "scroll" && (
           <div
             ref={scrollContainerRef}
-            className="w-full h-full overflow-y-auto overflow-x-auto p-6 transition-all duration-150"
+            className="w-full h-full overflow-y-auto overflow-x-auto p-4 sm:p-6"
+            style={{ touchAction: zoomLevel > 1.05 ? "none" : "pan-y" }}
           >
             <div
               className="mx-auto flex flex-col items-center"
@@ -1631,7 +1694,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                     key={pageNum}
                     id={`reader-page-${pageNum}`}
                     data-page-num={pageNum}
-                    className="reader-page-slot my-6 rounded shadow-sm border relative transition-all"
+                    className="reader-page-slot my-4 sm:my-6 rounded shadow-sm border relative"
                     style={{
                       width: `${Math.floor(860 * zoomLevel)}px`,
                       minHeight: "700px",

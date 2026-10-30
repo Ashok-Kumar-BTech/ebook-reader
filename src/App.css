@@ -252,9 +252,10 @@ html, body, #root {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
 }
 
-/* Enable multi-touch pinch gestures in reader without browser gesture cancellation */
+/* Enable multi-touch pinch gestures and vertical scrolling in reader */
 .reader-viewport-main {
-  touch-action: none;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
 }
 
 /* Ensure canvas and images dynamically scale with slot width during real-time zoom in Scroll View */

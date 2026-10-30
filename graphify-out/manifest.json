@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793342639.2473133,
-    "seen": 1793342654.523886,
-    "ast_hash": "9764235032817e75cdf8267f687a0dce",
+    "mtime": 1793344372.745168,
+    "seen": 1793344389.5867708,
+    "ast_hash": "ba11a2d99ac511b591791b11bbb051a2",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
@@ -312,9 +312,9 @@
     "semantic_hash": ""
   },
   "src/components/ReaderView.tsx": {
-    "mtime": 1793342547.9685676,
-    "seen": 1793342654.5228868,
-    "ast_hash": "3d209d321515aba93ef7a33ea9029375",
+    "mtime": 1793344296.3120668,
+    "seen": 1793344389.5867708,
+    "ast_hash": "7ba11ee8329b2ec8d1355ad996c74c57",
     "semantic_hash": ""
   },
   "src/components/SettingsDrawer.tsx": {
