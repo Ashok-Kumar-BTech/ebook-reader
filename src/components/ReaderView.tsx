@@ -23,7 +23,7 @@ import {
 import { useBookStore } from "../stores/bookStore";
 import { useUiStore } from "../stores/uiStore";
 import { getAdapterForPath } from "../adapters/registry";
-import { readFileData } from "../utils/tauriApi";
+import { getFileSystemProvider } from "../platform/fs";
 import { useLogger } from "../utils/logger";
 import { toggleFullscreen, isFullscreen } from "../utils/windowState";
 import { FormatBadge } from "./FormatBadge";
@@ -84,6 +84,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<BookAdapter | null>(null);
   const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
   const renderedPagesRef = useRef<Set<number>>(new Set());
   const isScrollingToPageRef = useRef<boolean>(false);
   const bookPathRef = useRef<string | null>(currentBookPath);
@@ -126,7 +127,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         }
         adapterRef.current = adapter;
 
-        const fileBytes = await readFileData(currentBookPath!);
+        const provider = await getFileSystemProvider();
+        const fileBytes = await provider.readFile({ id: currentBookPath!, name: currentBookPath! });
         if (!fileBytes || fileBytes.length === 0) {
           throw new Error("Unable to read book content from filesystem.");
         }
@@ -732,6 +734,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           initialPinchZoom = zoomLevelRef.current;
         } else if (activeTouches.size === 1) {
           touchStartXRef.current = e.clientX;
+          touchStartYRef.current = e.clientY;
         }
       }
     };
@@ -759,11 +762,13 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         if (activeTouches.size < 2) {
           initialPinchDist = null;
         }
-        if (activeTouches.size === 0 && touchStartXRef.current !== null) {
-          const diff = e.clientX - touchStartXRef.current;
+        if (activeTouches.size === 0 && touchStartXRef.current !== null && touchStartYRef.current !== null) {
+          const diffX = e.clientX - touchStartXRef.current;
+          const diffY = e.clientY - touchStartYRef.current;
           touchStartXRef.current = null;
-          if (zoomLevelRef.current <= 1.0 && Math.abs(diff) > 60) {
-            if (diff < 0) {
+          touchStartYRef.current = null;
+          if (viewMode !== "scroll" && zoomLevelRef.current <= 1.0 && Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY) * 1.2) {
+            if (diffX < 0) {
               nextPage();
             } else {
               prevPage();
@@ -779,6 +784,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         initialPinchDist = null;
       }
       touchStartXRef.current = null;
+      touchStartYRef.current = null;
     };
 
     const onTouchStart = (e: TouchEvent) => {
@@ -786,6 +792,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         // Multi-touch pinch gesture - prevent browser from stealing touch
         e.preventDefault();
         touchStartXRef.current = null;
+        touchStartYRef.current = null;
         touchDistanceRef.current = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
@@ -793,6 +800,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         touchStartZoomRef.current = zoomLevelRef.current;
       } else if (e.touches.length === 1) {
         touchStartXRef.current = e.touches[0].clientX;
+        touchStartYRef.current = e.touches[0].clientY;
       }
     };
 
@@ -816,13 +824,16 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       if (e.touches.length < 2 && touchDistanceRef.current !== null) {
         touchDistanceRef.current = null;
         touchStartXRef.current = null;
+        touchStartYRef.current = null;
       }
-      if (e.touches.length === 0 && touchStartXRef.current !== null) {
+      if (e.touches.length === 0 && touchStartXRef.current !== null && touchStartYRef.current !== null) {
         if (e.changedTouches.length > 0) {
-          const diff = e.changedTouches[0].clientX - touchStartXRef.current;
+          const diffX = e.changedTouches[0].clientX - touchStartXRef.current;
+          const diffY = e.changedTouches[0].clientY - touchStartYRef.current;
           touchStartXRef.current = null;
-          if (zoomLevelRef.current <= 1.0 && Math.abs(diff) > 50) {
-            if (diff < 0) {
+          touchStartYRef.current = null;
+          if (viewMode !== "scroll" && zoomLevelRef.current <= 1.0 && Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY) * 1.2) {
+            if (diffX < 0) {
               nextPage();
             } else {
               prevPage();
@@ -830,6 +841,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           }
         } else {
           touchStartXRef.current = null;
+          touchStartYRef.current = null;
         }
       }
     };
@@ -837,6 +849,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     const onTouchCancel = () => {
       touchDistanceRef.current = null;
       touchStartXRef.current = null;
+      touchStartYRef.current = null;
     };
 
     container.addEventListener("pointerdown", onPointerDown);
@@ -860,7 +873,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       container.removeEventListener("touchend", onTouchEnd);
       container.removeEventListener("touchcancel", onTouchCancel);
     };
-  }, [nextPage, prevPage]);
+  }, [nextPage, prevPage, viewMode]);
 
   // Native Trackpad Pinch-to-Zoom & Two-Finger Panning listener (passive: false, window-captured)
   useEffect(() => {
@@ -981,21 +994,61 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     }
   }, [readerTheme, fontSize, lineHeight, margin, viewMode, currentBookPath, updateSettings]);
 
-  // Auto-save reading position on unmount / window beforeunload
+  // Android System Back Gesture Handler
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    (window as any).__handleAndroidBack = () => {
+      if (isJumpModalOpen) {
+        setIsJumpModalOpen(false);
+        return true;
+      }
+      if (isSettingsOpen) {
+        setIsSettingsOpen(false);
+        return true;
+      }
+      if (isTocOpen) {
+        setIsTocOpen(false);
+        return true;
+      }
+      if (isSearchBookmarksOpen) {
+        setIsSearchBookmarksOpen(false);
+        return true;
+      }
+      if (isWindowFullscreen) {
+        handleToggleFullscreen();
+        return true;
+      }
+      onClose();
+      return true;
+    };
+    return () => {
+      delete (window as any).__handleAndroidBack;
+    };
+  }, [isJumpModalOpen, isSettingsOpen, isTocOpen, isSearchBookmarksOpen, isWindowFullscreen, onClose]);
+
+  // Auto-save reading position on unmount / window beforeunload / mobile visibilitychange & pagehide
+  useEffect(() => {
+    const handleSave = () => {
       const pathToSave = currentBookPath || bookPathRef.current;
       if (pathToSave) {
         updateLocation(pathToSave, currentPage, totalPages);
       }
     };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      const pathToSave = currentBookPath || bookPathRef.current;
-      if (pathToSave) {
-        updateLocation(pathToSave, currentPage, totalPages);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        handleSave();
       }
+    };
+
+    window.addEventListener("beforeunload", handleSave);
+    window.addEventListener("pagehide", handleSave);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleSave);
+      window.removeEventListener("pagehide", handleSave);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      handleSave();
     };
   }, [currentBookPath, currentPage, totalPages, updateLocation]);
 
@@ -1511,8 +1564,12 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
       {/* Bottom Navigation & Scrubber Bar */}
       <footer
-        className="flex items-center justify-between px-6 py-2 border-t z-20 flex-shrink-0 gap-4"
-        style={{ backgroundColor: themeStyle.barBg, borderColor: themeStyle.border }}
+        className="flex items-center justify-between px-3 sm:px-6 py-2 border-t z-20 flex-shrink-0 gap-2 sm:gap-4"
+        style={{
+          backgroundColor: themeStyle.barBg,
+          borderColor: themeStyle.border,
+          paddingBottom: "max(0.5rem, calc(0.5rem + var(--sab)))",
+        }}
       >
         <div className="flex items-center gap-2">
           <button

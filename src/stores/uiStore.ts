@@ -9,6 +9,12 @@ export type SortOrder = 'asc' | 'desc';
 export type ViewMode = 'grid' | 'list' | 'tree';
 export type AppTheme = 'light' | 'dark' | 'sepia';
 
+export interface RecentFolder {
+  id: string;
+  name: string;
+  platform?: 'desktop' | 'android' | 'web';
+}
+
 export interface UiState {
   // Sidebar
   sidebarVisible: boolean;
@@ -25,7 +31,7 @@ export interface UiState {
   appTheme: AppTheme;
   
   // Recents (max 10 each)
-  recentFolders: string[];
+  recentFolders: RecentFolder[];
   recentFiles: string[];
   
   // Directory Navigation History
@@ -45,7 +51,7 @@ export interface UiState {
   setSortOrder: (order: SortOrder) => void;
   setViewMode: (mode: ViewMode) => void;
   setTheme: (theme: AppTheme) => void;
-  addRecentFolder: (path: string) => void;
+  addRecentFolder: (folder: string | RecentFolder) => void;
   addRecentFile: (path: string) => void;
   clearRecents: () => void;
   isHydrated: boolean;
@@ -163,11 +169,17 @@ const loggedStoreCreator = createLoggedStore<UiState>(
 
     setTheme: (theme: AppTheme) => set({ appTheme: theme }),
 
-    addRecentFolder: (path: string) => set((state) => {
-      const cleanPath = path.trim();
-      if (!cleanPath) return {};
-      const filtered = state.recentFolders.filter((p) => p !== cleanPath);
-      return { recentFolders: [cleanPath, ...filtered].slice(0, MAX_RECENT_DIRECTORIES) };
+    addRecentFolder: (folder: string | RecentFolder) => set((state) => {
+      const entry: RecentFolder = typeof folder === 'string'
+        ? {
+            id: folder.trim(),
+            name: folder.trim().split(/[/\\]/).filter(Boolean).pop() || folder.trim(),
+            platform: 'desktop',
+          }
+        : folder;
+      if (!entry.id) return {};
+      const filtered = state.recentFolders.filter((f) => f.id !== entry.id);
+      return { recentFolders: [entry, ...filtered].slice(0, MAX_RECENT_DIRECTORIES) };
     }),
 
     addRecentFile: (path: string) => set((state) => {
@@ -182,10 +194,19 @@ const loggedStoreCreator = createLoggedStore<UiState>(
         await uiStorePersist.load();
         const stored = uiStorePersist.get();
         if (stored) {
+          const rawRecents = stored.recentFolders || [];
+          const migratedRecents: RecentFolder[] = rawRecents.map((item: any) => {
+            if (typeof item === 'string') {
+              const name = item.split(/[/\\]/).filter(Boolean).pop() || item;
+              return { id: item, name, platform: 'desktop' as const };
+            }
+            return item;
+          });
+
           set((state) => ({
             ...state,
             ...stored,
-            recentFolders: (stored.recentFolders || []).slice(0, MAX_RECENT_DIRECTORIES),
+            recentFolders: migratedRecents.slice(0, MAX_RECENT_DIRECTORIES),
             dirHistory: stored.currentRoot ? [stored.currentRoot] : [],
             dirHistoryIndex: stored.currentRoot ? 0 : -1,
             isHydrated: true,

@@ -1,5 +1,7 @@
 import { isTauri } from '@tauri-apps/api/core';
 import { logManager } from '../utils/logger';
+import { AppError, toAppError } from '../errors/appError';
+import { isFormatSupported } from '../formats/registry';
 
 let tauriCheckCache: boolean | null = null;
 export async function checkIsTauri(): Promise<boolean> {
@@ -14,11 +16,11 @@ export async function checkIsTauri(): Promise<boolean> {
 
 const tauriLogger = logManager.getLogger('tauriApi');
 
-function logTauriCall<T>(apiName: string, fn: () => Promise<T>, context?: Record<string, unknown>): Promise<T | null> {
+function logTauriCall<T>(apiName: string, fn: () => Promise<T>, context?: Record<string, unknown>): Promise<T> {
   return logTauriCallInternal(apiName, fn, context);
 }
 
-async function logTauriCallInternal<T>(apiName: string, fn: () => Promise<T>, context?: Record<string, unknown>): Promise<T | null> {
+async function logTauriCallInternal<T>(apiName: string, fn: () => Promise<T>, context?: Record<string, unknown>): Promise<T> {
   const startTime = performance.now();
   const inTauri = await checkIsTauri();
   
@@ -33,7 +35,7 @@ async function logTauriCallInternal<T>(apiName: string, fn: () => Promise<T>, co
       api: apiName,
       reason: 'Not in Tauri environment',
     });
-    return null;
+    throw new AppError('MISSING_COMPONENT', `Not in Tauri environment for ${apiName}`);
   }
   
   try {
@@ -49,13 +51,16 @@ async function logTauriCallInternal<T>(apiName: string, fn: () => Promise<T>, co
     return result;
   } catch (err) {
     const duration = performance.now() - startTime;
+    const appErr = toAppError(err);
     
     tauriLogger.error('TAURI_CALL_ERROR', {
       api: apiName,
       durationMs: Math.round(duration),
+      errorCode: appErr.code,
+      details: appErr.details,
     }, err as Error);
     
-    return null;
+    throw appErr;
   }
 }
 
@@ -67,8 +72,6 @@ export interface TauriFileEntry {
   modified: number;
   is_supported: boolean;
 }
-
-const SUPPORTED_EXTS = ["pdf", "epub", "cbz", "cbr", "txt", "html", "htm", "xhtml", "docx"];
 
 // Web Browser In-Memory File System Registry (for npm run dev / web mode)
 const webFileRegistry = new Map<string, File>();
@@ -151,8 +154,7 @@ async function indexDirectoryHandle(handle: any, currentPath: string): Promise<v
       await indexDirectoryHandle(entry, itemPath);
     } else if (entry.kind === "file") {
       const file: File = await entry.getFile();
-      const ext = name.toLowerCase().slice(name.lastIndexOf(".") + 1);
-      const isSupported = SUPPORTED_EXTS.includes(ext);
+      const isSupported = isFormatSupported(name);
       webFileRegistry.set(itemPath, file);
       entries.push({
         name,
@@ -209,8 +211,7 @@ function indexFileList(files: FileList): string {
     }
 
     const parentDir = parts.length > 1 ? fullPath.slice(0, fullPath.lastIndexOf("/")) : rootDir;
-    const ext = file.name.toLowerCase().slice(file.name.lastIndexOf(".") + 1);
-    const isSupported = SUPPORTED_EXTS.includes(ext);
+    const isSupported = isFormatSupported(file.name);
 
     let list = webDirRegistry.get(parentDir) || [];
     if (!list.some(e => e.name === file.name && !e.is_directory)) {
@@ -253,9 +254,9 @@ export async function openDirectoryDialog(title = 'Select a directory'): Promise
 
 /**
  * Read a directory's contents.
- * Returns array of directory entries or null if not available.
+ * Returns array of directory entries. Throws AppError on failure.
  */
-export async function readDirectory(path: string): Promise<Array<{ name: string; isDirectory?: boolean }> | null> {
+export async function readDirectory(path: string): Promise<Array<{ name: string; isDirectory?: boolean }>> {
   const inTauri = await checkIsTauri();
   if (!inTauri) {
     const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
@@ -271,9 +272,9 @@ export async function readDirectory(path: string): Promise<Array<{ name: string;
 
 /**
  * Fast atomic directory listing via native Tauri Rust command or Web File Registry.
- * Avoids N+1 IPC stat roundtrips.
+ * Avoids N+1 IPC stat roundtrips. Throws AppError on failure.
  */
-export async function listDirectory(path: string): Promise<TauriFileEntry[] | null> {
+export async function listDirectory(path: string): Promise<TauriFileEntry[]> {
   const inTauri = await checkIsTauri();
   if (!inTauri) {
     const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
@@ -288,9 +289,9 @@ export async function listDirectory(path: string): Promise<TauriFileEntry[] | nu
 
 /**
  * Get file/directory stats.
- * Returns stat object or null if not available.
+ * Returns stat object. Throws AppError on failure.
  */
-export async function getFileStat(path: string): Promise<{ size?: number; mtime?: Date | number } | null> {
+export async function getFileStat(path: string): Promise<{ size: number; mtime: number }> {
   const inTauri = await checkIsTauri();
   if (!inTauri) {
     const normalized = path.replace(/\\/g, '/');
@@ -316,7 +317,7 @@ export async function getFileStat(path: string): Promise<{ size?: number; mtime?
  * In Tauri: Uses raw binary IPC Response from Rust (transfers 50MB in <15ms).
  * In Web Browser: Reads directly from real File object ArrayBuffer.
  */
-export async function readFileData(path: string): Promise<Uint8Array | null> {
+export async function readFileData(path: string): Promise<Uint8Array> {
   const inTauri = await checkIsTauri();
   if (!inTauri) {
     const normalized = path.replace(/\\/g, '/');
@@ -326,7 +327,7 @@ export async function readFileData(path: string): Promise<Uint8Array | null> {
       return new Uint8Array(buffer);
     }
     tauriLogger.warn('WEB_FILE_NOT_FOUND', { path });
-    return null;
+    throw new AppError('FILE_NOT_FOUND', `File not found in web registry: ${path}`);
   }
 
   return logTauriCall('cmd.read_file', async () => {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUiStore } from "../stores/uiStore";
 import { openDirectoryDialog, readDirectory, getFileStat, listDirectory } from "../utils/tauriApi";
+import { getFormatBadge, isFormatSupported } from "../formats/registry";
 
 interface FileNode {
   name: string;
@@ -18,17 +19,6 @@ interface FileTreeProps {
   onDirectoryChange?: (path: string) => void;
   searchQuery?: string;
 }
-
-const SUPPORTED_EXTENSIONS = new Set([
-  ".pdf",
-  ".epub",
-  ".cbz",
-  ".cbr",
-  ".txt",
-  ".html",
-  ".htm",
-  ".docx",
-]);
 
 function highlightText(text: string, query: string) {
   if (!query.trim()) return text;
@@ -62,22 +52,7 @@ function nodeMatchesQuery(node: FileNode, query: string): boolean {
   return false;
 }
 
-function getFormatBadge(path: string): { label: string; color: string } | null {
-  const ext = path.toLowerCase().slice(path.lastIndexOf("."));
-  if (!SUPPORTED_EXTENSIONS.has(ext)) return null;
 
-  const formats: Record<string, { label: string; color: string }> = {
-    ".pdf": { label: "PDF", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
-    ".epub": { label: "EPUB", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
-    ".cbz": { label: "CBZ", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-    ".cbr": { label: "CBR", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-    ".txt": { label: "TXT", color: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300" },
-    ".html": { label: "HTML", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" },
-    ".htm": { label: "HTML", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" },
-    ".docx": { label: "DOCX", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
-  };
-  return formats[ext] || null;
-}
 
 function FileTreeNode({
   node,
@@ -235,7 +210,7 @@ export function FileTree({ rootPath, onFileClick, onDirectoryChange, searchQuery
     for (const entry of dirEntries) {
       const fullPath = `${path}/${entry.name}`;
       const isDirectory = entry.isDirectory ?? false;
-      const isSupported = !isDirectory && getFormatBadge(fullPath) !== null;
+      const isSupported = !isDirectory && isFormatSupported(fullPath);
 
       let size = 0;
       let modified = 0;
@@ -244,8 +219,7 @@ export function FileTree({ rootPath, onFileClick, onDirectoryChange, searchQuery
         try {
           const fileStat = await getFileStat(fullPath);
           size = fileStat?.size ?? 0;
-          const mtime = fileStat?.mtime;
-          modified = mtime instanceof Date ? mtime.getTime() : (mtime ?? 0);
+          modified = fileStat?.mtime ?? 0;
         } catch {
           // Ignore stat errors
         }

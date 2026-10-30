@@ -11,6 +11,12 @@
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
 
+  /* Safe Area Inset Variables (Edge-to-Edge Support) */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+
   /* Default Light Theme Variables */
   --color-primary: #3b82f6;
   --color-primary-hover: #2563eb;
@@ -75,8 +81,8 @@
 html, body, #root {
   margin: 0;
   padding: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   position: fixed;
   inset: 0;
@@ -88,13 +94,18 @@ html, body, #root {
 .app {
   display: flex;
   flex-direction: column;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100dvh;
   overflow: hidden;
   position: fixed;
   inset: 0;
   background-color: var(--color-background);
   color: var(--color-text);
+  padding-top: var(--sat);
+  padding-bottom: var(--sab);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+  box-sizing: border-box;
 }
 
 /* Custom internal scrollbars */
@@ -183,6 +194,7 @@ html, body, #root {
   left: 0;
   right: 0;
   z-index: 50;
+  padding-top: calc(0.5rem + var(--sat));
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, box-shadow 0.28s ease;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);

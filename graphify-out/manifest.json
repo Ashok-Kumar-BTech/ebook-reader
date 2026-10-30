@@ -1,20 +1,20 @@
 {
   ".vscode/extensions.json": {
-    "mtime": 1792902152.8493297,
-    "seen": 1792911249.9783158,
-    "ast_hash": "d1846e92ceedfa6eb08a69cbb38c190a",
+    "mtime": 1793332028.3287761,
+    "seen": 1793332291.7551954,
+    "ast_hash": "a4038619f5414c01f04abbbdd4730820",
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1793008488.0922587,
-    "seen": 1793010109.5079052,
-    "ast_hash": "b150a2abce398998b5b7f497f135e9e9",
+    "mtime": 1793332028.4310813,
+    "seen": 1793332291.7551954,
+    "ast_hash": "b2daa1a45c298dc28605bf2fc223ff9e",
     "semantic_hash": ""
   },
   "postcss.config.js": {
-    "mtime": 1792903104.4662452,
-    "seen": 1792911249.9783158,
-    "ast_hash": "db8b311b09fe6e7bf42516f01c143802",
+    "mtime": 1793332028.4320908,
+    "seen": 1793332291.7551954,
+    "ast_hash": "8a5001d4142dde2dc0f2e378717b5572",
     "semantic_hash": ""
   },
   "src-tauri/Cargo.toml": {
@@ -30,15 +30,15 @@
     "semantic_hash": ""
   },
   "src-tauri/capabilities/default.json": {
-    "mtime": 1793179030.420104,
-    "seen": 1793183858.1625185,
-    "ast_hash": "032e94f61c46b2190eab5bfa2e99c486",
+    "mtime": 1793332496.9153426,
+    "seen": 1793332806.856887,
+    "ast_hash": "057499389c555a2dc201b8851df14332",
     "semantic_hash": ""
   },
   "src-tauri/src/lib.rs": {
-    "mtime": 1793189651.0052605,
-    "seen": 1793189738.8747985,
-    "ast_hash": "33c2526e64a148bbf10d14fc43c29d85",
+    "mtime": 1793332491.4100378,
+    "seen": 1793332806.856887,
+    "ast_hash": "96d4461459a23a700ae1c0b54c923444",
     "semantic_hash": ""
   },
   "src-tauri/src/main.rs": {
@@ -48,57 +48,57 @@
     "semantic_hash": ""
   },
   "src-tauri/tauri.conf.json": {
-    "mtime": 1792914446.4427931,
-    "seen": 1792921923.4781568,
-    "ast_hash": "8a1ae8866f20ff32897512cbe244ecfd",
+    "mtime": 1793332036.2908278,
+    "seen": 1793332291.7551954,
+    "ast_hash": "6acdad6b18c183a105f5596ceb3752be",
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1793178103.754785,
-    "seen": 1793183858.1625185,
-    "ast_hash": "172e58a43474abd205a0e700a6867393",
+    "mtime": 1793333410.9396048,
+    "seen": 1793333482.8100772,
+    "ast_hash": "819681b172e96544d82f183617403a7c",
     "semantic_hash": ""
   },
   "src/adapters/cbzAdapter.ts": {
-    "mtime": 1793169317.5128257,
-    "seen": 1793170928.3603032,
-    "ast_hash": "fdb7d4b934322e28c286e37adf7e3846",
+    "mtime": 1793332028.4350805,
+    "seen": 1793332291.7551954,
+    "ast_hash": "cd479d3caff48c69c6f33f23ba03eb9f",
     "semantic_hash": ""
   },
   "src/adapters/epubAdapter.ts": {
-    "mtime": 1793102169.500135,
-    "seen": 1793170928.3603032,
-    "ast_hash": "d6665a81487bf97f4027046187d3c6c1",
+    "mtime": 1793332028.4366186,
+    "seen": 1793332291.7551954,
+    "ast_hash": "9574a16ae879617de171f03973ee9f55",
     "semantic_hash": ""
   },
   "src/adapters/htmlAdapter.ts": {
-    "mtime": 1793095982.349403,
-    "seen": 1793170928.3603032,
-    "ast_hash": "242fd51a81d01a8b577e906dcb9b04ec",
+    "mtime": 1793332028.4376402,
+    "seen": 1793332291.7551954,
+    "ast_hash": "96cc2de9c289e7c776d403332f2b0b87",
     "semantic_hash": ""
   },
   "src/adapters/pdfAdapter.ts": {
-    "mtime": 1793169303.1723754,
-    "seen": 1793170928.3603032,
-    "ast_hash": "cd476244f6fb3b98f7f6b3382f506d00",
+    "mtime": 1793333351.4220614,
+    "seen": 1793333482.8100772,
+    "ast_hash": "7b351ea6afd36ddf9c6ce2ddee02abfd",
     "semantic_hash": ""
   },
   "src/adapters/registry.ts": {
-    "mtime": 1792998039.7988763,
-    "seen": 1793004659.5226798,
-    "ast_hash": "1671d9ca234eb3506fe03e0ecd3d90ca",
+    "mtime": 1793333009.109743,
+    "seen": 1793333482.8100772,
+    "ast_hash": "ecca8e18f3e87517767ee4cf9acb3abe",
     "semantic_hash": ""
   },
   "src/adapters/txtAdapter.ts": {
-    "mtime": 1793095946.2229297,
-    "seen": 1793170928.3603032,
-    "ast_hash": "fc4d4014cc96f5ce096e36314217222e",
+    "mtime": 1793332028.4416394,
+    "seen": 1793332291.7551954,
+    "ast_hash": "ae79e9341eab4bc2934f4385d70705fc",
     "semantic_hash": ""
   },
   "src/main.tsx": {
-    "mtime": 1792939353.0495799,
-    "seen": 1793004659.5226798,
-    "ast_hash": "7bda8914d399a55483e721d8569278c9",
+    "mtime": 1793332028.4557366,
+    "seen": 1793332291.7551954,
+    "ast_hash": "800f8a905d206d775a72265238b14070",
     "semantic_hash": ""
   },
   "src/stores/bookStore.ts": {
@@ -108,15 +108,15 @@
     "semantic_hash": ""
   },
   "src/stores/uiStore.ts": {
-    "mtime": 1793181169.8021674,
-    "seen": 1793183858.1625185,
-    "ast_hash": "95c2f024631b3a44e0c35f28f4b92b80",
+    "mtime": 1793332559.1934717,
+    "seen": 1793332806.856887,
+    "ast_hash": "904504fa311eece149c897e6246d13ad",
     "semantic_hash": ""
   },
   "src/types/reader.ts": {
-    "mtime": 1793095906.5127492,
-    "seen": 1793170928.3603032,
-    "ast_hash": "1e45da157dbd58fc08495e446f40d1f3",
+    "mtime": 1793332028.4587593,
+    "seen": 1793332291.7551954,
+    "ast_hash": "efda40e1b9ef38223b37687d379160be",
     "semantic_hash": ""
   },
   "src/utils/store.ts": {
@@ -126,27 +126,27 @@
     "semantic_hash": ""
   },
   "src/vite-env.d.ts": {
-    "mtime": 1792902152.8533394,
-    "seen": 1792911249.9783158,
-    "ast_hash": "8f68c27c3fc38817b2726b20e2d4f1ee",
+    "mtime": 1793332028.4709866,
+    "seen": 1793332291.7561946,
+    "ast_hash": "0352474ba2918efe13895edbc3780d94",
     "semantic_hash": ""
   },
   "tsconfig.json": {
-    "mtime": 1792902152.854335,
-    "seen": 1792911249.9783158,
-    "ast_hash": "3665a98bc1420342958656f7b11e7a67",
+    "mtime": 1793332036.2908278,
+    "seen": 1793332291.7561946,
+    "ast_hash": "d6167f132974dd91c02900385bcea53a",
     "semantic_hash": ""
   },
   "tsconfig.node.json": {
-    "mtime": 1792902152.855338,
-    "seen": 1792911249.9783158,
-    "ast_hash": "281e378713152cccc7860c818db55849",
+    "mtime": 1793332036.2918293,
+    "seen": 1793332291.7561946,
+    "ast_hash": "767b2e9abe6452170cdc399ca052cfbc",
     "semantic_hash": ""
   },
   "vite.config.ts": {
-    "mtime": 1792902152.855338,
-    "seen": 1792911249.9783158,
-    "ast_hash": "8a558e791627b4b61ad33e704bb809a8",
+    "mtime": 1793332036.2918293,
+    "seen": 1793332291.7561946,
+    "ast_hash": "0a1c1ef73facc5e0a2fe5c4e67230df4",
     "semantic_hash": ""
   },
   "README.md": {
@@ -162,9 +162,9 @@
     "semantic_hash": ""
   },
   "index.html": {
-    "mtime": 1792902152.8513331,
-    "seen": 1792911249.9783158,
-    "ast_hash": "980adb7f3b362d9e0f299bece26cf44c",
+    "mtime": 1793332080.2485418,
+    "seen": 1793332291.7561946,
+    "ast_hash": "5822b756f67f6e99895b3b1957d64075",
     "semantic_hash": ""
   },
   "public/tauri.svg": {
@@ -270,15 +270,15 @@
     "semantic_hash": ""
   },
   "src/components/FileTree.tsx": {
-    "mtime": 1793004318.3995938,
-    "seen": 1793004659.5226798,
-    "ast_hash": "4ed349e8ff0baaeec2c5a23c1ecdb6b6",
+    "mtime": 1793333004.3471513,
+    "seen": 1793333482.8100772,
+    "ast_hash": "c3ceee865a7e63730b126193d36ed0f0",
     "semantic_hash": ""
   },
   "src/components/FormatBadge.tsx": {
-    "mtime": 1792997816.3272126,
-    "seen": 1793004659.5226798,
-    "ast_hash": "45e2445d7571bd085901842c1d06947e",
+    "mtime": 1793332881.262981,
+    "seen": 1793333482.8100772,
+    "ast_hash": "4b3bbe31cd444e908543396eb9c0b946",
     "semantic_hash": ""
   },
   "src/components/VirtualizedFileList.tsx": {
@@ -288,15 +288,15 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793189720.5896292,
-    "seen": 1793189738.8747985,
-    "ast_hash": "c4849136db429f259610c528241f7ea2",
+    "mtime": 1793333991.9869864,
+    "seen": 1793334005.9066315,
+    "ast_hash": "94b6412c3dacadeb0e0a6131a69dd830",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
-    "mtime": 1793013543.5365453,
-    "seen": 1793014045.4334524,
-    "ast_hash": "fd1f03f8f3540397b546fab3d7a19e9b",
+    "mtime": 1793332968.4353387,
+    "seen": 1793333482.8100772,
+    "ast_hash": "35e7d421c6e357091df6f2887a441f62",
     "semantic_hash": ""
   },
   "src/components/ErrorBoundary.tsx": {
@@ -312,15 +312,15 @@
     "semantic_hash": ""
   },
   "src/components/ReaderView.tsx": {
-    "mtime": 1793179055.2659333,
-    "seen": 1793183858.1625185,
-    "ast_hash": "26af08f9fa0d888d4283b0178586ccdb",
+    "mtime": 1793333934.5559,
+    "seen": 1793334005.9066315,
+    "ast_hash": "624054adb631d08e8965e11bf40a6dcd",
     "semantic_hash": ""
   },
   "src/components/SettingsDrawer.tsx": {
-    "mtime": 1793097373.4208305,
-    "seen": 1793170928.3603032,
-    "ast_hash": "b68bc99df74d148e1a6b00cfbf4ec06d",
+    "mtime": 1793333887.5815217,
+    "seen": 1793334005.9066315,
+    "ast_hash": "8fd8e101038fc50484e92a5927531cf5",
     "semantic_hash": ""
   },
   "src/utils/logger/LogManager.ts": {
@@ -330,9 +330,9 @@
     "semantic_hash": ""
   },
   "src/utils/logger/config.ts": {
-    "mtime": 1792997866.4143958,
-    "seen": 1793004659.5226798,
-    "ast_hash": "5036aea20086410152a43c9d63894af5",
+    "mtime": 1793332028.4597604,
+    "seen": 1793332291.7551954,
+    "ast_hash": "9523c07ba6c799875f078ceea8fe55c1",
     "semantic_hash": ""
   },
   "src/utils/logger/correlation.ts": {
@@ -342,21 +342,21 @@
     "semantic_hash": ""
   },
   "src/utils/logger/formatters/compact.ts": {
-    "mtime": 1792938638.1134837,
-    "seen": 1793004659.5226798,
-    "ast_hash": "7db5e3356031e3bbc9f83574caddbd21",
+    "mtime": 1793332028.4607596,
+    "seen": 1793332291.7561946,
+    "ast_hash": "97a4764dea58b4a7f1768cc1e65819b4",
     "semantic_hash": ""
   },
   "src/utils/logger/formatters/index.ts": {
-    "mtime": 1792938654.4140577,
-    "seen": 1793004659.5236838,
-    "ast_hash": "1a9939c7c70c4df6bc57cbc4e2adf6e2",
+    "mtime": 1793332028.4607596,
+    "seen": 1793332291.7561946,
+    "ast_hash": "ebd4a3d2c8883f144cc45d1e8f01ce82",
     "semantic_hash": ""
   },
   "src/utils/logger/formatters/json.ts": {
-    "mtime": 1792938610.680477,
-    "seen": 1793004659.5236838,
-    "ast_hash": "004ae50585db13e1065f86c10a426154",
+    "mtime": 1793332028.46175,
+    "seen": 1793332291.7561946,
+    "ast_hash": "aac2132ffb3e5191dd6f70c15a8eb564",
     "semantic_hash": ""
   },
   "src/utils/logger/formatters/pretty.ts": {
@@ -366,15 +366,15 @@
     "semantic_hash": ""
   },
   "src/utils/logger/index.ts": {
-    "mtime": 1792939083.645922,
-    "seen": 1793004659.5236838,
-    "ast_hash": "beed9ba30de8427ef6f1c90ec3c01616",
+    "mtime": 1793332028.46175,
+    "seen": 1793332291.7561946,
+    "ast_hash": "7556896bd2b8bf10a320d403dd82b030",
     "semantic_hash": ""
   },
   "src/utils/logger/react.ts": {
-    "mtime": 1792941101.338005,
-    "seen": 1793004659.5236838,
-    "ast_hash": "cc09e58db91f9d236a1e113a7b8e0252",
+    "mtime": 1793332028.4637506,
+    "seen": 1793332291.7561946,
+    "ast_hash": "975851c1a8abcbe274c62e64b238b6e7",
     "semantic_hash": ""
   },
   "src/utils/logger/storeMiddleware.ts": {
@@ -396,183 +396,141 @@
     "semantic_hash": ""
   },
   "src/utils/logger/transports/index.ts": {
-    "mtime": 1792938754.82005,
-    "seen": 1793004659.5236838,
-    "ast_hash": "8874e74bcaa70c02f0fc9a6b6b26b524",
+    "mtime": 1793332028.4659603,
+    "seen": 1793332291.7561946,
+    "ast_hash": "2d4f83a5f0bd280802040a5affa1a5da",
     "semantic_hash": ""
   },
   "src/utils/logger/transports/tauri.ts": {
-    "mtime": 1792940875.1477704,
-    "seen": 1793004659.5236838,
+    "mtime": 1793332028.4669638,
+    "seen": 1793332291.7561946,
     "ast_hash": "1f479e90258de65cf486546777d4d1d3",
     "semantic_hash": ""
   },
   "src/utils/logger/types.ts": {
-    "mtime": 1792938605.045863,
-    "seen": 1793004659.5236838,
-    "ast_hash": "379a3676da02c5e72d1883f7243d6ab7",
+    "mtime": 1793332028.4679818,
+    "seen": 1793332291.7561946,
+    "ast_hash": "49ca299192e7bded9b1de4f0e07260d9",
     "semantic_hash": ""
   },
   "src/utils/pathUtils.ts": {
-    "mtime": 1793003515.4340057,
-    "seen": 1793004659.5236838,
+    "mtime": 1793194429.2901902,
+    "seen": 1793331316.1496773,
     "ast_hash": "853f7587a36d1a18e5ae43af555b508c",
     "semantic_hash": ""
   },
   "src/utils/windowState.ts": {
-    "mtime": 1793011385.2929032,
-    "seen": 1793014045.4334524,
+    "mtime": 1793332028.469985,
+    "seen": 1793332291.7561946,
     "ast_hash": "66daa3003b51e4829a8b5b80b2d9cd5c",
     "semantic_hash": ""
   },
   "src/components/SearchAndBookmarksDrawer.tsx": {
-    "mtime": 1793102222.6635182,
-    "seen": 1793170928.3603032,
-    "ast_hash": "c1af69c7ed0f9ed4e93cb3ba94f53b5f",
+    "mtime": 1793333841.1785347,
+    "seen": 1793334005.9066315,
+    "ast_hash": "16c2f9e479798b9504196dfbbd6f80fd",
     "semantic_hash": ""
   },
   "src/components/TableOfContentsDrawer.tsx": {
-    "mtime": 1793096123.7903984,
-    "seen": 1793170928.3603032,
-    "ast_hash": "0c59ab87aa3782e8536778c4dfaa3745",
+    "mtime": 1793333761.5118835,
+    "seen": 1793334005.9066315,
+    "ast_hash": "d912a6184d7f9046938f1757c75a927b",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/app/build.gradle.kts": {
-    "mtime": 1793188929.450125,
-    "seen": 1793189738.8747985,
-    "ast_hash": "6a9504e50b96405032270076a954540f",
+  "docs/CROSS_PLATFORM_PLAN.md": {
+    "mtime": 1793331228.207029,
+    "seen": 1793331316.1496773,
+    "ast_hash": "043920ee118935b426c499b41465418b",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/app/src/main/java/com/ebook/reader/MainActivity.kt": {
-    "mtime": 1793188083.563197,
-    "seen": 1793189738.8747985,
-    "ast_hash": "381522908dbb2c51cc066f13cb11436f",
+  "src/components/ErrorHost.tsx": {
+    "mtime": 1793332331.28255,
+    "seen": 1793332806.856887,
+    "ast_hash": "c4770ceb791c769a7b921501c34a6298",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/build.gradle.kts": {
-    "mtime": 1793188083.5378163,
-    "seen": 1793189738.8747985,
-    "ast_hash": "5ba0a5f9feff21c972b7816db34715ce",
+  "src/errors/appError.ts": {
+    "mtime": 1793332331.5031,
+    "seen": 1793332806.856887,
+    "ast_hash": "44087bc290752ccb655239b453cb6ee7",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/buildSrc/build.gradle.kts": {
-    "mtime": 1793188083.6024168,
-    "seen": 1793189738.8747985,
-    "ast_hash": "415e42bc9df5a27a27d50c980d2484ae",
+  "src-tauri/capabilities/mobile.json": {
+    "mtime": 1793332506.3496633,
+    "seen": 1793332806.856887,
+    "ast_hash": "c244c23bd21796800c88a8018712d885",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/buildSrc/src/main/java/com/ebook/reader/kotlin/BuildTask.kt": {
-    "mtime": 1793188083.6044142,
-    "seen": 1793189738.8747985,
-    "ast_hash": "03080d9c71c5adf6d13b61bff7c5ce5a",
+  "src/platform/fs/android.ts": {
+    "mtime": 1793332455.3290417,
+    "seen": 1793332806.856887,
+    "ast_hash": "aad03a8b90f06c62a8adcdfa8ebe7022",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/buildSrc/src/main/java/com/ebook/reader/kotlin/RustPlugin.kt": {
-    "mtime": 1793188083.606413,
-    "seen": 1793189738.8747985,
-    "ast_hash": "633f17b36dc0188d2f9c536a4f4be393",
+  "src/platform/fs/desktop.ts": {
+    "mtime": 1793332430.1695104,
+    "seen": 1793332806.856887,
+    "ast_hash": "2c57ee632dcf65fe669d9ca0937e801f",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/gradlew": {
-    "mtime": 1793188083.5420847,
-    "seen": 1793189738.8747985,
-    "ast_hash": "a43be8432bac3ffd05b3769aa42fe996",
+  "src/platform/fs/index.ts": {
+    "mtime": 1793332468.9542751,
+    "seen": 1793332806.856887,
+    "ast_hash": "6cdb27c93b7e3b8fd46b97af1984a436",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/settings.gradle": {
-    "mtime": 1793188083.546082,
-    "seen": 1793189738.8747985,
-    "ast_hash": "abd11d894caa36e33edcd381ba11f330",
+  "src/platform/fs/types.ts": {
+    "mtime": 1793332405.2846315,
+    "seen": 1793332806.856887,
+    "ast_hash": "e226f4f6d09bc4a605fe7e4c535a074b",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/app/src/main/res/mipmap-hdpi/ic_launcher.png": {
-    "mtime": 1793188083.5697372,
-    "seen": 1793189738.8747985,
-    "ast_hash": "331411a21199dcbb3fd3e9dc180ff090",
+  "src/platform/fs/web.ts": {
+    "mtime": 1793332440.4844098,
+    "seen": 1793332806.856887,
+    "ast_hash": "19a36446a1bbb4edf195fbb0f22e9f46",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png": {
-    "mtime": 1793188083.5717704,
-    "seen": 1793189738.8747985,
-    "ast_hash": "c922c31dd0772e0569d6b9982345a3cc",
+  "src/components/shell/AppBar.tsx": {
+    "mtime": 1793333121.8551605,
+    "seen": 1793333482.8100772,
+    "ast_hash": "28d2381420a953dd74475396854ddee2",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png": {
-    "mtime": 1793188083.57275,
-    "seen": 1793189738.8747985,
-    "ast_hash": "331411a21199dcbb3fd3e9dc180ff090",
+  "src/components/shell/BreadcrumbsBar.tsx": {
+    "mtime": 1793333100.0638783,
+    "seen": 1793333482.8100772,
+    "ast_hash": "c300000859ea39a0ad5d4737b8d6c0a9",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher.png": {
-    "mtime": 1793188083.5737524,
-    "seen": 1793189738.8747985,
-    "ast_hash": "c988238f35e59dcfa66d0402fcef5454",
+  "src/components/shell/BrowseGrid.tsx": {
+    "mtime": 1793333147.101474,
+    "seen": 1793333482.8100772,
+    "ast_hash": "20a53a1bf72fc63a1e1f7a6fa96df145",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png": {
-    "mtime": 1793188083.5737524,
-    "seen": 1793189738.8747985,
-    "ast_hash": "b08cc46c43b78ade95ffa710f2c85ee9",
+  "src/components/shell/Launchpad.tsx": {
+    "mtime": 1793333134.7336552,
+    "seen": 1793333482.8100772,
+    "ast_hash": "a21713f112190b7c2e5ff586e9ad06f0",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png": {
-    "mtime": 1793188083.5757523,
-    "seen": 1793189738.8747985,
-    "ast_hash": "c988238f35e59dcfa66d0402fcef5454",
+  "src/components/shell/ViewOptionsSheet.tsx": {
+    "mtime": 1793333085.929549,
+    "seen": 1793333482.8100772,
+    "ast_hash": "96eaaefb5b6ed096a37b6d26b4f1fcaa",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png": {
-    "mtime": 1793188083.5792947,
-    "seen": 1793189738.8747985,
-    "ast_hash": "2bd12d99c8151b74c78129ad7ef78af8",
+  "src/formats/registry.ts": {
+    "mtime": 1793332835.6339033,
+    "seen": 1793333482.8100772,
+    "ast_hash": "de5a9df8e130872d091088ac3c3307b2",
     "semantic_hash": ""
   },
-  "src-tauri/gen/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png": {
-    "mtime": 1793188083.5833025,
-    "seen": 1793189738.8747985,
-    "ast_hash": "8c4be6f31e044cc8a1ac39e45d50d9dd",
-    "semantic_hash": ""
-  },
-  "src-tauri/gen/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png": {
-    "mtime": 1793188083.587819,
-    "seen": 1793189738.8747985,
-    "ast_hash": "2bd12d99c8151b74c78129ad7ef78af8",
-    "semantic_hash": ""
-  },
-  "src-tauri/gen/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png": {
-    "mtime": 1793188083.5888453,
-    "seen": 1793189738.8747985,
-    "ast_hash": "7b9be1ceb98e9e2c1ac1562b705c679e",
-    "semantic_hash": ""
-  },
-  "src-tauri/gen/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png": {
-    "mtime": 1793188083.5908737,
-    "seen": 1793189738.8747985,
-    "ast_hash": "023cdbfd0bd363e1da6b48eb91d873f2",
-    "semantic_hash": ""
-  },
-  "src-tauri/gen/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png": {
-    "mtime": 1793188083.5918696,
-    "seen": 1793189738.8747985,
-    "ast_hash": "7b9be1ceb98e9e2c1ac1562b705c679e",
-    "semantic_hash": ""
-  },
-  "src-tauri/gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": {
-    "mtime": 1793188083.5928752,
-    "seen": 1793189738.8747985,
-    "ast_hash": "f83434b1cfc97752a5182da19b9869c8",
-    "semantic_hash": ""
-  },
-  "src-tauri/gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png": {
-    "mtime": 1793188083.5948637,
-    "seen": 1793189738.8747985,
-    "ast_hash": "56c4fd013ccd4ac84787fcba327abc37",
-    "semantic_hash": ""
-  },
-  "src-tauri/gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png": {
-    "mtime": 1793188083.5958662,
-    "seen": 1793189738.8747985,
-    "ast_hash": "f83434b1cfc97752a5182da19b9869c8",
+  "src/hooks/useBreakpoint.ts": {
+    "mtime": 1793333067.4087558,
+    "seen": 1793333482.8100772,
+    "ast_hash": "bad2c5591937dc307575b347ebfac516",
     "semantic_hash": ""
   }
 }

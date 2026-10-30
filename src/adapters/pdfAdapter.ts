@@ -189,15 +189,25 @@ export class PdfAdapter implements BookAdapter {
     const cssWidth = Math.floor(baseViewport.width * fitScale);
     const cssHeight = Math.floor(baseViewport.height * fitScale);
 
-    // Native display pixel ratio and zoom factor
+    // Native display pixel ratio and zoom factor (capped to avoid memory exhaustion on mobile)
     const effectiveZoom = options.zoom && options.zoom > 0 ? options.zoom : 1.0;
-    const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+    const rawDpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+    const dpr = Math.min(rawDpr, 2.5); // Cap DPR at 2.5 to prevent massive canvas textures on 3x-4x mobile screens
     
     // Exact integer physical backing store buffer
-    const pixelWidth = Math.floor(cssWidth * effectiveZoom * dpr);
-    const pixelHeight = Math.floor(cssHeight * effectiveZoom * dpr);
+    let pixelWidth = Math.floor(cssWidth * effectiveZoom * dpr);
+    let pixelHeight = Math.floor(cssHeight * effectiveZoom * dpr);
     
-    // Safety guard against exceeding maximum canvas texture dimensions (8192px)
+    // Safety guard against exceeding 16 Megapixels (OOM guard on phones)
+    const MAX_PIXELS = 16 * 1024 * 1024;
+    const currentPixels = pixelWidth * pixelHeight;
+    if (currentPixels > MAX_PIXELS) {
+      const scaleFactor = Math.sqrt(MAX_PIXELS / currentPixels);
+      pixelWidth = Math.floor(pixelWidth * scaleFactor);
+      pixelHeight = Math.floor(pixelHeight * scaleFactor);
+    }
+
+    // Safety guard against exceeding maximum GPU texture dimension (8192px)
     let renderScale = pixelWidth / baseViewport.width;
     const maxDimension = 8192;
     if (pixelWidth > maxDimension || pixelHeight > maxDimension) {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { XIcon, BookIcon, ChevronRightIcon } from "@primer/octicons-react";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 import type { TOCItem } from "../types/reader";
 
 export interface TableOfContentsDrawerProps {
@@ -19,6 +20,7 @@ export function TableOfContentsDrawer({
   onNavigateToPage,
   theme,
 }: TableOfContentsDrawerProps) {
+  const { isCompact } = useBreakpoint();
   // Filter/Search within TOC
   const [filterQuery, setFilterQuery] = useState("");
 
@@ -97,11 +99,24 @@ export function TableOfContentsDrawer({
 
   const displayTOC = filterTOC(toc, filterQuery);
 
-  return (
+  const drawerContent = (
     <aside
-      className="fixed inset-y-0 left-0 w-80 sm:w-96 shadow-2xl z-50 flex flex-col border-r transition-transform duration-200 ease-out select-none"
-      style={{ backgroundColor: style.bg, borderColor: style.border, color: style.text }}
+      onClick={(e) => e.stopPropagation()}
+      className={`${
+        isCompact
+          ? "w-full max-h-[80dvh] rounded-t-2xl shadow-2xl flex flex-col border-t animate-in slide-in-from-bottom duration-200 select-none"
+          : "fixed inset-y-0 left-0 w-80 sm:w-96 shadow-2xl z-50 flex flex-col border-r transition-transform duration-200 ease-out select-none"
+      }`}
+      style={{
+        backgroundColor: style.bg,
+        borderColor: style.border,
+        color: style.text,
+        paddingBottom: isCompact ? "max(1rem, var(--sab))" : undefined,
+      }}
     >
+      {isCompact && (
+        <div className="w-10 h-1 bg-gray-400/30 rounded-full mx-auto mt-2 mb-1 flex-shrink-0" />
+      )}
       {/* Drawer Header */}
       <div
         className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0"
@@ -122,6 +137,7 @@ export function TableOfContentsDrawer({
           onClick={onClose}
           className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
           title="Close Table of Contents (Esc)"
+          aria-label="Close Table of Contents"
         >
           <XIcon size={18} />
         </button>
@@ -174,6 +190,15 @@ export function TableOfContentsDrawer({
         )}
       </div>
     </aside>
+  );
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 ${isCompact ? "bg-black/50 backdrop-blur-xs flex flex-col justify-end" : "bg-black/25"}`}
+      onClick={onClose}
+    >
+      {drawerContent}
+    </div>
   );
 }
 

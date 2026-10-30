@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { GearIcon, XIcon, SunIcon, MoonIcon } from "@primer/octicons-react";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 import type { BookSettings } from "../stores/bookStore";
 import type { BookInstance } from "../types/reader";
 import { FormatBadge } from "./FormatBadge";
@@ -27,6 +28,7 @@ export function SettingsDrawer({
   totalPages,
   theme,
 }: SettingsDrawerProps) {
+  const { isCompact } = useBreakpoint();
   // Close on Escape key
   useEffect(() => {
     if (!isOpen) return;
@@ -56,15 +58,24 @@ export function SettingsDrawer({
     ? Math.round(((currentPage - 1) / (totalPages - 1)) * 100)
     : 100;
 
-  return (
+  const drawerContent = (
     <div
-      className="fixed inset-y-0 right-0 z-50 w-80 sm:w-96 shadow-2xl flex flex-col border-l transition-transform duration-200 ease-out"
+      onClick={(e) => e.stopPropagation()}
+      className={`${
+        isCompact
+          ? "w-full max-h-[80dvh] rounded-t-2xl shadow-2xl flex flex-col border-t animate-in slide-in-from-bottom duration-200"
+          : "fixed inset-y-0 right-0 z-50 w-80 sm:w-96 shadow-2xl flex flex-col border-l transition-transform duration-200 ease-out"
+      }`}
       style={{
         backgroundColor: drawerBg,
         color: drawerText,
         borderColor: drawerBorder,
+        paddingBottom: isCompact ? "max(1rem, var(--sab))" : undefined,
       }}
     >
+      {isCompact && (
+        <div className="w-10 h-1 bg-gray-400/30 rounded-full mx-auto mt-2 mb-1 flex-shrink-0" />
+      )}
       {/* Header */}
       <div
         className="flex items-center justify-between px-5 py-3.5 border-b flex-shrink-0"
@@ -85,6 +96,7 @@ export function SettingsDrawer({
           onClick={onClose}
           className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center"
           title="Close Settings (Esc)"
+          aria-label="Close Settings"
         >
           <XIcon size={16} />
         </button>
@@ -231,6 +243,15 @@ export function SettingsDrawer({
           Done
         </button>
       </div>
+    </div>
+  );
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 ${isCompact ? "bg-black/50 backdrop-blur-xs flex flex-col justify-end" : "bg-black/25"}`}
+      onClick={onClose}
+    >
+      {drawerContent}
     </div>
   );
 }

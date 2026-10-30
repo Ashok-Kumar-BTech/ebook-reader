@@ -2,9 +2,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-use std::sync::mpsc;
-use walkdir::WalkDir;
 use chrono::{DateTime, Local};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -15,15 +12,6 @@ pub struct FileEntry {
     pub size: u64,
     pub modified: i64,
     pub is_supported: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DirectoryEntry {
-    pub name: String,
-    pub path: String,
-    pub is_directory: bool,
-    pub size: u64,
-    pub modified: i64,
 }
 
 const SUPPORTED_EXTENSIONS: &[&str] = &[
@@ -55,40 +43,9 @@ fn get_file_entry(path: &Path) -> Result<FileEntry, String> {
         path: path_str,
         is_directory,
         size,
-        modified: modified.timestamp(),
+        modified: modified.timestamp_millis(),
         is_supported,
     })
-}
-
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[tauri::command]
-fn pick_directory(app: tauri::AppHandle) -> Result<Option<String>, String> {
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    {
-        use tauri_plugin_dialog::DialogExt;
-
-        let (tx, rx) = mpsc::channel();
-
-        app.dialog()
-            .file()
-            .set_title("Select a directory")
-            .pick_folder(move |path| {
-                let _ = tx.send(path.map(|p| p.to_string()));
-            });
-
-        // Wait for the callback (blocking is fine here since this runs on a Tauri command thread)
-        rx.recv().map_err(|e| e.to_string())
-    }
-
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    {
-        let _ = app;
-        Err("Directory picking is not supported on mobile. Please open individual files.".to_string())
-    }
 }
 
 #[tauri::command]
@@ -103,12 +60,15 @@ async fn list_directory(path: String) -> Result<Vec<FileEntry>, String> {
         return Err("Path is not a directory".to_string());
     }
 
+    let read_dir = fs::read_dir(&path).map_err(|e| e.to_string())?;
     let mut entries = Vec::new();
 
-    for entry in WalkDir::new(&path).min_depth(1).max_depth(1) {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let file_entry = get_file_entry(entry.path())?;
-        entries.push(file_entry);
+    for dir_entry in read_dir {
+        if let Ok(entry) = dir_entry {
+            if let Ok(file_entry) = get_file_entry(&entry.path()) {
+                entries.push(file_entry);
+            }
+        }
     }
 
     // Sort: directories first, then by name
@@ -144,8 +104,6 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
-            greet,
-            pick_directory,
             list_directory,
             read_file,
             get_file_metadata
