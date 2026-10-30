@@ -84,7 +84,7 @@ const loggedStoreCreator = createLoggedStore<BookStoreState>(
     setCurrentBookPath: (path: string | null, title?: string | null) =>
       set({
         currentBookPath: path,
-        currentBookTitle: title ?? (path ? extractDocumentTitle(path) : null),
+        currentBookTitle: title ? extractDocumentTitle(title) : (path ? extractDocumentTitle(path) : null),
       }),
 
     getBookState: (path: string) => get().bookStates[path],

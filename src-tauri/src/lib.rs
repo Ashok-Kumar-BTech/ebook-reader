@@ -118,3 +118,35 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn test_is_supported_format() {
+        assert!(is_supported_format(Path::new("book.pdf")));
+        assert!(is_supported_format(Path::new("book.EPUB")));
+        assert!(is_supported_format(Path::new("comic.CBZ")));
+        assert!(is_supported_format(Path::new("comic.cbr")));
+        assert!(is_supported_format(Path::new("notes.txt")));
+        assert!(is_supported_format(Path::new("index.html")));
+        assert!(is_supported_format(Path::new("doc.docx")));
+
+        assert!(!is_supported_format(Path::new("binary.exe")));
+        assert!(!is_supported_format(Path::new("video.mp4")));
+        assert!(!is_supported_format(Path::new("image.png")));
+        assert!(!is_supported_format(Path::new("noextension")));
+    }
+
+    #[test]
+    fn test_supported_extensions_constant() {
+        assert!(SUPPORTED_EXTENSIONS.contains(&"pdf"));
+        assert!(SUPPORTED_EXTENSIONS.contains(&"epub"));
+        assert!(SUPPORTED_EXTENSIONS.contains(&"cbz"));
+        assert!(SUPPORTED_EXTENSIONS.contains(&"docx"));
+        assert_eq!(SUPPORTED_EXTENSIONS.len(), 9);
+    }
+}
+

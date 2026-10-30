@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1793339544.9894226,
-    "seen": 1793340790.5076742,
-    "ast_hash": "59a2242741a2b6e85ca2818fc5205167",
+    "mtime": 1793355132.5827456,
+    "seen": 1793356745.123631,
+    "ast_hash": "8bfb1f02f75be14530126f469ea81f7c",
     "semantic_hash": ""
   },
   "postcss.config.js": {
@@ -36,9 +36,9 @@
     "semantic_hash": ""
   },
   "src-tauri/src/lib.rs": {
-    "mtime": 1793339591.1244822,
-    "seen": 1793340790.5076742,
-    "ast_hash": "873e5bfd13ac3d64c35aaef4ad81b4ee",
+    "mtime": 1793355946.6688528,
+    "seen": 1793356745.123631,
+    "ast_hash": "9627fb44321dee8bf55f02fd3d00824c",
     "semantic_hash": ""
   },
   "src-tauri/src/main.rs": {
@@ -54,33 +54,33 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1793342337.9530106,
-    "seen": 1793342654.5228868,
-    "ast_hash": "fc2e3b609c080642835bd764b7b0cc2c",
+    "mtime": 1793347532.543826,
+    "seen": 1793356745.123631,
+    "ast_hash": "53369d339182f42417db2ca3b5cc2aac",
     "semantic_hash": ""
   },
   "src/adapters/cbzAdapter.ts": {
-    "mtime": 1793332028.4350805,
-    "seen": 1793332291.7551954,
-    "ast_hash": "cd479d3caff48c69c6f33f23ba03eb9f",
+    "mtime": 1793347597.0013916,
+    "seen": 1793356745.123631,
+    "ast_hash": "1f67d1716eea269773e11cda75dd81b2",
     "semantic_hash": ""
   },
   "src/adapters/epubAdapter.ts": {
-    "mtime": 1793332028.4366186,
-    "seen": 1793332291.7551954,
-    "ast_hash": "9574a16ae879617de171f03973ee9f55",
+    "mtime": 1793347579.0845008,
+    "seen": 1793356745.123631,
+    "ast_hash": "75c46f96c2289efa90af6b894ce17031",
     "semantic_hash": ""
   },
   "src/adapters/htmlAdapter.ts": {
-    "mtime": 1793332028.4376402,
-    "seen": 1793332291.7551954,
-    "ast_hash": "96cc2de9c289e7c776d403332f2b0b87",
+    "mtime": 1793347645.251185,
+    "seen": 1793356745.123631,
+    "ast_hash": "de5c137f7634897a2098cd92a5bcb711",
     "semantic_hash": ""
   },
   "src/adapters/pdfAdapter.ts": {
-    "mtime": 1793336033.8503969,
-    "seen": 1793338188.3924057,
-    "ast_hash": "7b351ea6afd36ddf9c6ce2ddee02abfd",
+    "mtime": 1793347560.9568853,
+    "seen": 1793356745.123631,
+    "ast_hash": "88c76cdb95d548710738bfebb489fc6d",
     "semantic_hash": ""
   },
   "src/adapters/registry.ts": {
@@ -90,9 +90,9 @@
     "semantic_hash": ""
   },
   "src/adapters/txtAdapter.ts": {
-    "mtime": 1793332028.4416394,
-    "seen": 1793332291.7551954,
-    "ast_hash": "ae79e9341eab4bc2934f4385d70705fc",
+    "mtime": 1793347616.079052,
+    "seen": 1793356745.123631,
+    "ast_hash": "28bc66ccbac7e1cb9054438f6f0e4d24",
     "semantic_hash": ""
   },
   "src/main.tsx": {
@@ -102,9 +102,9 @@
     "semantic_hash": ""
   },
   "src/stores/bookStore.ts": {
-    "mtime": 1793181157.0020294,
-    "seen": 1793183858.1625185,
-    "ast_hash": "8fb795afba6e5bf08bfb9da0090b7c78",
+    "mtime": 1793355618.3707654,
+    "seen": 1793356745.123631,
+    "ast_hash": "c6234a7bfd3439891aac2336535f127e",
     "semantic_hash": ""
   },
   "src/stores/uiStore.ts": {
@@ -282,15 +282,15 @@
     "semantic_hash": ""
   },
   "src/components/VirtualizedFileList.tsx": {
-    "mtime": 1793009417.8353765,
-    "seen": 1793010109.5079052,
-    "ast_hash": "7cc43ea1c76f89a873fab2e3e4218e89",
+    "mtime": 1793355660.5215776,
+    "seen": 1793356745.123631,
+    "ast_hash": "2ca217e90504f173084f1439d98af697",
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793344372.745168,
-    "seen": 1793344389.5867708,
-    "ast_hash": "ba11a2d99ac511b591791b11bbb051a2",
+    "mtime": 1793356056.455649,
+    "seen": 1793356745.123631,
+    "ast_hash": "93632349b2e42ab9c7a79afd2c294488",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
@@ -312,9 +312,9 @@
     "semantic_hash": ""
   },
   "src/components/ReaderView.tsx": {
-    "mtime": 1793344296.3120668,
-    "seen": 1793344389.5867708,
-    "ast_hash": "7ba11ee8329b2ec8d1355ad996c74c57",
+    "mtime": 1793355635.272041,
+    "seen": 1793356745.123631,
+    "ast_hash": "20e319968d161287a5d26a7393a4ce75",
     "semantic_hash": ""
   },
   "src/components/SettingsDrawer.tsx": {
@@ -414,9 +414,9 @@
     "semantic_hash": ""
   },
   "src/utils/pathUtils.ts": {
-    "mtime": 1793340540.7031746,
-    "seen": 1793340790.5076742,
-    "ast_hash": "762f78e14fd78a59e0e371bcbd608bbb",
+    "mtime": 1793347463.1040308,
+    "seen": 1793356745.123631,
+    "ast_hash": "81f4d994bfe1440faa56b3825f57e307",
     "semantic_hash": ""
   },
   "src/utils/windowState.ts": {
@@ -504,9 +504,9 @@
     "semantic_hash": ""
   },
   "src/components/shell/BrowseGrid.tsx": {
-    "mtime": 1793336033.8609302,
-    "seen": 1793338188.3924057,
-    "ast_hash": "20a53a1bf72fc63a1e1f7a6fa96df145",
+    "mtime": 1793347516.4287844,
+    "seen": 1793356745.123631,
+    "ast_hash": "5a91bf56503c20adcf71a90c62b2693e",
     "semantic_hash": ""
   },
   "src/components/shell/Launchpad.tsx": {
@@ -669,6 +669,60 @@
     "mtime": 1793336021.70509,
     "seen": 1793338188.3924057,
     "ast_hash": "f83434b1cfc97752a5182da19b9869c8",
+    "semantic_hash": ""
+  },
+  "tests/setup.ts": {
+    "mtime": 1793356083.9846554,
+    "seen": 1793356745.123631,
+    "ast_hash": "82d1a84bb1cb4fbde3c725f297018e33",
+    "semantic_hash": ""
+  },
+  "tests/unit/appError.test.ts": {
+    "mtime": 1793356084.0697465,
+    "seen": 1793356745.123631,
+    "ast_hash": "f50e777ff73761716030c7aae8df9b3e",
+    "semantic_hash": ""
+  },
+  "tests/unit/components/BrowseGrid.test.tsx": {
+    "mtime": 1793356084.2452116,
+    "seen": 1793356745.123631,
+    "ast_hash": "9b9bcba8677ef26546df0cb64328ddc8",
+    "semantic_hash": ""
+  },
+  "tests/unit/components/ErrorHost.test.tsx": {
+    "mtime": 1793355892.0121443,
+    "seen": 1793356745.123631,
+    "ast_hash": "ddeae64926264b114a9baafd9d225bd5",
+    "semantic_hash": ""
+  },
+  "tests/unit/formatRegistry.test.ts": {
+    "mtime": 1793355729.4875345,
+    "seen": 1793356745.123631,
+    "ast_hash": "2312975c9477dd36c66a7a5bf92b296b",
+    "semantic_hash": ""
+  },
+  "tests/unit/gestures.test.ts": {
+    "mtime": 1793356084.6167433,
+    "seen": 1793356745.123631,
+    "ast_hash": "d4fcd23660ed3e70443bebb036a94d4e",
+    "semantic_hash": ""
+  },
+  "tests/unit/pathUtils.test.ts": {
+    "mtime": 1793356084.7796047,
+    "seen": 1793356745.123631,
+    "ast_hash": "b88f593cceb95c06778c904d7ae35a74",
+    "semantic_hash": ""
+  },
+  "tests/unit/stores.test.ts": {
+    "mtime": 1793356085.0787206,
+    "seen": 1793356745.123631,
+    "ast_hash": "f09ec4e8d4bb5daeecfb4c5e6b178f72",
+    "semantic_hash": ""
+  },
+  "vitest.config.ts": {
+    "mtime": 1793356085.2946658,
+    "seen": 1793356745.123631,
+    "ast_hash": "38dead91b78f095d1c48ccd825769771",
     "semantic_hash": ""
   }
 }

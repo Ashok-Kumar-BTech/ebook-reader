@@ -14,7 +14,7 @@ interface FileEntry {
 
 interface VirtualizedFileListProps {
   entries: FileEntry[];
-  onFileClick: (path: string) => void;
+  onFileClick: (path: string, name?: string) => void;
   onDirectoryClick: (path: string) => void;
   parentPath?: string | null;
   onParentClick?: () => void;
@@ -27,7 +27,7 @@ const ITEM_HEIGHT = 44;
 
 interface RowProps {
   entries: FileEntry[];
-  onFileClick: (path: string) => void;
+  onFileClick: (path: string, name?: string) => void;
   onDirectoryClick: (path: string) => void;
 }
 
@@ -56,7 +56,7 @@ function FileListItem({
         if (entry.isDirectory) {
           onDirectoryClick(entry.path);
         } else {
-          onFileClick(entry.path);
+          onFileClick(entry.path, entry.name);
         }
       }}
     >

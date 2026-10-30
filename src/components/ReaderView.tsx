@@ -46,7 +46,12 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const { currentBookPath, currentBookTitle, bookStates, getBookState, updateLocation, updateSettings, addBookmark, removeBookmark } = useBookStore();
   const { toggleSidebar, sidebarVisible } = useUiStore();
 
-  const minZoom = isCompact ? 1.0 : 0.6;
+  const isMobile = useMemo(() => {
+    if (typeof navigator === "undefined") return false;
+    return /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+  }, []);
+
+  const minZoom = isCompact || isMobile ? 1.0 : 0.6;
   const maxZoom = 3.0;
 
   const bookBookmarks = useMemo(() => {
@@ -60,11 +65,17 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const [bookInstance, setBookInstance] = useState<BookInstance | null>(null);
 
   const displayTitle = useMemo(() => {
-    if (bookInstance?.title && !bookInstance.title.includes("%2F") && !bookInstance.title.includes("primary%3A")) {
-      return bookInstance.title;
+    if (bookInstance?.title) {
+      const candidate = extractDocumentTitle(bookInstance.title);
+      if (candidate && candidate !== "Document") return candidate;
     }
-    if (currentBookTitle) return currentBookTitle;
-    if (currentBookPath) return extractDocumentTitle(currentBookPath);
+    if (currentBookTitle) {
+      const candidate = extractDocumentTitle(currentBookTitle);
+      if (candidate && candidate !== "Document") return candidate;
+    }
+    if (currentBookPath) {
+      return extractDocumentTitle(currentBookPath);
+    }
     return "Ebook Reader";
   }, [bookInstance?.title, currentBookTitle, currentBookPath]);
 

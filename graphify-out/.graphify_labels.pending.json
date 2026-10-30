@@ -46,13 +46,16 @@
   "44": "mobile.json",
   "45": "scripts",
   "46": "LogViewer.tsx",
-  "47": "vite.config.ts",
+  "47": "vitest",
   "48": "store.ts",
   "49": "tauriApi.ts",
   "50": "app/build.gradle.kts",
+  "51": "extractDocumentTitle",
   "52": "android/build.gradle.kts",
   "53": "buildSrc/build.gradle.kts",
   "54": "settings.gradle",
   "55": "BookAdapter",
-  "57": "Ebook Reader: Cross-Platform & Responsive Refactor Plan"
+  "56": "setup.ts",
+  "57": "Ebook Reader: Cross-Platform & Responsive Refactor Plan",
+  "58": "BrowseGrid.test.tsx"
 }
