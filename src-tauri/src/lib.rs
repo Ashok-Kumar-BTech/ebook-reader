@@ -84,6 +84,11 @@ async fn list_directory(path: String) -> Result<Vec<FileEntry>, String> {
 }
 
 #[tauri::command]
+fn log_from_frontend(level: String, target: String, args: String) {
+    println!("[FRONTEND:{}] [{}] {}", level.to_uppercase(), target, args);
+}
+
+#[tauri::command]
 async fn read_file(path: String) -> Result<tauri::ipc::Response, String> {
     let path = PathBuf::from(path);
     let bytes = fs::read(path).map_err(|e| e.to_string())?;
@@ -104,6 +109,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
+            log_from_frontend,
             list_directory,
             read_file,
             get_file_metadata

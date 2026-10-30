@@ -1,5 +1,6 @@
-import type { FileSystemProvider, DirRef, Entry } from './types';
+import type { FileSystemProvider, DirRef, Entry, PickedFilesResult } from './types';
 import { formatRegistry } from '../../adapters/registry';
+import { getAllSupportedExtensions } from '../../formats/registry';
 import { AppError, toAppError } from '../../errors/appError';
 import { logManager } from '../../utils/logger';
 import { getParentPath } from '../../utils/pathUtils';
@@ -14,6 +15,8 @@ export class DesktopFsProvider implements FileSystemProvider {
     revealInOS: true,
     persistentRecents: true,
   };
+
+  private virtualCollections = new Map<string, Entry[]>();
 
   async pickDirectory(title = 'Select Ebook Directory'): Promise<DirRef | null> {
     try {
@@ -40,7 +43,63 @@ export class DesktopFsProvider implements FileSystemProvider {
     }
   }
 
+  async pickFiles(title = 'Select Ebook File(s)'): Promise<PickedFilesResult | null> {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        directory: false,
+        multiple: true,
+        title,
+        filters: [
+          {
+            name: 'Ebooks',
+            extensions: getAllSupportedExtensions(),
+          },
+        ],
+      });
+
+      if (!selected) return null;
+      const fileList = Array.isArray(selected) ? selected : [selected];
+      if (fileList.length === 0) return null;
+
+      const entries: Entry[] = fileList.map((filePath) => {
+        const name = filePath.split(/[/\\]/).filter(Boolean).pop() || filePath;
+        return {
+          id: filePath,
+          parent: 'virtual:selected_books',
+          name,
+          isDirectory: false,
+          size: 0,
+          modifiedMs: Date.now(),
+          isSupported: formatRegistry.isSupported(name),
+        };
+      });
+
+      const dirId = `virtual:selected_books_${Date.now()}`;
+      const dir: DirRef = {
+        id: dirId,
+        name: fileList.length === 1 ? entries[0].name : `Selected Books (${entries.length})`,
+        platform: 'desktop',
+      };
+
+      this.virtualCollections.set(dirId, entries);
+
+      return {
+        dir,
+        files: entries,
+        singleFilePath: fileList.length === 1 ? fileList[0] : undefined,
+      };
+    } catch (err) {
+      logger.error('PICK_FILES_FAILED', { error: String(err) });
+      throw toAppError(err);
+    }
+  }
+
   async listChildren(dir: DirRef): Promise<Entry[]> {
+    if (dir.id.startsWith('virtual:')) {
+      return this.virtualCollections.get(dir.id) || [];
+    }
+
     try {
       const fastEntries = await listDirectory(dir.id);
       return fastEntries.map((e) => {

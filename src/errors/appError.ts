@@ -69,8 +69,8 @@ export const USER_MESSAGES: Record<AppErrorCode, UserErrorInfo> = {
     message: "This book couldn't be prepared for reading.",
   },
   MISSING_COMPONENT: {
-    message: "A required component for this format isn't installed.",
-    hint: "See setup instructions for optional format sidecars.",
+    message: "A required component for this format or action isn't available.",
+    hint: "On mobile devices, use 'Open Ebook File(s)' to select your books directly.",
   },
   UNKNOWN: {
     message: "Something went wrong while opening this book or directory.",
@@ -109,6 +109,10 @@ export function toAppError(e: unknown): AppError {
 
   const rawMessage = e instanceof Error ? e.message : (typeof e === 'string' ? e : JSON.stringify(e));
   const lower = (rawMessage || '').toLowerCase();
+
+  if (lower.includes('folder picker is not implemented on mobile') || lower.includes('folder picking is not supported')) {
+    return new AppError('MISSING_COMPONENT', rawMessage, e);
+  }
 
   if (lower.includes('invalid uri') || lower.includes('securityexception') || lower.includes('permission denied') || lower.includes('eacces')) {
     return new AppError('PERMISSION_DENIED', rawMessage, e);

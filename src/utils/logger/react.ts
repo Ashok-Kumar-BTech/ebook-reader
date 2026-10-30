@@ -31,21 +31,23 @@ export function useLogRender(
   const logger = logManager.getLogger(`component:${componentName}`);
   const renderCount = useRef(0);
   const prevProps = useRef(props);
+  const propsRef = useRef(props);
+  propsRef.current = props;
   const mounted = useRef(false);
   
-  // Log mount
+  // Log mount & unmount
   useEffect(() => {
     if (logMount) {
       logger.info('MOUNT', {
         component: componentName,
-        props: logProps ? props : undefined,
+        props: logProps ? propsRef.current : undefined,
         correlationId: getCorrelationId(),
       });
     }
     mounted.current = true;
     
     return () => {
-      if (logUnmount && mounted.current) {
+      if (logUnmount) {
         logger.info('UNMOUNT', {
           component: componentName,
           renderCount: renderCount.current,
@@ -53,7 +55,7 @@ export function useLogRender(
         });
       }
     };
-  }, [componentName, logger, logMount, logUnmount, logProps, props]);
+  }, [componentName, logger, logMount, logUnmount, logProps]);
   
   // Log updates
   useEffect(() => {

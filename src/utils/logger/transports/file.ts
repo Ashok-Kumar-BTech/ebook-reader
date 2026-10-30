@@ -42,6 +42,12 @@ export function createFileTransport(): LogTransport {
   async function initialize(): Promise<void> {
     if (initialized) return;
     
+    // File logging is only applicable to desktop targets; on mobile, native console & logcat are active
+    if (typeof navigator !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent)) {
+      initialized = true;
+      return;
+    }
+
     const inTauri = await isTauri();
     if (!inTauri) {
       initialized = true;

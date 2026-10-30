@@ -16,6 +16,7 @@ export interface AppBarProps {
   recentFolders: RecentFolder[];
   currentRoot: string | null;
   onOpenDirectory: (selectedPath?: string) => void;
+  onOpenFiles?: () => void;
   onClearRecents: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
@@ -29,6 +30,7 @@ export function AppBar({
   recentFolders,
   currentRoot,
   onOpenDirectory,
+  onOpenFiles,
   onClearRecents,
   searchQuery,
   onSearchChange,
@@ -172,6 +174,19 @@ export function AppBar({
                       </button>
                     )}
                   </div>
+
+                  {onOpenFiles && (
+                    <button
+                      onClick={() => {
+                        setIsRecentOpen(false);
+                        onOpenFiles();
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/20 transition-colors cursor-pointer text-left"
+                    >
+                      <BookIcon size={14} />
+                      <span>Open Ebook File(s)...</span>
+                    </button>
+                  )}
 
                   {recentFolders.length === 0 ? (
                     <div className="px-3 py-4 text-center text-xs opacity-60">

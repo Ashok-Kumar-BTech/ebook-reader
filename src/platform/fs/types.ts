@@ -25,10 +25,17 @@ export interface FileSystemCapabilities {
   persistentRecents: boolean;
 }
 
+export interface PickedFilesResult {
+  dir: DirRef;
+  files: Entry[];
+  singleFilePath?: string;
+}
+
 export interface FileSystemProvider {
   readonly kind: 'desktop' | 'android' | 'web';
   readonly capabilities: FileSystemCapabilities;
   pickDirectory(title?: string): Promise<DirRef | null>;
+  pickFiles?(title?: string): Promise<PickedFilesResult | null>;
   listChildren(dir: DirRef): Promise<Entry[]>; // immediate children only, lazy
   readFile(entry: Pick<Entry, 'id' | 'name'>): Promise<Uint8Array>;
   reopen(dir: DirRef): Promise<DirRef>;

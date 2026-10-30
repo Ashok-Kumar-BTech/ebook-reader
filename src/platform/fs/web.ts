@@ -1,4 +1,4 @@
-import type { FileSystemProvider, DirRef, Entry } from './types';
+import type { FileSystemProvider, DirRef, Entry, PickedFilesResult } from './types';
 import { formatRegistry } from '../../adapters/registry';
 import { AppError, toAppError } from '../../errors/appError';
 import { logManager } from '../../utils/logger';
@@ -15,6 +15,7 @@ export class WebFsProvider implements FileSystemProvider {
 
   private dirHandles = new Map<string, FileSystemDirectoryHandle>();
   private fileHandles = new Map<string, FileSystemFileHandle>();
+  private virtualCollections = new Map<string, Entry[]>();
 
   async pickDirectory(_title = 'Select Ebook Directory'): Promise<DirRef | null> {
     if (typeof window === 'undefined' || !('showDirectoryPicker' in window)) {
@@ -42,7 +43,72 @@ export class WebFsProvider implements FileSystemProvider {
     }
   }
 
+  async pickFiles(_title = 'Select Ebook File(s)'): Promise<PickedFilesResult | null> {
+    if (typeof window === 'undefined' || !('showOpenFilePicker' in window)) {
+      throw new AppError('MISSING_COMPONENT', 'File System Access API is not supported in this browser.');
+    }
+
+    try {
+      const handles = await (window as any).showOpenFilePicker({
+        multiple: true,
+        types: [
+          {
+            description: 'Ebooks',
+            accept: {
+              'application/pdf': ['.pdf'],
+              'application/epub+zip': ['.epub'],
+              'application/x-cbz': ['.cbz'],
+              'text/plain': ['.txt'],
+              'text/html': ['.html', '.htm'],
+            },
+          },
+        ],
+      });
+
+      if (!handles || handles.length === 0) return null;
+
+      const entries: Entry[] = [];
+      for (const h of handles) {
+        const file = await h.getFile();
+        const entryId = `virtual:web_${h.name}`;
+        this.fileHandles.set(entryId, h);
+        entries.push({
+          id: entryId,
+          parent: 'virtual:web_files',
+          name: h.name,
+          isDirectory: false,
+          size: file.size,
+          modifiedMs: file.lastModified,
+          isSupported: formatRegistry.isSupported(h.name),
+        });
+      }
+
+      const dirId = `virtual:selected_books_${Date.now()}`;
+      const dir: DirRef = {
+        id: dirId,
+        name: entries.length === 1 ? entries[0].name : `Selected Books (${entries.length})`,
+        platform: 'web',
+      };
+
+      this.virtualCollections.set(dirId, entries);
+
+      return {
+        dir,
+        files: entries,
+        singleFilePath: entries.length === 1 ? entries[0].id : undefined,
+      };
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return null;
+      logger.error('WEB_PICK_FILES_FAILED', { error: String(err) });
+      throw toAppError(err);
+    }
+  }
+
   async listChildren(dir: DirRef): Promise<Entry[]> {
+    if (dir.id.startsWith('virtual:')) {
+      return this.virtualCollections.get(dir.id) || [];
+    }
+
     const handle = this.dirHandles.get(dir.id);
     if (!handle) {
       throw new AppError('FILE_NOT_FOUND', `Directory handle expired or not found for: ${dir.id}`);

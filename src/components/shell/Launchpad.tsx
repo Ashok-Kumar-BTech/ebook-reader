@@ -4,10 +4,18 @@ import type { RecentFolder } from "../../stores/uiStore";
 export interface LaunchpadProps {
   recentFolders: RecentFolder[];
   onOpenDirectory: (selectedPath?: string) => void;
+  onOpenFiles?: () => void;
   onClearRecents: () => void;
+  isCompact?: boolean;
 }
 
-export function Launchpad({ recentFolders, onOpenDirectory, onClearRecents }: LaunchpadProps) {
+export function Launchpad({
+  recentFolders,
+  onOpenDirectory,
+  onOpenFiles,
+  onClearRecents,
+  isCompact,
+}: LaunchpadProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 text-center overflow-y-auto">
       {/* Hero Welcome Card */}
@@ -19,16 +27,50 @@ export function Launchpad({ recentFolders, onOpenDirectory, onClearRecents }: La
           Your Local Ebook Library
         </h2>
         <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mb-5 leading-relaxed">
-          Open a folder on your device to browse and read your PDF, EPUB, CBZ, and TXT books with complete privacy and zero telemetry.
+          Open a folder or individual ebook files on your device to read PDF, EPUB, CBZ, and TXT books with complete privacy and zero telemetry.
         </p>
 
-        <button
-          onClick={() => onOpenDirectory()}
-          className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[var(--color-primary)] text-white text-xs sm:text-sm font-semibold hover:bg-[var(--color-primary-hover)] transition-all shadow-md active:scale-95 cursor-pointer mx-auto w-full sm:w-auto"
-        >
-          <FileDirectoryFillIcon size={16} />
-          <span>Open Ebook Folder</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 w-full max-w-sm mx-auto">
+          {isCompact ? (
+            <>
+              {onOpenFiles && (
+                <button
+                  onClick={onOpenFiles}
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[var(--color-primary)] text-white text-xs sm:text-sm font-semibold hover:bg-[var(--color-primary-hover)] transition-all shadow-md active:scale-95 cursor-pointer w-full"
+                >
+                  <BookIcon size={16} />
+                  <span>Open Ebook File(s)</span>
+                </button>
+              )}
+              <button
+                onClick={() => onOpenDirectory()}
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] text-xs sm:text-sm font-semibold hover:bg-black/5 dark:hover:bg-white/5 transition-all shadow-xs active:scale-95 cursor-pointer w-full"
+              >
+                <FileDirectoryFillIcon size={16} />
+                <span>Open Folder</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => onOpenDirectory()}
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[var(--color-primary)] text-white text-xs sm:text-sm font-semibold hover:bg-[var(--color-primary-hover)] transition-all shadow-md active:scale-95 cursor-pointer w-full"
+              >
+                <FileDirectoryFillIcon size={16} />
+                <span>Open Ebook Folder</span>
+              </button>
+              {onOpenFiles && (
+                <button
+                  onClick={onOpenFiles}
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] text-xs sm:text-sm font-semibold hover:bg-black/5 dark:hover:bg-white/5 transition-all shadow-xs active:scale-95 cursor-pointer w-full"
+                >
+                  <BookIcon size={16} />
+                  <span>Open File(s)</span>
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Recent Directories List */}
