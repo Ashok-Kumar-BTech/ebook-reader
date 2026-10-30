@@ -1,4 +1,5 @@
 import type { BookAdapter, BookInstance, RenderOptions, SearchResult, TOCItem } from '../types/reader';
+import { extractDocumentTitle } from '../utils/pathUtils';
 
 // Dynamic import for pdf.js to avoid SSR issues and allow worker configuration
 let pdfjsLib: any = null;
@@ -31,7 +32,7 @@ export class PdfAdapter implements BookAdapter {
     this.pdfDoc = await loadingTask.promise;
     this.pageCount = this.pdfDoc.numPages;
     
-    const fileName = bookPath.split(/[\/\\]/).pop()?.replace(/\.[^.]+$/, '') || 'PDF Document';
+    const fileName = extractDocumentTitle(bookPath) || 'PDF Document';
     this.title = fileName;
     this.currentPage = 1;
 

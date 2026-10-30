@@ -1,4 +1,5 @@
 import type { BookAdapter, BookInstance, RenderOptions, SearchResult, TOCItem } from '../types/reader';
+import { extractDocumentTitle } from '../utils/pathUtils';
 
 // Dynamic import for JSZip
 let JSZip: any = null;
@@ -36,7 +37,7 @@ export class CbzAdapter implements BookAdapter {
       .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true }));
     
     this.pageCount = this.imageFiles.length;
-    this.title = bookPath.split('/').pop()?.replace(/\.[^.]+$/, '') || 'Comic Book';
+    this.title = extractDocumentTitle(bookPath) || 'Comic Book';
     this.currentPage = 0;
     
     return {

@@ -12,7 +12,7 @@ export interface BrowseGridEntry {
 
 export interface BrowseGridProps {
   entries: BrowseGridEntry[];
-  onFileClick: (path: string) => void;
+  onFileClick: (path: string, name?: string) => void;
   onDirectoryClick: (path: string) => void;
   searchQuery: string;
 }
@@ -51,7 +51,7 @@ export function BrowseGrid({
               if (entry.isDirectory) {
                 onDirectoryClick(entry.path);
               } else if (entry.isSupported) {
-                onFileClick(entry.path);
+                onFileClick(entry.path, entry.name);
               }
             }}
             className={`flex flex-col rounded-xl border p-3 transition-all select-none group min-h-[140px] ${

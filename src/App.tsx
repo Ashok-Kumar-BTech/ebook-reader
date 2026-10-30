@@ -283,14 +283,14 @@ export default function App() {
       if (provider.pickFile) {
         const file = await provider.pickFile("Select Ebook");
         if (file) {
-          await handleFileClick(file.id);
+          await handleFileClick(file.id, file.name);
         } else {
           logger.debug("FILE_DIALOG_CANCELLED");
         }
       } else if (provider.pickFiles) {
         const res = await provider.pickFiles("Select Ebook");
         if (res && res.files.length > 0) {
-          await handleFileClick(res.files[0].id);
+          await handleFileClick(res.files[0].id, res.files[0].name);
         }
       } else {
         await handleOpenDirectory();
@@ -301,14 +301,14 @@ export default function App() {
     }
   };
 
-  const handleFileClick = async (path: string) => {
-    logger.info("FILE_CLICKED", { path });
+  const handleFileClick = async (path: string, name?: string) => {
+    logger.info("FILE_CLICKED", { path, name });
     if (!formatRegistry.isSupported(path)) {
       logger.warn("FILE_NOT_SUPPORTED", { path });
       return;
     }
 
-    setCurrentBookPath(path);
+    setCurrentBookPath(path, name);
     addRecentFile(path);
     setMode("reading");
   };

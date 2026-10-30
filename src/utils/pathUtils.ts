@@ -166,3 +166,30 @@ export function getBreadcrumbSegments(inputPath: string): BreadcrumbSegment[] {
 
   return segments;
 }
+
+/**
+ * Cleanly extracts the human-readable document title from a file path, SAF content URI, or URL.
+ * Decodes URI entities, strips Android SAF storage prefixes (like primary:Documents/...),
+ * and removes file extensions.
+ *
+ * Examples:
+ *   "content://.../primary%3ADocuments%2FProject%20Analysis.pdf" -> "Project Analysis"
+ *   "D:/Books/Science/Quantum Physics.epub" -> "Quantum Physics"
+ *   "primary:Download/My Book.pdf" -> "My Book"
+ */
+export function extractDocumentTitle(pathOrUri: string): string {
+  if (!pathOrUri) return "Document";
+  try {
+    let decoded = decodeURIComponent(pathOrUri);
+    // Strip Android SAF storage prefixes like primary:Documents/...
+    if (decoded.includes(":")) {
+      const colonParts = decoded.split(":");
+      decoded = colonParts[colonParts.length - 1];
+    }
+    const lastSegment = decoded.split(/[/\\]/).filter(Boolean).pop() || decoded;
+    return lastSegment.replace(/\.[^.]+$/, "").trim() || "Document";
+  } catch {
+    const raw = pathOrUri.split(/[/\\]/).filter(Boolean).pop() || pathOrUri;
+    return raw.replace(/\.[^.]+$/, "").trim() || "Document";
+  }
+}

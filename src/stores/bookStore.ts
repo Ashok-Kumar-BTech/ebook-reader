@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createStore } from '../utils/store';
 import { createLoggedStore, logManager } from '../utils/logger';
+import { extractDocumentTitle } from '../utils/pathUtils';
 
 const logger = logManager.getLogger('store:bookStore');
 
@@ -32,7 +33,8 @@ export interface BookState {
 export interface BookStoreState {
   bookStates: Record<string, BookState>;
   currentBookPath: string | null;
-  setCurrentBookPath: (path: string | null) => void;
+  currentBookTitle: string | null;
+  setCurrentBookPath: (path: string | null, title?: string | null) => void;
   getBookState: (path: string) => BookState | undefined;
   setBookState: (path: string, state: Partial<BookState>) => void;
   updateLocation: (path: string, location: string | number, totalLocations?: number) => void;
@@ -76,9 +78,14 @@ const loggedStoreCreator = createLoggedStore<BookStoreState>(
   (set, get) => ({
     bookStates: {},
     currentBookPath: null,
+    currentBookTitle: null,
     isHydrated: false,
 
-    setCurrentBookPath: (path: string | null) => set({ currentBookPath: path }),
+    setCurrentBookPath: (path: string | null, title?: string | null) =>
+      set({
+        currentBookPath: path,
+        currentBookTitle: title ?? (path ? extractDocumentTitle(path) : null),
+      }),
 
     getBookState: (path: string) => get().bookStates[path],
 

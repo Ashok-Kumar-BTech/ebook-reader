@@ -1,6 +1,7 @@
 import type { BookAdapter, BookInstance, RenderOptions, SearchResult, TOCItem } from '../types/reader';
 import DOMPurify from 'dompurify';
 import mammoth from 'mammoth';
+import { extractDocumentTitle } from '../utils/pathUtils';
 
 export class HtmlAdapter implements BookAdapter {
   readonly format = 'html' as const;
@@ -18,7 +19,7 @@ export class HtmlAdapter implements BookAdapter {
       ADD_TAGS: ['style'],
     });
 
-    this.title = bookPath.split('/').pop()?.replace(/\.[^.]+$/, '') || 'HTML Document';
+    this.title = extractDocumentTitle(bookPath) || 'HTML Document';
     this.content = sanitized;
     // For HTML, provide a single continuous document or chapter sections
     this.sections = [sanitized];
@@ -92,7 +93,7 @@ export class HtmlAdapter implements BookAdapter {
     wrapper.style.fontSize = `${options.fontSize}px`;
     wrapper.style.lineHeight = String(options.lineHeight);
     wrapper.style.padding = `${options.margin}px`;
-    wrapper.style.maxWidth = `${Math.max(400, options.width - options.margin * 2)}px`;
+    wrapper.style.maxWidth = `${Math.max(280, options.width - options.margin * 2)}px`;
     wrapper.style.margin = '0 auto';
     wrapper.style.color = this.getThemeColor(options.theme);
     wrapper.style.backgroundColor = this.getThemeBg(options.theme);
@@ -140,7 +141,7 @@ export class DocxAdapter implements BookAdapter {
   private title: string = 'Word Document';
 
   async load(bookPath: string, fileData: Uint8Array): Promise<BookInstance> {
-    this.title = bookPath.split('/').pop()?.replace(/\.[^.]+$/, '') || 'Word Document';
+    this.title = extractDocumentTitle(bookPath) || 'Word Document';
     try {
       const result = await mammoth.convertToHtml({ arrayBuffer: fileData.buffer as ArrayBuffer });
       this.content = DOMPurify.sanitize(result.value);
@@ -214,7 +215,7 @@ export class DocxAdapter implements BookAdapter {
     wrapper.style.fontSize = `${options.fontSize}px`;
     wrapper.style.lineHeight = String(options.lineHeight);
     wrapper.style.padding = `${options.margin}px`;
-    wrapper.style.maxWidth = `${Math.max(400, options.width - options.margin * 2)}px`;
+    wrapper.style.maxWidth = `${Math.max(280, options.width - options.margin * 2)}px`;
     wrapper.style.margin = '0 auto';
     wrapper.style.color = options.theme === 'dark' ? '#f3f4f6' : options.theme === 'sepia' ? '#5f4b32' : '#111827';
     wrapper.style.backgroundColor = options.theme === 'dark' ? '#111827' : options.theme === 'sepia' ? '#fbf0d9' : '#ffffff';

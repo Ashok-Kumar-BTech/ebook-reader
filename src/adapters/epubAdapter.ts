@@ -1,4 +1,5 @@
 import type { BookAdapter, BookInstance, RenderOptions, SearchResult, TOCItem } from '../types/reader';
+import { extractDocumentTitle } from '../utils/pathUtils';
 
 // Dynamic import for epubjs
 let epubjs: any = null;
@@ -33,7 +34,7 @@ export class EpubAdapter implements BookAdapter {
     this.book = epub.default ? epub.default(url) : epub(url);
     
     const metadata = await this.book.loaded.metadata;
-    this.title = metadata.title || bookPath.split('/').pop() || 'EPUB Document';
+    this.title = metadata.title || extractDocumentTitle(bookPath) || 'EPUB Document';
     this.author = metadata.creator;
     this.spineItems = this.book.spine.spineItems;
     this.pageCount = this.spineItems.length;
@@ -172,8 +173,8 @@ export class EpubAdapter implements BookAdapter {
     } else {
       try {
         this.rendition.resize(
-          Math.max(300, options.width - options.margin * 2),
-          Math.max(300, options.height - options.margin * 2)
+          Math.max(280, options.width - options.margin * 2),
+          Math.max(280, options.height - options.margin * 2)
         );
         if (this.rendition.themes) {
           this.rendition.themes.fontSize(`${options.fontSize}px`);

@@ -1,4 +1,5 @@
 import type { BookAdapter, BookInstance, RenderOptions, SearchResult, TOCItem } from '../types/reader';
+import { extractDocumentTitle } from '../utils/pathUtils';
 
 export class TxtAdapter implements BookAdapter {
   readonly format = 'txt' as const;
@@ -13,7 +14,7 @@ export class TxtAdapter implements BookAdapter {
   async load(bookPath: string, fileData: Uint8Array): Promise<BookInstance> {
     const decoder = new TextDecoder('utf-8', { fatal: false });
     this.content = decoder.decode(fileData);
-    this.title = bookPath.split('/').pop()?.replace(/\.[^.]+$/, '') || 'Text Document';
+    this.title = extractDocumentTitle(bookPath) || 'Text Document';
     this.pages = this.splitIntoPages(this.content);
     this.pageCount = this.pages.length;
     this.currentPage = 0;
@@ -88,7 +89,7 @@ export class TxtAdapter implements BookAdapter {
     div.style.color = this.getThemeColor(options.theme);
     div.style.backgroundColor = this.getThemeBg(options.theme);
     div.style.width = '100%';
-    div.style.maxWidth = Math.max(400, (options.width - options.margin * 2)) + 'px';
+    div.style.maxWidth = Math.max(280, (options.width - options.margin * 2)) + 'px';
     div.style.margin = '0 auto';
     div.style.padding = options.margin + 'px';
     div.textContent = text;

@@ -28,6 +28,7 @@ import { getAdapterForPath } from "../adapters/registry";
 import { getFileSystemProvider } from "../platform/fs";
 import { useLogger } from "../utils/logger";
 import { toggleFullscreen, isFullscreen } from "../utils/windowState";
+import { extractDocumentTitle } from "../utils/pathUtils";
 import { FormatBadge } from "./FormatBadge";
 import { TableOfContentsDrawer } from "./TableOfContentsDrawer";
 import { SearchAndBookmarksDrawer, type SearchBookmarksTab } from "./SearchAndBookmarksDrawer";
@@ -42,8 +43,11 @@ interface ReaderViewProps {
 export function ReaderView({ onClose }: ReaderViewProps) {
   const logger = useLogger("ReaderView");
   const { isCompact } = useBreakpoint();
-  const { currentBookPath, bookStates, getBookState, updateLocation, updateSettings, addBookmark, removeBookmark } = useBookStore();
+  const { currentBookPath, currentBookTitle, bookStates, getBookState, updateLocation, updateSettings, addBookmark, removeBookmark } = useBookStore();
   const { toggleSidebar, sidebarVisible } = useUiStore();
+
+  const minZoom = isCompact ? 1.0 : 0.6;
+  const maxZoom = 3.0;
 
   const bookBookmarks = useMemo(() => {
     if (!currentBookPath) return [];
@@ -54,6 +58,16 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const [rendering, setRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookInstance, setBookInstance] = useState<BookInstance | null>(null);
+
+  const displayTitle = useMemo(() => {
+    if (bookInstance?.title && !bookInstance.title.includes("%2F") && !bookInstance.title.includes("primary%3A")) {
+      return bookInstance.title;
+    }
+    if (currentBookTitle) return currentBookTitle;
+    if (currentBookPath) return extractDocumentTitle(currentBookPath);
+    return "Ebook Reader";
+  }, [bookInstance?.title, currentBookTitle, currentBookPath]);
+
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [viewMode, setViewMode] = useState<"single" | "two-page" | "scroll">("scroll");
@@ -85,10 +99,13 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const leftPageRef = useRef<HTMLDivElement>(null);
   const rightPageRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollPagesWrapperRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<BookAdapter | null>(null);
   const gestureStartZoomRef = useRef<number>(1.0);
   const renderedPagesRef = useRef<Set<number>>(new Set());
   const isScrollingToPageRef = useRef<boolean>(false);
+  const isPinchingRef = useRef<boolean>(false);
+  const [isPinching, setIsPinching] = useState<boolean>(false);
   const bookPathRef = useRef<string | null>(currentBookPath);
 
   useEffect(() => {
@@ -251,13 +268,13 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     const width = container.clientWidth || 800;
     const height = container.clientHeight || 600;
 
-    // Target sizing: Single view and Spread view zoom size approx 70% to 85% of Scroll view (baseline 860px)
-    const scrollBaselineWidth = 860;
+    // Responsive baseline width: on mobile, fill available screen width; on desktop, center column
+    const scrollBaselineWidth = isCompact ? Math.max(300, width - 8) : 860;
 
-    // Single view targets ~80-82% of Scroll view (approx 690px-705px)
-    const idealSingleWidth = Math.floor(scrollBaselineWidth * 0.81);
-    const targetSingleWidth = Math.min(width - 32, idealSingleWidth);
-    const targetSingleHeight = Math.max(height - 32, Math.floor(targetSingleWidth * 1.35));
+    // Single view targets full width on mobile, and ~81% of desktop column
+    const idealSingleWidth = isCompact ? width : Math.floor(scrollBaselineWidth * 0.81);
+    const targetSingleWidth = isCompact ? Math.max(280, width - 8) : Math.min(width - 32, idealSingleWidth);
+    const targetSingleHeight = isCompact ? (height - 16) : Math.max(height - 32, Math.floor(targetSingleWidth * 1.35));
     const singleWidth = Math.floor(targetSingleWidth / 2) * 2;
     const singleHeight = Math.floor(targetSingleHeight / 2) * 2;
 
@@ -274,7 +291,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       theme: readerTheme,
       fontSize,
       lineHeight,
-      margin: Math.min(margin, 16),
+      margin: isCompact ? 0 : Math.min(margin, 16),
       twoPageView: viewMode === "two-page",
       continuousScroll: false,
       zoom: zoomLevel,
@@ -329,15 +346,17 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
     const adapter = adapterRef.current;
     const container = containerRef.current;
+    const width = container?.clientWidth || 800;
     const height = container?.clientHeight || 600;
+    const baselineWidth = isCompact ? Math.max(300, width - 8) : 860;
 
     const baseOptions: RenderOptions = {
-      width: Math.floor(860 * debouncedZoomLevel),
+      width: Math.floor(baselineWidth * debouncedZoomLevel),
       height: height - 40,
       theme: readerTheme,
       fontSize,
       lineHeight,
-      margin,
+      margin: isCompact ? 0 : Math.min(margin, 16),
       twoPageView: false,
       continuousScroll: true,
       zoom: debouncedZoomLevel,
@@ -398,7 +417,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     let ticking = false;
 
     const handleScroll = () => {
-      if (isScrollingToPageRef.current) return;
+      if (isScrollingToPageRef.current || isPinchingRef.current) return;
       if (!ticking) {
         window.requestAnimationFrame(() => {
           ticking = false;
@@ -492,16 +511,16 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
   // Zoom & Pan handlers
   const handleZoomIn = useCallback(() => {
-    setZoomLevel(prev => Math.min(3.0, +(prev + 0.1).toFixed(2)));
-  }, []);
+    setZoomLevel(prev => Math.min(maxZoom, +(prev + 0.1).toFixed(2)));
+  }, [maxZoom]);
 
   const handleZoomOut = useCallback(() => {
     setZoomLevel(prev => {
-      const next = Math.max(0.5, +(prev - 0.1).toFixed(2));
+      const next = Math.max(minZoom, +(prev - 0.1).toFixed(2));
       if (next <= 1.0) setPanOffset({ x: 0, y: 0 });
       return next;
     });
-  }, []);
+  }, [minZoom]);
 
   const handleResetZoom = useCallback(() => {
     setZoomLevel(1.0);
@@ -743,6 +762,9 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       initialZoom: 1.0,
       focalX: 0,
       focalY: 0,
+      focalLocalX: 0,
+      focalLocalY: 0,
+      currentScaleRatio: 1.0,
       lastTapTime: 0,
       lastTapX: 0,
       lastTapY: 0,
@@ -755,6 +777,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       if (e.touches.length === 2) {
         // Multi-touch pinch gesture
         e.preventDefault();
+        isPinchingRef.current = true;
+        setIsPinching(true);
         track.mode = "pinch";
         const t1 = e.touches[0];
         const t2 = e.touches[1];
@@ -766,6 +790,13 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         track.startY = track.focalY;
         track.lastX = track.focalX;
         track.lastY = track.focalY;
+        track.currentScaleRatio = 1.0;
+
+        if (viewMode === "scroll" && scrollContainerRef.current) {
+          const rect = scrollContainerRef.current.getBoundingClientRect();
+          track.focalLocalX = track.focalX - rect.left;
+          track.focalLocalY = track.focalY - rect.top;
+        }
       } else if (e.touches.length === 1) {
         const touch = e.touches[0];
         const timeDiff = now - track.lastTapTime;
@@ -776,7 +807,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           e.preventDefault();
           track.lastTapTime = 0;
           if (zoomLevelRef.current > 1.05) {
-            setZoomLevel(1.0);
+            setZoomLevel(minZoom);
             setPanOffset({ x: 0, y: 0 });
           } else {
             const targetZoom = 1.75;
@@ -793,8 +824,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               const tapFocalX = touch.clientX - rect.left;
               const tapFocalY = touch.clientY - rect.top;
               const ratio = targetZoom / zoomLevelRef.current;
-              scrollEl.scrollLeft = (scrollEl.scrollLeft + tapFocalX) * ratio - tapFocalX;
-              scrollEl.scrollTop = (scrollEl.scrollTop + tapFocalY) * ratio - tapFocalY;
+              scrollEl.scrollLeft = Math.max(0, (scrollEl.scrollLeft + tapFocalX) * ratio - tapFocalX);
+              scrollEl.scrollTop = Math.max(0, (scrollEl.scrollTop + tapFocalY) * ratio - tapFocalY);
             }
           }
           return;
@@ -820,47 +851,70 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && track.mode === "pinch" && track.initialDist > 0) {
+      if (e.touches.length === 2) {
         e.preventDefault();
         const t1 = e.touches[0];
         const t2 = e.touches[1];
+
+        // Safety initialization if finger 2 landed during move or mode wasn't set to pinch yet
+        if (track.mode !== "pinch" || track.initialDist <= 0) {
+          isPinchingRef.current = true;
+          setIsPinching(true);
+          track.mode = "pinch";
+          track.initialDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+          track.initialZoom = zoomLevelRef.current;
+          track.focalX = (t1.clientX + t2.clientX) / 2;
+          track.focalY = (t1.clientY + t2.clientY) / 2;
+          track.startX = track.focalX;
+          track.startY = track.focalY;
+          track.lastX = track.focalX;
+          track.lastY = track.focalY;
+          track.currentScaleRatio = 1.0;
+          if (viewMode === "scroll" && scrollContainerRef.current) {
+            const rect = scrollContainerRef.current.getBoundingClientRect();
+            track.focalLocalX = track.focalX - rect.left;
+            track.focalLocalY = track.focalY - rect.top;
+          }
+          return;
+        }
+
         const currentDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
         const scaleRatio = currentDist / track.initialDist;
-        const nextZoom = Math.min(3.0, Math.max(0.5, +(track.initialZoom * scaleRatio).toFixed(2)));
+        const targetZoom = Math.min(maxZoom, Math.max(minZoom, track.initialZoom * scaleRatio));
+        const effectiveRatio = targetZoom / track.initialZoom;
+        track.currentScaleRatio = effectiveRatio;
 
         const currentFocalX = (t1.clientX + t2.clientX) / 2;
         const currentFocalY = (t1.clientY + t2.clientY) / 2;
 
-        if (viewMode === "scroll" && scrollContainerRef.current) {
-          const scrollEl = scrollContainerRef.current;
-          const rect = scrollEl.getBoundingClientRect();
-          const focalLocalX = currentFocalX - rect.left;
-          const focalLocalY = currentFocalY - rect.top;
-
-          const prevZoom = zoomLevelRef.current;
-          if (prevZoom > 0 && Math.abs(nextZoom - prevZoom) > 0.005) {
-            const ratio = nextZoom / prevZoom;
-            scrollEl.scrollLeft = Math.max(0, (scrollEl.scrollLeft + focalLocalX) * ratio - focalLocalX);
-            scrollEl.scrollTop = Math.max(0, (scrollEl.scrollTop + focalLocalY) * ratio - focalLocalY);
+        if (viewMode === "scroll") {
+          // Hardware GPU transform during active pinch gesture (zero layout reflow & zero shake)
+          if (scrollPagesWrapperRef.current) {
+            const wrapper = scrollPagesWrapperRef.current;
+            const focalX = track.focalLocalX || (currentFocalX - (scrollContainerRef.current?.getBoundingClientRect().left || 0));
+            const focalY = track.focalLocalY || (currentFocalY - (scrollContainerRef.current?.getBoundingClientRect().top || 0));
+            wrapper.style.transformOrigin = `${focalX}px ${focalY}px`;
+            wrapper.style.transform = `scale(${effectiveRatio})`;
+            wrapper.style.transition = "none";
           }
-        } else if (viewMode !== "scroll") {
+        } else {
+          // Single / Two-Page view: adjust pan offset smoothly
           const prevZoom = zoomLevelRef.current;
-          if (nextZoom <= 1.0) {
+          if (targetZoom <= 1.0) {
             setPanOffset({ x: 0, y: 0 });
-          } else if (prevZoom > 0 && Math.abs(nextZoom - prevZoom) > 0.005) {
+          } else if (prevZoom > 0 && Math.abs(targetZoom - prevZoom) > 0.005) {
             const c = containerRef.current;
             const rect = c?.getBoundingClientRect() || { left: 0, top: 0, width: 800, height: 600 };
             const focalCenterX = currentFocalX - (rect.left + rect.width / 2);
             const focalCenterY = currentFocalY - (rect.top + rect.height / 2);
-            const ratio = nextZoom / prevZoom;
+            const ratio = targetZoom / prevZoom;
             setPanOffset(prev => ({
               x: (prev.x - focalCenterX) * ratio + focalCenterX,
               y: (prev.y - focalCenterY) * ratio + focalCenterY,
             }));
           }
+          setZoomLevel(+targetZoom.toFixed(2));
         }
-
-        setZoomLevel(nextZoom);
       } else if (e.touches.length === 1 && track.mode === "pan" && zoomLevelRef.current > 1.05) {
         const touch = e.touches[0];
         const dx = touch.clientX - track.lastX;
@@ -889,6 +943,33 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
     const onTouchEnd = (e: TouchEvent) => {
       if (e.touches.length === 0) {
+        if (track.mode === "pinch") {
+          isPinchingRef.current = false;
+          setIsPinching(false);
+
+          if (viewMode === "scroll" && scrollPagesWrapperRef.current && scrollContainerRef.current) {
+            const finalRatio = track.currentScaleRatio || 1.0;
+            const finalZoom = Math.min(maxZoom, Math.max(minZoom, +(track.initialZoom * finalRatio).toFixed(2)));
+
+            // Reset transform cleanly before committing new layout
+            const wrapper = scrollPagesWrapperRef.current;
+            wrapper.style.transform = "none";
+            wrapper.style.transformOrigin = "center top";
+
+            const scrollEl = scrollContainerRef.current;
+            const focalLocalX = track.focalLocalX || 0;
+            const focalLocalY = track.focalLocalY || 0;
+
+            const ratio = finalZoom / track.initialZoom;
+            if (track.initialZoom > 0 && Math.abs(ratio - 1) > 0.01) {
+              scrollEl.scrollLeft = Math.max(0, (scrollEl.scrollLeft + focalLocalX) * ratio - focalLocalX);
+              scrollEl.scrollTop = Math.max(0, (scrollEl.scrollTop + focalLocalY) * ratio - focalLocalY);
+            }
+
+            setZoomLevel(finalZoom);
+          }
+        }
+
         if (track.mode === "swipe" && viewMode !== "scroll" && zoomLevelRef.current <= 1.05) {
           if (e.changedTouches.length > 0) {
             const diffX = e.changedTouches[0].clientX - track.startX;
@@ -910,6 +991,25 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         track.mode = "none";
         track.initialDist = 0;
       } else if (e.touches.length === 1 && track.mode === "pinch") {
+        isPinchingRef.current = false;
+        setIsPinching(false);
+        if (viewMode === "scroll" && scrollPagesWrapperRef.current && scrollContainerRef.current) {
+          const finalRatio = track.currentScaleRatio || 1.0;
+          const finalZoom = Math.min(maxZoom, Math.max(minZoom, +(track.initialZoom * finalRatio).toFixed(2)));
+          const wrapper = scrollPagesWrapperRef.current;
+          wrapper.style.transform = "none";
+          wrapper.style.transformOrigin = "center top";
+
+          const scrollEl = scrollContainerRef.current;
+          const focalLocalX = track.focalLocalX || 0;
+          const focalLocalY = track.focalLocalY || 0;
+          const ratio = finalZoom / track.initialZoom;
+          if (track.initialZoom > 0 && Math.abs(ratio - 1) > 0.01) {
+            scrollEl.scrollLeft = Math.max(0, (scrollEl.scrollLeft + focalLocalX) * ratio - focalLocalX);
+            scrollEl.scrollTop = Math.max(0, (scrollEl.scrollTop + focalLocalY) * ratio - focalLocalY);
+          }
+          setZoomLevel(finalZoom);
+        }
         track.mode = "pan";
         track.lastX = e.touches[0].clientX;
         track.lastY = e.touches[0].clientY;
@@ -917,6 +1017,14 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     };
 
     const onTouchCancel = () => {
+      if (track.mode === "pinch") {
+        isPinchingRef.current = false;
+        setIsPinching(false);
+        if (scrollPagesWrapperRef.current) {
+          scrollPagesWrapperRef.current.style.transform = "none";
+          scrollPagesWrapperRef.current.style.transformOrigin = "center top";
+        }
+      }
       track.mode = "none";
       track.initialDist = 0;
     };
@@ -932,7 +1040,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       container.removeEventListener("touchend", onTouchEnd);
       container.removeEventListener("touchcancel", onTouchCancel);
     };
-  }, [loading, nextPage, prevPage, viewMode, resetAutoHideTimer]);
+  }, [loading, nextPage, prevPage, viewMode, resetAutoHideTimer, minZoom, maxZoom]);
 
   // Native Trackpad Pinch-to-Zoom & Two-Finger Panning listener (passive: false, window-captured)
   useEffect(() => {
@@ -943,7 +1051,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         const delta = e.deltaY;
         const zoomDelta = -delta * 0.005;
         setZoomLevel(prev => {
-          const next = Math.min(3.0, Math.max(0.5, +(prev * (1 + zoomDelta)).toFixed(3)));
+          const next = Math.min(maxZoom, Math.max(minZoom, +(prev * (1 + zoomDelta)).toFixed(3)));
           if (next <= 1.0) {
             setPanOffset({ x: 0, y: 0 });
           }
@@ -976,7 +1084,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       e.preventDefault();
       const scale = (e as unknown as { scale: number }).scale;
       if (typeof scale === "number") {
-        const next = Math.min(3.0, Math.max(0.5, +(gestureStartZoomRef.current * scale).toFixed(2)));
+        const next = Math.min(maxZoom, Math.max(minZoom, +(gestureStartZoomRef.current * scale).toFixed(2)));
         setZoomLevel(next);
         if (next <= 1.0) {
           setPanOffset({ x: 0, y: 0 });
@@ -999,7 +1107,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       window.removeEventListener("gesturechange", onGestureChange);
       window.removeEventListener("gestureend", onGestureEnd);
     };
-  }, [viewMode]);
+  }, [viewMode, minZoom, maxZoom]);
 
   // Theme styling constants
   const getThemeStyles = () => {
@@ -1144,7 +1252,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         <div className="w-12 h-12 border-4 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin mb-4" />
         <h3 className="text-lg font-semibold text-[var(--color-text)] mb-1">Opening Document...</h3>
         <p className="text-sm text-[var(--color-text-muted)] max-w-md text-center truncate">
-          {currentBookPath?.split("/").pop()}
+          {currentBookTitle || (currentBookPath ? extractDocumentTitle(currentBookPath) : "")}
         </p>
       </div>
     );
@@ -1218,7 +1326,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                 <ArrowLeftIcon size={18} />
               </button>
               <span className="font-semibold text-xs sm:text-sm truncate text-[var(--color-text)]">
-                {bookInstance?.title || "Ebook Reader"}
+                {displayTitle}
               </span>
               {currentBookPath && <FormatBadge path={currentBookPath} />}
             </div>
@@ -1319,7 +1427,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
               <div className="flex items-center gap-2 truncate ml-2">
                 <span className="font-semibold text-sm truncate max-w-xs md:max-w-md">
-                  {bookInstance?.title || "Ebook Reader"}
+                  {displayTitle}
                 </span>
                 {currentBookPath && <FormatBadge path={currentBookPath} />}
               </div>
@@ -1455,7 +1563,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                   onClick={handleZoomOut}
                   className="px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-30"
                   title="Zoom Out (- / Pinch In)"
-                  disabled={zoomLevel <= 0.5}
+                  disabled={zoomLevel <= minZoom}
                 >
                   <ZoomOutIcon size={13} />
                 </button>
@@ -1471,7 +1579,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                   onClick={handleZoomIn}
                   className="px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-30"
                   title="Zoom In (+ / Pinch Out)"
-                  disabled={zoomLevel >= 3.0}
+                  disabled={zoomLevel >= maxZoom}
                 >
                   <ZoomInIcon size={13} />
                 </button>
@@ -1570,10 +1678,13 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         className={`flex-1 relative reader-viewport-main ${
           viewMode === "scroll"
             ? "overflow-hidden flex flex-col"
-            : "overflow-hidden flex items-center justify-center p-2"
+            : `overflow-hidden flex items-center justify-center ${isCompact ? "p-0" : "p-2"}`
         }`}
         ref={containerRef}
-        style={{ backgroundColor: themeStyle.pageBg }}
+        style={{
+          backgroundColor: themeStyle.pageBg,
+          touchAction: (viewMode !== "scroll" || zoomLevel > 1.05) ? "none" : "pan-y",
+        }}
       >
         {rendering && (
           <div className="absolute top-4 right-4 z-30">
@@ -1584,7 +1695,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         {/* Single Page View */}
         {viewMode === "single" && (
           <div
-            className="relative w-full h-full flex overflow-hidden p-4"
+            className={`relative w-full h-full flex overflow-hidden ${isCompact ? "p-0" : "p-4"}`}
             onMouseDown={handleViewportMouseDown}
             onMouseMove={handleViewportMouseMove}
             onMouseUp={handleViewportMouseUp}
@@ -1609,12 +1720,12 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                     ? "none"
                     : `translate3d(${Math.round(panOffset.x)}px, ${Math.round(panOffset.y)}px, 0) scale(${zoomLevel})`,
                 transformOrigin: "center center",
-                transition: isDragging ? "none" : "transform 100ms ease-out",
+                transition: (isDragging || isPinching) ? "none" : "transform 100ms ease-out",
               }}
             >
               <div
                 ref={pageContainerRef}
-                className="reader-page-fit-container shadow-md rounded"
+                className={`reader-page-fit-container ${isCompact ? "" : "shadow-md rounded"}`}
               />
             </div>
           </div>
@@ -1623,7 +1734,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         {/* Two-Page Spread View */}
         {viewMode === "two-page" && (
           <div
-            className="w-full h-full flex overflow-hidden p-4 relative"
+            className={`w-full h-full flex overflow-hidden relative ${isCompact ? "p-0" : "p-4"}`}
             onMouseDown={handleViewportMouseDown}
             onMouseMove={handleViewportMouseMove}
             onMouseUp={handleViewportMouseUp}
@@ -1641,7 +1752,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                     ? "none"
                     : `translate3d(${Math.round(panOffset.x)}px, ${Math.round(panOffset.y)}px, 0) scale(${zoomLevel})`,
                 transformOrigin: "center center",
-                transition: isDragging ? "none" : "transform 100ms ease-out",
+                transition: (isDragging || isPinching) ? "none" : "transform 100ms ease-out",
               }}
             >
               <div
@@ -1674,56 +1785,60 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         )}
 
         {/* Continuous Scroll View */}
-        {viewMode === "scroll" && (
-          <div
-            ref={scrollContainerRef}
-            className="w-full h-full overflow-y-auto overflow-x-auto p-4 sm:p-6"
-            style={{ touchAction: zoomLevel > 1.05 ? "none" : "pan-y" }}
-          >
+        {viewMode === "scroll" && (() => {
+          const slotWidth = Math.floor((isCompact ? Math.max(300, (containerRef.current?.clientWidth || 390) - 8) : 860) * zoomLevel);
+          return (
             <div
-              className="mx-auto flex flex-col items-center"
-              style={{
-                width: `${Math.floor(860 * zoomLevel)}px`,
-                minWidth: `${Math.floor(860 * zoomLevel)}px`,
-              }}
+              ref={scrollContainerRef}
+              className={`w-full h-full overflow-y-auto overflow-x-auto ${isCompact ? "p-1" : "p-4 sm:p-6"}`}
+              style={{ touchAction: zoomLevel > 1.05 ? "none" : "pan-y" }}
             >
-              {scrollPages.map((pageNum: number) => {
-                const isBookmarked = bookBookmarks.some(b => b.location === pageNum);
-                return (
-                  <div
-                    key={pageNum}
-                    id={`reader-page-${pageNum}`}
-                    data-page-num={pageNum}
-                    className="reader-page-slot my-4 sm:my-6 rounded shadow-sm border relative"
-                    style={{
-                      width: `${Math.floor(860 * zoomLevel)}px`,
-                      minHeight: "700px",
-                      backgroundColor: themeStyle.pageBg,
-                      borderColor: themeStyle.border,
-                    }}
-                  >
-                    {isBookmarked && (
-                      <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${pageNum}`}>
-                        <div className="bookmark-corner-ribbon-badge">
-                          <BookmarkFillIcon size={14} />
+              <div
+                ref={scrollPagesWrapperRef}
+                className="mx-auto flex flex-col items-center"
+                style={{
+                  width: `${slotWidth}px`,
+                  minWidth: `${slotWidth}px`,
+                }}
+              >
+                {scrollPages.map((pageNum: number) => {
+                  const isBookmarked = bookBookmarks.some(b => b.location === pageNum);
+                  return (
+                    <div
+                      key={pageNum}
+                      id={`reader-page-${pageNum}`}
+                      data-page-num={pageNum}
+                      className={`reader-page-slot my-2 sm:my-6 relative ${isCompact ? "" : "rounded shadow-sm border"}`}
+                      style={{
+                        width: `${slotWidth}px`,
+                        minHeight: isCompact ? "380px" : "700px",
+                        backgroundColor: themeStyle.pageBg,
+                        borderColor: themeStyle.border,
+                      }}
+                    >
+                      {isBookmarked && (
+                        <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${pageNum}`}>
+                          <div className="bookmark-corner-ribbon-badge">
+                            <BookmarkFillIcon size={14} />
+                          </div>
+                        </div>
+                      )}
+                      <div
+                        id={`reader-page-content-${pageNum}`}
+                        className={`w-full h-full flex items-center justify-center ${isCompact ? "min-h-[380px] p-0" : "min-h-[700px] p-2"}`}
+                      >
+                        <div className="text-xs text-[var(--color-text-muted)] opacity-50 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
+                          Page {pageNum} of {totalPages}
                         </div>
                       </div>
-                    )}
-                    <div
-                      id={`reader-page-content-${pageNum}`}
-                      className="w-full h-full min-h-[700px] flex items-center justify-center p-2"
-                    >
-                      <div className="text-xs text-[var(--color-text-muted)] opacity-50 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
-                        Page {pageNum} of {totalPages}
-                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </main>
 
       {/* Bottom Navigation & Scrubber Bar */}
