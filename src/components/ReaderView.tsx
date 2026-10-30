@@ -19,7 +19,9 @@ import {
   MinimizeIcon,
   PinIcon,
   PinSlashIcon,
+  ArrowLeftIcon,
 } from "@primer/octicons-react";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 import { useBookStore } from "../stores/bookStore";
 import { useUiStore } from "../stores/uiStore";
 import { getAdapterForPath } from "../adapters/registry";
@@ -39,6 +41,7 @@ interface ReaderViewProps {
 
 export function ReaderView({ onClose }: ReaderViewProps) {
   const logger = useLogger("ReaderView");
+  const { isCompact } = useBreakpoint();
   const { currentBookPath, bookStates, getBookState, updateLocation, updateSettings, addBookmark, removeBookmark } = useBookStore();
   const { toggleSidebar, sidebarVisible } = useUiStore();
 
@@ -1117,10 +1120,14 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       style={{ backgroundColor: themeStyle.bg, color: themeStyle.text }}
       onMouseMove={handleMouseMove}
     >
-      {/* Top Hover Sensor Zone: hovering within top 24px reveals top header */}
+      {/* Top Hover Sensor Zone: hovering or touching within top 24px reveals top header */}
       <div
         className="reader-top-hover-zone"
         onMouseEnter={() => {
+          setIsHeaderVisible(true);
+          resetAutoHideTimer();
+        }}
+        onTouchStart={() => {
           setIsHeaderVisible(true);
           resetAutoHideTimer();
         }}
@@ -1128,7 +1135,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
       {/* Floating Smart Auto-Hiding Top Navigation Bar */}
       <header
-        className={`reader-header-floating flex items-center justify-between px-4 py-2 border-b z-50 ${
+        className={`reader-header-floating flex items-center justify-between px-3 sm:px-4 py-2 border-b z-50 ${
           isHeaderVisible || isHeaderPinned ? "reader-header-visible" : "reader-header-hidden"
         }`}
         style={{ backgroundColor: themeStyle.barBg, borderColor: themeStyle.border }}
@@ -1142,271 +1149,365 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           resetAutoHideTimer();
         }}
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={toggleSidebar}
-            title={sidebarVisible ? "Hide Library Sidebar (M)" : "Show Library Sidebar (M)"}
-            className="p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
+        {isCompact ? (
+          <>
+            {/* Compact Mobile Top Navigation: < 600px */}
+            <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+              <button
+                onClick={onClose}
+                className="p-1.5 -ml-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex-shrink-0 active:scale-95 cursor-pointer"
+                title="Return to library (Esc)"
+                aria-label="Return to library"
+              >
+                <ArrowLeftIcon size={18} />
+              </button>
+              <span className="font-semibold text-xs sm:text-sm truncate text-[var(--color-text)]">
+                {bookInstance?.title || "Ebook Reader"}
+              </span>
+              {currentBookPath && <FormatBadge path={currentBookPath} />}
+            </div>
 
-          <button
-            onClick={onClose}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-sm rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors font-medium"
-            title="Return to library browse view (Esc)"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>Library</span>
-          </button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={() => {
+                  setSearchBookmarksTab("search");
+                  setIsSearchBookmarksOpen(curr => (searchBookmarksTab === "search" ? !curr : true));
+                }}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer active:scale-95 ${
+                  isSearchBookmarksOpen && searchBookmarksTab === "search"
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "hover:bg-black/10 dark:hover:bg-white/10"
+                }`}
+                title="Search Book"
+                aria-label="Search Book"
+              >
+                <SearchIcon size={16} />
+              </button>
 
-          <div className="flex items-center gap-2 truncate ml-2">
-            <span className="font-semibold text-sm truncate max-w-xs md:max-w-md">
-              {bookInstance?.title || "Ebook Reader"}
-            </span>
-            {currentBookPath && <FormatBadge path={currentBookPath} />}
-          </div>
-        </div>
+              <button
+                onClick={() => {
+                  setSearchBookmarksTab("bookmarks");
+                  setIsSearchBookmarksOpen(curr => (searchBookmarksTab === "bookmarks" ? !curr : true));
+                }}
+                className={`relative p-1.5 rounded-lg transition-colors cursor-pointer active:scale-95 ${
+                  isSearchBookmarksOpen && searchBookmarksTab === "bookmarks"
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "hover:bg-black/10 dark:hover:bg-white/10"
+                }`}
+                title="Bookmarks"
+                aria-label="Bookmarks"
+              >
+                <BookmarkIcon size={16} />
+                {bookBookmarks.length > 0 && (
+                  <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] text-[9px] px-0.5 bg-amber-500 text-white rounded-full font-bold flex items-center justify-center leading-none">
+                    {bookBookmarks.length}
+                  </span>
+                )}
+              </button>
 
-        {/* View Mode & Theme Controls */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Search & Bookmarks Top Bar Buttons */}
-          <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
-            <button
-              onClick={() => {
-                setSearchBookmarksTab("search");
-                setIsSearchBookmarksOpen(curr => (searchBookmarksTab === "search" ? !curr : true));
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors ${
-                isSearchBookmarksOpen && searchBookmarksTab === "search"
-                  ? "bg-[var(--color-primary)] text-white"
-                  : "hover:bg-black/5 dark:hover:bg-white/5"
-              }`}
-              style={{ borderColor: themeStyle.border }}
-              title="Search Book (Ctrl+F)"
-            >
-              <SearchIcon size={14} />
-              <span>Search</span>
-            </button>
-            <button
-              onClick={() => {
-                setSearchBookmarksTab("bookmarks");
-                setIsSearchBookmarksOpen(curr => (searchBookmarksTab === "bookmarks" ? !curr : true));
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
-                isSearchBookmarksOpen && searchBookmarksTab === "bookmarks"
-                  ? "bg-[var(--color-primary)] text-white"
-                  : "hover:bg-black/5 dark:hover:bg-white/5"
-              }`}
-              style={{ borderColor: themeStyle.border }}
-              title="Bookmarks (B)"
-            >
-              <BookmarkIcon size={14} />
-              <span>Bookmarks</span>
-              {bookBookmarks.length > 0 && (
-                <span className="opacity-75 text-[10px] px-1 py-0.2 bg-amber-500 text-white rounded-full font-bold">
-                  {bookBookmarks.length}
+              <button
+                onClick={() => setIsTocOpen(curr => !curr)}
+                className={`relative p-1.5 rounded-lg transition-colors cursor-pointer active:scale-95 ${
+                  isTocOpen
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "hover:bg-black/10 dark:hover:bg-white/10"
+                }`}
+                title="Table of Contents"
+                aria-label="Table of Contents"
+              >
+                <ListUnorderedIcon size={16} />
+                {toc.length > 0 && (
+                  <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] text-[9px] px-0.5 bg-[var(--color-primary)] text-white rounded-full font-bold flex items-center justify-center leading-none">
+                    {toc.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setIsSettingsOpen(curr => !curr)}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer active:scale-95 ${
+                  isSettingsOpen
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "hover:bg-black/10 dark:hover:bg-white/10"
+                }`}
+                title="Settings"
+                aria-label="Settings"
+              >
+                <GearIcon size={16} />
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={toggleSidebar}
+                title={sidebarVisible ? "Hide Library Sidebar (M)" : "Show Library Sidebar (M)"}
+                className="p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+
+              <button
+                onClick={onClose}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-sm rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors font-medium"
+                title="Return to library browse view (Esc)"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span>Library</span>
+              </button>
+
+              <div className="flex items-center gap-2 truncate ml-2">
+                <span className="font-semibold text-sm truncate max-w-xs md:max-w-md">
+                  {bookInstance?.title || "Ebook Reader"}
                 </span>
-              )}
-            </button>
-          </div>
+                {currentBookPath && <FormatBadge path={currentBookPath} />}
+              </div>
+            </div>
 
-          {/* View Mode Selectors */}
-          <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
-            <button
-              onClick={() => setViewMode("single")}
-              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium transition-colors ${
-                viewMode === "single"
-                  ? "bg-[var(--color-primary)] text-white"
-                  : "hover:bg-black/5 dark:hover:bg-white/5"
-              }`}
-              title="Single Page View"
-            >
-              <RowsIcon size={13} />
-              <span className="hidden sm:inline">Single</span>
-            </button>
-            <button
-              onClick={() => setViewMode("two-page")}
-              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
-                viewMode === "two-page"
-                  ? "bg-[var(--color-primary)] text-white"
-                  : "hover:bg-black/5 dark:hover:bg-white/5"
-              }`}
-              style={{ borderColor: themeStyle.border }}
-              title="Two-Page Spread View"
-            >
-              <ColumnsIcon size={13} />
-              <span className="hidden sm:inline">Spread</span>
-            </button>
-            <button
-              onClick={() => setViewMode("scroll")}
-              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
-                viewMode === "scroll"
-                  ? "bg-[var(--color-primary)] text-white"
-                  : "hover:bg-black/5 dark:hover:bg-white/5"
-              }`}
-              style={{ borderColor: themeStyle.border }}
-              title="Continuous Scroll View"
-            >
-              <ThreeBarsIcon size={13} />
-              <span className="hidden sm:inline">Scroll</span>
-            </button>
-          </div>
+            {/* View Mode & Theme Controls */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Search & Bookmarks Top Bar Buttons */}
+              <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
+                <button
+                  onClick={() => {
+                    setSearchBookmarksTab("search");
+                    setIsSearchBookmarksOpen(curr => (searchBookmarksTab === "search" ? !curr : true));
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors ${
+                    isSearchBookmarksOpen && searchBookmarksTab === "search"
+                      ? "bg-[var(--color-primary)] text-white"
+                      : "hover:bg-black/5 dark:hover:bg-white/5"
+                  }`}
+                  style={{ borderColor: themeStyle.border }}
+                  title="Search Book (Ctrl+F)"
+                >
+                  <SearchIcon size={14} />
+                  <span>Search</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setSearchBookmarksTab("bookmarks");
+                    setIsSearchBookmarksOpen(curr => (searchBookmarksTab === "bookmarks" ? !curr : true));
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
+                    isSearchBookmarksOpen && searchBookmarksTab === "bookmarks"
+                      ? "bg-[var(--color-primary)] text-white"
+                      : "hover:bg-black/5 dark:hover:bg-white/5"
+                  }`}
+                  style={{ borderColor: themeStyle.border }}
+                  title="Bookmarks (B)"
+                >
+                  <BookmarkIcon size={14} />
+                  <span>Bookmarks</span>
+                  {bookBookmarks.length > 0 && (
+                    <span className="opacity-75 text-[10px] px-1 py-0.2 bg-amber-500 text-white rounded-full font-bold">
+                      {bookBookmarks.length}
+                    </span>
+                  )}
+                </button>
+              </div>
 
-          {/* Theme Quick Toggle */}
-          <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
-            <button
-              onClick={() => setReaderTheme("light")}
-              className={`px-2 py-1 text-xs font-medium transition-colors ${
-                readerTheme === "light"
-                  ? "bg-amber-100 text-amber-900 font-bold"
-                  : "hover:bg-black/5 dark:hover:bg-white/5"
-              }`}
-              title="Light Theme"
-            >
-              <SunIcon size={13} />
-            </button>
-            <button
-              onClick={() => setReaderTheme("sepia")}
-              className={`px-2 py-1 text-xs font-medium transition-colors border-l ${
-                readerTheme === "sepia"
-                  ? "bg-[#ecd5b3] text-[#5f4b32] font-bold"
-                  : "hover:bg-black/5 dark:hover:bg-white/5"
-              }`}
-              style={{ borderColor: themeStyle.border }}
-              title="Sepia Theme"
-            >
-              <span className="text-xs leading-none">📜</span>
-            </button>
-            <button
-              onClick={() => setReaderTheme("dark")}
-              className={`px-2 py-1 text-xs font-medium transition-colors border-l ${
-                readerTheme === "dark"
-                  ? "bg-gray-800 text-white font-bold"
-                  : "hover:bg-black/5 dark:hover:bg-white/5"
-              }`}
-              style={{ borderColor: themeStyle.border }}
-              title="Dark Theme"
-            >
-              <MoonIcon size={13} />
-            </button>
-          </div>
+              {/* View Mode Selectors */}
+              <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
+                <button
+                  onClick={() => setViewMode("single")}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium transition-colors ${
+                    viewMode === "single"
+                      ? "bg-[var(--color-primary)] text-white"
+                      : "hover:bg-black/5 dark:hover:bg-white/5"
+                  }`}
+                  title="Single Page View"
+                >
+                  <RowsIcon size={13} />
+                  <span className="hidden sm:inline">Single</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("two-page")}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
+                    viewMode === "two-page"
+                      ? "bg-[var(--color-primary)] text-white"
+                      : "hover:bg-black/5 dark:hover:bg-white/5"
+                  }`}
+                  style={{ borderColor: themeStyle.border }}
+                  title="Two-Page Spread View"
+                >
+                  <ColumnsIcon size={13} />
+                  <span className="hidden sm:inline">Spread</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("scroll")}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
+                    viewMode === "scroll"
+                      ? "bg-[var(--color-primary)] text-white"
+                      : "hover:bg-black/5 dark:hover:bg-white/5"
+                  }`}
+                  style={{ borderColor: themeStyle.border }}
+                  title="Continuous Scroll View"
+                >
+                  <ThreeBarsIcon size={13} />
+                  <span className="hidden sm:inline">Scroll</span>
+                </button>
+              </div>
 
-          {/* Document Zoom Controls */}
-          <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
-            <button
-              onClick={handleZoomOut}
-              className="px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-30"
-              title="Zoom Out (- / Pinch In)"
-              disabled={zoomLevel <= 0.5}
-            >
-              <ZoomOutIcon size={13} />
-            </button>
-            <button
-              onClick={handleResetZoom}
-              className="px-2 py-1 text-xs font-semibold border-l border-r hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              style={{ borderColor: themeStyle.border }}
-              title="Reset Zoom to 100% Fit (0 / Double Click)"
-            >
-              {Math.round(zoomLevel * 100)}%
-            </button>
-            <button
-              onClick={handleZoomIn}
-              className="px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-30"
-              title="Zoom In (+ / Pinch Out)"
-              disabled={zoomLevel >= 3.0}
-            >
-              <ZoomInIcon size={13} />
-            </button>
-          </div>
+              {/* Theme Quick Toggle */}
+              <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
+                <button
+                  onClick={() => setReaderTheme("light")}
+                  className={`px-2 py-1 text-xs font-medium transition-colors ${
+                    readerTheme === "light"
+                      ? "bg-amber-100 text-amber-900 font-bold"
+                      : "hover:bg-black/5 dark:hover:bg-white/5"
+                  }`}
+                  title="Light Theme"
+                >
+                  <SunIcon size={13} />
+                </button>
+                <button
+                  onClick={() => setReaderTheme("sepia")}
+                  className={`px-2 py-1 text-xs font-medium transition-colors border-l ${
+                    readerTheme === "sepia"
+                      ? "bg-[#ecd5b3] text-[#5f4b32] font-bold"
+                      : "hover:bg-black/5 dark:hover:bg-white/5"
+                  }`}
+                  style={{ borderColor: themeStyle.border }}
+                  title="Sepia Theme"
+                >
+                  <span className="text-xs leading-none">📜</span>
+                </button>
+                <button
+                  onClick={() => setReaderTheme("dark")}
+                  className={`px-2 py-1 text-xs font-medium transition-colors border-l ${
+                    readerTheme === "dark"
+                      ? "bg-gray-800 text-white font-bold"
+                      : "hover:bg-black/5 dark:hover:bg-white/5"
+                  }`}
+                  style={{ borderColor: themeStyle.border }}
+                  title="Dark Theme"
+                >
+                  <MoonIcon size={13} />
+                </button>
+              </div>
 
-          {/* Settings Button */}
-          <button
-            onClick={() => setIsSettingsOpen(curr => !curr)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded border transition-colors ${
-              isSettingsOpen
-                ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-sm"
-                : "hover:bg-black/5 dark:hover:bg-white/5"
-            }`}
-            style={{ borderColor: themeStyle.border }}
-            title="Configure book settings (S)"
-          >
-            <GearIcon size={14} />
-            <span className="hidden md:inline">Settings</span>
-          </button>
+              {/* Document Zoom Controls */}
+              <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
+                <button
+                  onClick={handleZoomOut}
+                  className="px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-30"
+                  title="Zoom Out (- / Pinch In)"
+                  disabled={zoomLevel <= 0.5}
+                >
+                  <ZoomOutIcon size={13} />
+                </button>
+                <button
+                  onClick={handleResetZoom}
+                  className="px-2 py-1 text-xs font-semibold border-l border-r hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                  style={{ borderColor: themeStyle.border }}
+                  title="Reset Zoom to 100% Fit (0 / Double Click)"
+                >
+                  {Math.round(zoomLevel * 100)}%
+                </button>
+                <button
+                  onClick={handleZoomIn}
+                  className="px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-30"
+                  title="Zoom In (+ / Pinch Out)"
+                  disabled={zoomLevel >= 3.0}
+                >
+                  <ZoomInIcon size={13} />
+                </button>
+              </div>
 
-          {/* Header Pin Toggle Button */}
-          <button
-            onClick={() => setIsHeaderPinned(curr => !curr)}
-            className={`p-1.5 rounded border transition-colors ${
-              isHeaderPinned
-                ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-sm"
-                : "hover:bg-black/5 dark:hover:bg-white/5 opacity-80 hover:opacity-100"
-            }`}
-            style={{ borderColor: themeStyle.border }}
-            title={isHeaderPinned ? "Unpin Top Panel (auto-hides after 3.5s of inactivity) (P)" : "Pin Top Panel (keep visible) (P)"}
-          >
-            {isHeaderPinned ? <PinIcon size={14} /> : <PinSlashIcon size={14} />}
-          </button>
+              {/* Settings Button */}
+              <button
+                onClick={() => setIsSettingsOpen(curr => !curr)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded border transition-colors ${
+                  isSettingsOpen
+                    ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-sm"
+                    : "hover:bg-black/5 dark:hover:bg-white/5"
+                }`}
+                style={{ borderColor: themeStyle.border }}
+                title="Configure book settings (S)"
+              >
+                <GearIcon size={14} />
+                <span className="hidden md:inline">Settings</span>
+              </button>
 
-          {/* Fullscreen Toggle Button */}
-          <button
-            onClick={handleToggleFullscreen}
-            className={`p-1.5 rounded border hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
-              isWindowFullscreen
-                ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] border-[var(--color-primary)]/40 font-bold"
-                : "opacity-80 hover:opacity-100"
-            }`}
-            style={{ borderColor: themeStyle.border }}
-            title={isWindowFullscreen ? "Exit Fullscreen (F11 / Esc)" : "Enter Fullscreen Mode (F11)"}
-          >
-            {isWindowFullscreen ? <MinimizeIcon size={14} /> : <MaximizeIcon size={14} />}
-          </button>
+              {/* Header Pin Toggle Button */}
+              <button
+                onClick={() => setIsHeaderPinned(curr => !curr)}
+                className={`p-1.5 rounded border transition-colors ${
+                  isHeaderPinned
+                    ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-sm"
+                    : "hover:bg-black/5 dark:hover:bg-white/5 opacity-80 hover:opacity-100"
+                }`}
+                style={{ borderColor: themeStyle.border }}
+                title={isHeaderPinned ? "Unpin Top Panel (auto-hides after 3.5s of inactivity) (P)" : "Pin Top Panel (keep visible) (P)"}
+              >
+                {isHeaderPinned ? <PinIcon size={14} /> : <PinSlashIcon size={14} />}
+              </button>
 
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ml-1"
-            title="Close Book (Esc)"
-          >
-            <XIcon size={18} />
-          </button>
-        </div>
+              {/* Fullscreen Toggle Button */}
+              <button
+                onClick={handleToggleFullscreen}
+                className={`p-1.5 rounded border hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
+                  isWindowFullscreen
+                    ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] border-[var(--color-primary)]/40 font-bold"
+                    : "opacity-80 hover:opacity-100"
+                }`}
+                style={{ borderColor: themeStyle.border }}
+                title={isWindowFullscreen ? "Exit Fullscreen (F11 / Esc)" : "Enter Fullscreen Mode (F11)"}
+              >
+                {isWindowFullscreen ? <MinimizeIcon size={14} /> : <MaximizeIcon size={14} />}
+              </button>
+
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ml-1"
+                title="Close Book (Esc)"
+              >
+                <XIcon size={18} />
+              </button>
+            </div>
+          </>
+        )}
       </header>
 
-      {/* Left-Side Content / Table of Contents Button (just below top panel menu) */}
-      <div
-        className={`absolute left-4 z-40 transition-all duration-300 pointer-events-auto ${
-          isHeaderVisible || isHeaderPinned ? "top-14" : "top-4"
-        }`}
-      >
-        <button
-          onClick={() => {
-            setIsTocOpen(curr => !curr);
-          }}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border shadow-md backdrop-blur-md text-xs font-medium transition-all ${
-            isTocOpen
-              ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-lg scale-105"
-              : "hover:scale-105 hover:bg-black/5 dark:hover:bg-white/10"
+      {/* Left-Side Content / Table of Contents Button (just below top panel menu) - Desktop Only */}
+      {!isCompact && (
+        <div
+          className={`absolute left-4 z-40 transition-all duration-300 pointer-events-auto ${
+            isHeaderVisible || isHeaderPinned ? "top-14" : "top-4"
           }`}
-          style={{
-            backgroundColor: isTocOpen ? undefined : themeStyle.barBg,
-            borderColor: themeStyle.border,
-          }}
-          title="Table of Contents (C)"
         >
-          <ListUnorderedIcon size={14} />
-          <span>Contents</span>
-          {toc.length > 0 && (
-            <span className="opacity-80 text-[10px] px-1.5 py-0.2 bg-black/10 dark:bg-white/10 rounded-full font-bold">
-              {toc.length}
-            </span>
-          )}
-        </button>
-      </div>
+          <button
+            onClick={() => {
+              setIsTocOpen(curr => !curr);
+            }}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border shadow-md backdrop-blur-md text-xs font-medium transition-all ${
+              isTocOpen
+                ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-lg scale-105"
+                : "hover:scale-105 hover:bg-black/5 dark:hover:bg-white/10"
+            }`}
+            style={{
+              backgroundColor: isTocOpen ? undefined : themeStyle.barBg,
+              borderColor: themeStyle.border,
+            }}
+            title="Table of Contents (C)"
+          >
+            <ListUnorderedIcon size={14} />
+            <span>Contents</span>
+            {toc.length > 0 && (
+              <span className="opacity-80 text-[10px] px-1.5 py-0.2 bg-black/10 dark:bg-white/10 rounded-full font-bold">
+                {toc.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Main Reading Viewport */}
       <main

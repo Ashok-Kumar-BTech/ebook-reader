@@ -20,10 +20,24 @@ const logger = logManager.getLogger('fs:android');
 
 const VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX = 'ebook_reader_virtual_collection_';
 
+/**
+ * Extracts the root tree URI from a document URI inside a tree, or returns the URI itself.
+ * e.g. "content://.../tree/primary%3ADocuments/document/primary%3ADocuments"
+ *   -> "content://.../tree/primary%3ADocuments"
+ */
+function extractTreeUri(uriString: string): string | null {
+  if (!uriString.startsWith('content://')) return null;
+  const docIdx = uriString.indexOf('/document/');
+  if (docIdx !== -1) {
+    return uriString.substring(0, docIdx);
+  }
+  return uriString;
+}
+
 function toFsUri(uriString: string): FsUri {
   return {
     uri: uriString,
-    documentTopTreeUri: null,
+    documentTopTreeUri: extractTreeUri(uriString),
   };
 }
 
@@ -38,7 +52,7 @@ export class AndroidFsProvider implements FileSystemProvider {
   private virtualCollections = new Map<string, Entry[]>();
 
   constructor() {
-    // Rehydrate any persisted virtual collections from localStorage
+    // Rehydrate any persisted collections from localStorage
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         for (let i = 0; i < localStorage.length; i++) {
@@ -54,7 +68,7 @@ export class AndroidFsProvider implements FileSystemProvider {
         }
       }
     } catch (e) {
-      logger.warn('ANDROID_REHYDRATE_VIRTUAL_COLLECTIONS_FAILED', { error: String(e) });
+      logger.warn('ANDROID_REHYDRATE_COLLECTIONS_FAILED', { error: String(e) });
     }
   }
 
@@ -91,14 +105,14 @@ export class AndroidFsProvider implements FileSystemProvider {
   }
 
   /**
-   * Native file picking flow on Android using tauri-plugin-android-fs (ACTION_OPEN_DOCUMENT).
-   * Retrieves real file names, actual byte sizes, and persists ContentResolver permissions.
+   * Native single-file picking flow on Android using tauri-plugin-android-fs (ACTION_OPEN_DOCUMENT).
+   * Opens exactly one ebook directly for reading.
    */
-  async pickFiles(title = 'Select Ebook File(s)'): Promise<PickedFilesResult | null> {
-    logger.info('ANDROID_PICK_FILES_START', { title });
+  async pickFile(title = 'Select Ebook'): Promise<Entry | null> {
+    logger.info('ANDROID_PICK_FILE_START', { title });
     try {
       const fsUris = await showOpenFilePicker({
-        multiple: true,
+        multiple: false,
         mimeTypes: [
           'application/pdf',
           'application/epub+zip',
@@ -110,69 +124,61 @@ export class AndroidFsProvider implements FileSystemProvider {
       });
 
       if (!fsUris || fsUris.length === 0) {
-        logger.debug('ANDROID_PICK_FILES_CANCELLED');
+        logger.debug('ANDROID_PICK_FILE_CANCELLED');
         return null;
       }
 
-      const entries: Entry[] = [];
-      const dirId = `collection:selected_${Date.now()}`;
-
-      for (const fsUri of fsUris) {
-        try {
-          await persistPickerUriPermission(fsUri);
-        } catch (permErr) {
-          logger.warn('ANDROID_PERSIST_PERMISSION_FAILED', { uri: fsUri.uri, error: String(permErr) });
-        }
-
-        const name = await this.getFriendlyName(fsUri);
-        let size = 0;
-        try {
-          size = await androidGetFileByteLength(fsUri);
-        } catch {
-          size = 0;
-        }
-
-        entries.push({
-          id: fsUri.uri,
-          parent: dirId,
-          name,
-          isDirectory: false,
-          size,
-          modifiedMs: Date.now(),
-          isSupported: formatRegistry.isSupported(name),
-        });
-      }
-
-      const dirName = entries.length === 1 ? entries[0].name : `Selected Ebooks (${entries.length})`;
-      const dir: DirRef = {
-        id: dirId,
-        name: dirName,
-        platform: 'android',
-      };
-
-      // Store in memory and persistent storage
-      this.virtualCollections.set(dirId, entries);
+      const fsUri = fsUris[0];
       try {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          localStorage.setItem(
-            `${VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX}${dirId}`,
-            JSON.stringify(entries)
-          );
-        }
-      } catch (e) {
-        logger.warn('ANDROID_PERSIST_VIRTUAL_COLLECTION_STORAGE_FAILED', { error: String(e) });
+        await persistPickerUriPermission(fsUri);
+      } catch (permErr) {
+        logger.warn('ANDROID_PERSIST_PERMISSION_FAILED', { uri: fsUri.uri, error: String(permErr) });
       }
 
-      logger.info('ANDROID_PICK_FILES_SUCCESS', { count: entries.length, dirId });
-      return {
-        dir,
-        files: entries,
-        singleFilePath: entries.length === 1 ? entries[0].id : undefined,
+      const name = await this.getFriendlyName(fsUri);
+      let size = 0;
+      try {
+        size = await androidGetFileByteLength(fsUri);
+      } catch {
+        size = 0;
+      }
+
+      const entry: Entry = {
+        id: fsUri.uri,
+        parent: '',
+        name,
+        isDirectory: false,
+        size,
+        modifiedMs: Date.now(),
+        isSupported: formatRegistry.isSupported(name),
       };
+
+      logger.info('ANDROID_PICK_FILE_SUCCESS', { name, uri: fsUri.uri, size });
+      return entry;
     } catch (err) {
-      logger.error('ANDROID_PICK_FILES_FAILED', { error: String(err) });
+      logger.error('ANDROID_PICK_FILE_FAILED', { error: String(err) });
       throw toAppError(err);
     }
+  }
+
+  /**
+   * Compatibility wrapper for multi-file API, returning the single selected book.
+   */
+  async pickFiles(title = 'Select Ebook'): Promise<PickedFilesResult | null> {
+    const file = await this.pickFile(title);
+    if (!file) return null;
+
+    const dir: DirRef = {
+      id: file.id,
+      name: file.name,
+      platform: 'android',
+    };
+
+    return {
+      dir,
+      files: [file],
+      singleFilePath: file.id,
+    };
   }
 
   /**

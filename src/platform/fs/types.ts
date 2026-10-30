@@ -35,6 +35,7 @@ export interface FileSystemProvider {
   readonly kind: 'desktop' | 'android' | 'web';
   readonly capabilities: FileSystemCapabilities;
   pickDirectory(title?: string): Promise<DirRef | null>;
+  pickFile?(title?: string): Promise<Entry | null>;
   pickFiles?(title?: string): Promise<PickedFilesResult | null>;
   listChildren(dir: DirRef): Promise<Entry[]>; // immediate children only, lazy
   readFile(entry: Pick<Entry, 'id' | 'name'>): Promise<Uint8Array>;

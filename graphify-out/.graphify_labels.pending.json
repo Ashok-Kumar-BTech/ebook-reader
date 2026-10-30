@@ -50,11 +50,9 @@
   "48": "store.ts",
   "49": "tauriApi.ts",
   "50": "app/build.gradle.kts",
-  "51": "android-build-log.md",
   "52": "android/build.gradle.kts",
   "53": "buildSrc/build.gradle.kts",
   "54": "settings.gradle",
   "55": "BookAdapter",
-  "56": "MainActivity",
   "57": "Ebook Reader: Cross-Platform & Responsive Refactor Plan"
 }

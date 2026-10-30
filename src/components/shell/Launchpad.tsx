@@ -4,7 +4,7 @@ import type { RecentFolder } from "../../stores/uiStore";
 export interface LaunchpadProps {
   recentFolders: RecentFolder[];
   onOpenDirectory: (selectedPath?: RecentFolder | string) => void;
-  onOpenFiles?: () => void;
+  onOpenFile?: () => void;
   onClearRecents: () => void;
   isCompact?: boolean;
 }
@@ -22,7 +22,7 @@ function getFolderSubtitle(folder: RecentFolder): string {
 export function Launchpad({
   recentFolders,
   onOpenDirectory,
-  onOpenFiles,
+  onOpenFile,
   onClearRecents,
   isCompact,
 }: LaunchpadProps) {
@@ -37,19 +37,19 @@ export function Launchpad({
           Your Local Ebook Library
         </h2>
         <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mb-5 leading-relaxed">
-          Open a folder or individual ebook files on your device to read PDF, EPUB, CBZ, and TXT books with complete privacy and zero telemetry.
+          Open a folder or an ebook file on your device to read PDF, EPUB, CBZ, and TXT books with complete privacy and zero telemetry.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 w-full max-w-sm mx-auto">
           {isCompact ? (
             <>
-              {onOpenFiles && (
+              {onOpenFile && (
                 <button
-                  onClick={onOpenFiles}
+                  onClick={onOpenFile}
                   className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[var(--color-primary)] text-white text-xs sm:text-sm font-semibold hover:bg-[var(--color-primary-hover)] transition-all shadow-md active:scale-95 cursor-pointer w-full"
                 >
                   <BookIcon size={16} />
-                  <span>Open Ebook File(s)</span>
+                  <span>Open Book</span>
                 </button>
               )}
               <button
@@ -69,13 +69,13 @@ export function Launchpad({
                 <FileDirectoryFillIcon size={16} />
                 <span>Open Ebook Folder</span>
               </button>
-              {onOpenFiles && (
+              {onOpenFile && (
                 <button
-                  onClick={onOpenFiles}
+                  onClick={onOpenFile}
                   className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] text-xs sm:text-sm font-semibold hover:bg-black/5 dark:hover:bg-white/5 transition-all shadow-xs active:scale-95 cursor-pointer w-full"
                 >
                   <BookIcon size={16} />
-                  <span>Open File(s)</span>
+                  <span>Open Book</span>
                 </button>
               )}
             </>

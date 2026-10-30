@@ -43,6 +43,51 @@ export class WebFsProvider implements FileSystemProvider {
     }
   }
 
+  async pickFile(_title = 'Select Ebook'): Promise<Entry | null> {
+    if (typeof window === 'undefined' || !('showOpenFilePicker' in window)) {
+      throw new AppError('MISSING_COMPONENT', 'File System Access API is not supported in this browser.');
+    }
+
+    try {
+      const handles = await (window as any).showOpenFilePicker({
+        multiple: false,
+        types: [
+          {
+            description: 'Ebooks',
+            accept: {
+              'application/pdf': ['.pdf'],
+              'application/epub+zip': ['.epub'],
+              'application/x-cbz': ['.cbz'],
+              'text/plain': ['.txt'],
+              'text/html': ['.html', '.htm'],
+            },
+          },
+        ],
+      });
+
+      if (!handles || handles.length === 0) return null;
+
+      const h = handles[0];
+      const file = await h.getFile();
+      const entryId = `virtual:web_${h.name}`;
+      this.fileHandles.set(entryId, h);
+
+      return {
+        id: entryId,
+        parent: '',
+        name: h.name,
+        isDirectory: false,
+        size: file.size,
+        modifiedMs: file.lastModified,
+        isSupported: formatRegistry.isSupported(h.name),
+      };
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return null;
+      logger.error('WEB_PICK_FILE_FAILED', { error: String(err) });
+      throw toAppError(err);
+    }
+  }
+
   async pickFiles(_title = 'Select Ebook File(s)'): Promise<PickedFilesResult | null> {
     if (typeof window === 'undefined' || !('showOpenFilePicker' in window)) {
       throw new AppError('MISSING_COMPONENT', 'File System Access API is not supported in this browser.');

@@ -43,6 +43,48 @@ export class DesktopFsProvider implements FileSystemProvider {
     }
   }
 
+  async pickFile(title = 'Select Ebook'): Promise<Entry | null> {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        directory: false,
+        multiple: false,
+        title,
+        filters: [
+          {
+            name: 'Ebooks',
+            extensions: getAllSupportedExtensions(),
+          },
+        ],
+      });
+
+      if (!selected || typeof selected !== 'string') return null;
+
+      const { invoke } = await import('@tauri-apps/api/core');
+      const name = selected.split(/[/\\]/).filter(Boolean).pop() || selected;
+      let size = 0;
+      let modifiedMs = Date.now();
+      try {
+        const meta = await invoke<{ size: number; modified: number }>('get_file_metadata', { path: selected });
+        size = meta.size;
+        modifiedMs = meta.modified;
+      } catch {}
+
+      return {
+        id: selected,
+        parent: '',
+        name,
+        isDirectory: false,
+        size,
+        modifiedMs,
+        isSupported: formatRegistry.isSupported(name),
+      };
+    } catch (err) {
+      logger.error('PICK_FILE_FAILED', { error: String(err) });
+      throw toAppError(err);
+    }
+  }
+
   async pickFiles(title = 'Select Ebook File(s)'): Promise<PickedFilesResult | null> {
     try {
       const { open } = await import('@tauri-apps/plugin-dialog');

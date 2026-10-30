@@ -276,28 +276,24 @@ export default function App() {
     }
   };
 
-  const handleOpenFiles = async () => {
-    logger.info("OPEN_FILES");
+  const handleOpenFile = async () => {
+    logger.info("OPEN_FILE");
     try {
       const provider = await getFileSystemProvider();
-      if (!provider.pickFiles) {
-        await handleOpenDirectory();
-        return;
-      }
-
-      const res = await provider.pickFiles("Select Ebook File(s)");
-      if (!res) {
-        logger.debug("FILES_DIALOG_CANCELLED");
-        return;
-      }
-
-      if (res.singleFilePath && res.files.length === 1) {
-        await handleFileClick(res.singleFilePath);
+      if (provider.pickFile) {
+        const file = await provider.pickFile("Select Ebook");
+        if (file) {
+          await handleFileClick(file.id);
+        } else {
+          logger.debug("FILE_DIALOG_CANCELLED");
+        }
+      } else if (provider.pickFiles) {
+        const res = await provider.pickFiles("Select Ebook");
+        if (res && res.files.length > 0) {
+          await handleFileClick(res.files[0].id);
+        }
       } else {
-        logger.info("MULTIPLE_FILES_SELECTED", { dir: res.dir, count: res.files.length });
-        navigateToDir(res.dir.id);
-        addRecentFolder({ id: res.dir.id, name: res.dir.name, platform: provider.kind });
-        setMode("browse");
+        await handleOpenDirectory();
       }
     } catch (err) {
       const appErr = toAppError(err);
@@ -333,7 +329,7 @@ export default function App() {
             recentFolders={recentFolders}
             currentRoot={currentRoot}
             onOpenDirectory={handleOpenDirectory}
-            onOpenFiles={handleOpenFiles}
+            onOpenFile={handleOpenFile}
             onClearRecents={clearRecents}
             searchQuery={librarySearchQuery}
             onSearchChange={setLibrarySearchQuery}
@@ -416,7 +412,7 @@ export default function App() {
               <Launchpad
                 recentFolders={recentFolders}
                 onOpenDirectory={handleOpenDirectory}
-                onOpenFiles={handleOpenFiles}
+                onOpenFile={handleOpenFile}
                 onClearRecents={clearRecents}
                 isCompact={isCompact}
               />
