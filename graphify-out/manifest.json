@@ -108,9 +108,9 @@
     "semantic_hash": ""
   },
   "src/stores/uiStore.ts": {
-    "mtime": 1793336033.8700964,
-    "seen": 1793338188.3924057,
-    "ast_hash": "904504fa311eece149c897e6246d13ad",
+    "mtime": 1793431604.5807102,
+    "seen": 1793432330.1053817,
+    "ast_hash": "a012726e77dbd1759b2bfd38a7256248",
     "semantic_hash": ""
   },
   "src/types/reader.ts": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793356056.455649,
-    "seen": 1793356745.123631,
-    "ast_hash": "93632349b2e42ab9c7a79afd2c294488",
+    "mtime": 1793432309.911477,
+    "seen": 1793432330.1053817,
+    "ast_hash": "8485f8aa0af3516326a7edb6337d2882",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
@@ -312,9 +312,9 @@
     "semantic_hash": ""
   },
   "src/components/ReaderView.tsx": {
-    "mtime": 1793355635.272041,
-    "seen": 1793356745.123631,
-    "ast_hash": "20e319968d161287a5d26a7393a4ce75",
+    "mtime": 1793432136.4249437,
+    "seen": 1793432330.1053817,
+    "ast_hash": "657abcd105781cc4894dcbfa23aad490",
     "semantic_hash": ""
   },
   "src/components/SettingsDrawer.tsx": {
@@ -432,9 +432,9 @@
     "semantic_hash": ""
   },
   "src/components/TableOfContentsDrawer.tsx": {
-    "mtime": 1793336033.8574004,
-    "seen": 1793338188.3924057,
-    "ast_hash": "d912a6184d7f9046938f1757c75a927b",
+    "mtime": 1793431941.8773718,
+    "seen": 1793432330.1053817,
+    "ast_hash": "0d8f6fb7ab9080b4fb741d7a4d2fe863",
     "semantic_hash": ""
   },
   "docs/CROSS_PLATFORM_PLAN.md": {
@@ -534,9 +534,9 @@
     "semantic_hash": ""
   },
   "src-tauri/gen/android/app/build.gradle.kts": {
-    "mtime": 1793336021.6820147,
-    "seen": 1793338188.3924057,
-    "ast_hash": "6a9504e50b96405032270076a954540f",
+    "mtime": 1793431670.1871219,
+    "seen": 1793432330.1043894,
+    "ast_hash": "70f351a6a1e8051f7f159de89dc918ca",
     "semantic_hash": ""
   },
   "src-tauri/gen/android/app/src/main/java/com/ebook/reader/MainActivity.kt": {
@@ -714,15 +714,21 @@
     "semantic_hash": ""
   },
   "tests/unit/stores.test.ts": {
-    "mtime": 1793356085.0787206,
-    "seen": 1793356745.123631,
-    "ast_hash": "f09ec4e8d4bb5daeecfb4c5e6b178f72",
+    "mtime": 1793431645.7824378,
+    "seen": 1793432330.1053817,
+    "ast_hash": "4e3c81ecb3ffeabeeaa8f99dc9734ff8",
     "semantic_hash": ""
   },
   "vitest.config.ts": {
     "mtime": 1793356085.2946658,
     "seen": 1793356745.123631,
     "ast_hash": "38dead91b78f095d1c48ccd825769771",
+    "semantic_hash": ""
+  },
+  "docs/BUILD-INFO.md": {
+    "mtime": 1793431711.0829105,
+    "seen": 1793432330.1053817,
+    "ast_hash": "3096626ffb3f1fc41c1fae89526e122c",
     "semantic_hash": ""
   }
 }

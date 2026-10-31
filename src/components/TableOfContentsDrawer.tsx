@@ -10,6 +10,7 @@ export interface TableOfContentsDrawerProps {
   currentPage: number;
   onNavigateToPage: (page: number) => void;
   theme: "light" | "dark" | "sepia";
+  docked?: boolean;
 }
 
 export function TableOfContentsDrawer({
@@ -19,6 +20,7 @@ export function TableOfContentsDrawer({
   currentPage,
   onNavigateToPage,
   theme,
+  docked = false,
 }: TableOfContentsDrawerProps) {
   const { isCompact } = useBreakpoint();
   // Filter/Search within TOC
@@ -99,22 +101,9 @@ export function TableOfContentsDrawer({
 
   const displayTOC = filterTOC(toc, filterQuery);
 
-  const drawerContent = (
-    <aside
-      onClick={(e) => e.stopPropagation()}
-      className={`${
-        isCompact
-          ? "w-full max-h-[80dvh] rounded-t-2xl shadow-2xl flex flex-col border-t animate-in slide-in-from-bottom duration-200 select-none"
-          : "fixed inset-y-0 left-0 w-80 sm:w-96 shadow-2xl z-50 flex flex-col border-r transition-transform duration-200 ease-out select-none"
-      }`}
-      style={{
-        backgroundColor: style.bg,
-        borderColor: style.border,
-        color: style.text,
-        paddingBottom: isCompact ? "max(1rem, var(--sab))" : undefined,
-      }}
-    >
-      {isCompact && (
+  const drawerBody = (
+    <>
+      {isCompact && !docked && (
         <div className="w-10 h-1 bg-gray-400/30 rounded-full mx-auto mt-2 mb-1 flex-shrink-0" />
       )}
       {/* Drawer Header */}
@@ -135,7 +124,7 @@ export function TableOfContentsDrawer({
         </div>
         <button
           onClick={onClose}
-          className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+          className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
           title="Close Table of Contents (Esc)"
           aria-label="Close Table of Contents"
         >
@@ -182,22 +171,56 @@ export function TableOfContentsDrawer({
               currentPage={currentPage}
               onNavigate={(page) => {
                 onNavigateToPage(page);
-                onClose();
+                if (!docked) {
+                  onClose();
+                }
               }}
               themeStyle={style}
             />
           ))
         )}
       </div>
-    </aside>
+    </>
   );
 
+  // Desktop In-Flow Docked Sidebar Mode
+  if (docked) {
+    return (
+      <aside
+        className="w-72 sm:w-80 h-full flex flex-col border-r flex-shrink-0 select-none z-20 animate-in slide-in-from-left duration-200"
+        style={{
+          backgroundColor: style.bg,
+          borderColor: style.border,
+          color: style.text,
+        }}
+      >
+        {drawerBody}
+      </aside>
+    );
+  }
+
+  // Mobile Bottom Sheet Mode with backdrop overlay
   return (
     <div
       className={`fixed inset-0 z-50 ${isCompact ? "bg-black/50 backdrop-blur-xs flex flex-col justify-end" : "bg-black/25"}`}
       onClick={onClose}
     >
-      {drawerContent}
+      <aside
+        onClick={(e) => e.stopPropagation()}
+        className={
+          isCompact
+            ? "w-full max-h-[80dvh] rounded-t-2xl shadow-2xl flex flex-col border-t animate-in slide-in-from-bottom duration-200 select-none"
+            : "fixed inset-y-0 left-0 w-80 sm:w-96 shadow-2xl z-50 flex flex-col border-r transition-transform duration-200 ease-out select-none"
+        }
+        style={{
+          backgroundColor: style.bg,
+          borderColor: style.border,
+          color: style.text,
+          paddingBottom: isCompact ? "max(1rem, var(--sab))" : undefined,
+        }}
+      >
+        {drawerBody}
+      </aside>
     </div>
   );
 }

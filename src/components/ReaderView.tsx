@@ -1446,14 +1446,32 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
             {/* View Mode & Theme Controls */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Search & Bookmarks Top Bar Buttons */}
+              {/* Contents, Search & Bookmarks Top Bar Buttons */}
               <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
+                <button
+                  onClick={() => setIsTocOpen(curr => !curr)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors ${
+                    isTocOpen
+                      ? "bg-[var(--color-primary)] text-white"
+                      : "hover:bg-black/5 dark:hover:bg-white/5"
+                  }`}
+                  style={{ borderColor: themeStyle.border }}
+                  title="Toggle Table of Contents Sidebar (C)"
+                >
+                  <ListUnorderedIcon size={14} />
+                  <span>Contents</span>
+                  {toc.length > 0 && (
+                    <span className="opacity-75 text-[10px] px-1 py-0.2 bg-[var(--color-primary)] text-white rounded-full font-bold">
+                      {toc.length}
+                    </span>
+                  )}
+                </button>
                 <button
                   onClick={() => {
                     setSearchBookmarksTab("search");
                     setIsSearchBookmarksOpen(curr => (searchBookmarksTab === "search" ? !curr : true));
                   }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
                     isSearchBookmarksOpen && searchBookmarksTab === "search"
                       ? "bg-[var(--color-primary)] text-white"
                       : "hover:bg-black/5 dark:hover:bg-white/5"
@@ -1651,8 +1669,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         )}
       </header>
 
-      {/* Left-Side Content / Table of Contents Button (just below top panel menu) - Desktop Only */}
-      {!isCompact && (
+      {/* Left-Side Content / Table of Contents Button (just below top panel menu) - Desktop Only when TOC is collapsed */}
+      {!isCompact && !isTocOpen && (
         <div
           className={`absolute left-4 z-40 transition-all duration-300 pointer-events-auto ${
             isHeaderVisible || isHeaderPinned ? "top-14" : "top-4"
@@ -1662,13 +1680,9 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             onClick={() => {
               setIsTocOpen(curr => !curr);
             }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border shadow-md backdrop-blur-md text-xs font-medium transition-all ${
-              isTocOpen
-                ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-lg scale-105"
-                : "hover:scale-105 hover:bg-black/5 dark:hover:bg-white/10"
-            }`}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border shadow-md backdrop-blur-md text-xs font-medium transition-all hover:scale-105 hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
             style={{
-              backgroundColor: isTocOpen ? undefined : themeStyle.barBg,
+              backgroundColor: themeStyle.barBg,
               borderColor: themeStyle.border,
             }}
             title="Table of Contents (C)"
@@ -1684,19 +1698,37 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         </div>
       )}
 
-      {/* Main Reading Viewport */}
-      <main
-        className={`flex-1 relative reader-viewport-main ${
-          viewMode === "scroll"
-            ? "overflow-hidden flex flex-col"
-            : `overflow-hidden flex items-center justify-center ${isCompact ? "p-0" : "p-2"}`
-        }`}
-        ref={containerRef}
-        style={{
-          backgroundColor: themeStyle.pageBg,
-          touchAction: (viewMode !== "scroll" || zoomLevel > 1.05) ? "none" : "pan-y",
-        }}
-      >
+      {/* Reader Main Workspace: Docked Left TOC Sidebar (Desktop) + Main Reading Viewport */}
+      <div className="flex-1 flex min-h-0 min-w-0 overflow-hidden relative">
+        {/* On Desktop: In-Flow Left-Docked Table of Contents Sidebar */}
+        {!isCompact && isTocOpen && (
+          <TableOfContentsDrawer
+            isOpen={isTocOpen}
+            onClose={() => setIsTocOpen(false)}
+            toc={toc}
+            currentPage={currentPage}
+            onNavigateToPage={(page) => {
+              goToPage(page);
+              // On desktop: keep TOC sidebar open for simultaneous reading and chapter browsing!
+            }}
+            theme={readerTheme}
+            docked={true}
+          />
+        )}
+
+        {/* Main Reading Viewport */}
+        <main
+          className={`flex-1 relative reader-viewport-main ${
+            viewMode === "scroll"
+              ? "overflow-hidden flex flex-col"
+              : `overflow-hidden flex items-center justify-center ${isCompact ? "p-0" : "p-2"}`
+          }`}
+          ref={containerRef}
+          style={{
+            backgroundColor: themeStyle.pageBg,
+            touchAction: (viewMode !== "scroll" || zoomLevel > 1.05) ? "none" : "pan-y",
+          }}
+        >
         {rendering && (
           <div className="absolute top-4 right-4 z-30">
             <div className="w-5 h-5 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
@@ -1851,6 +1883,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           );
         })()}
       </main>
+      </div>
 
       {/* Bottom Navigation & Scrubber Bar */}
       <footer
@@ -2035,18 +2068,21 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         </div>
       )}
 
-      {/* Table of Contents Drawer (Left-Docked) */}
-      <TableOfContentsDrawer
-        isOpen={isTocOpen}
-        onClose={() => setIsTocOpen(false)}
-        toc={toc}
-        currentPage={currentPage}
-        onNavigateToPage={(page) => {
-          goToPage(page);
-          setIsTocOpen(false);
-        }}
-        theme={readerTheme}
-      />
+      {/* Table of Contents Drawer (Mobile Bottom Sheet) */}
+      {isCompact && (
+        <TableOfContentsDrawer
+          isOpen={isTocOpen}
+          onClose={() => setIsTocOpen(false)}
+          toc={toc}
+          currentPage={currentPage}
+          onNavigateToPage={(page) => {
+            goToPage(page);
+            setIsTocOpen(false);
+          }}
+          theme={readerTheme}
+          docked={false}
+        />
+      )}
 
       {/* Search and Bookmarks Drawer (Right-Docked) */}
       <SearchAndBookmarksDrawer

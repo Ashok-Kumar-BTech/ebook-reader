@@ -206,9 +206,10 @@ const loggedStoreCreator = createLoggedStore<UiState>(
           set((state) => ({
             ...state,
             ...stored,
+            currentRoot: null,
+            dirHistory: [],
+            dirHistoryIndex: -1,
             recentFolders: migratedRecents.slice(0, MAX_RECENT_DIRECTORIES),
-            dirHistory: stored.currentRoot ? [stored.currentRoot] : [],
-            dirHistoryIndex: stored.currentRoot ? 0 : -1,
             isHydrated: true,
           }));
         } else {
@@ -231,7 +232,6 @@ useUiStore.subscribe(
     uiStorePersist.set({
       sidebarVisible: newState.sidebarVisible,
       sidebarWidth: newState.sidebarWidth,
-      currentRoot: newState.currentRoot,
       expandedPaths: newState.expandedPaths,
       sortBy: newState.sortBy,
       sortOrder: newState.sortOrder,

@@ -126,6 +126,13 @@ describe("State Stores", () => {
       expect(state.recentFolders.length).toBeLessThanOrEqual(10);
       expect(state.recentFiles.length).toBeLessThanOrEqual(10);
     });
+
+    it("ensures currentRoot is null on startup to always land on Launchpad", () => {
+      // currentRoot must start at null so cold starts land cleanly on Home/Launchpad
+      expect(useUiStore.getState().currentRoot).toBeNull();
+      useUiStore.getState().navigateToDir("D:/Books");
+      expect(useUiStore.getState().currentRoot).toBe("D:/Books");
+    });
   });
 });
 
