@@ -36,7 +36,6 @@
   "34": "config.ts",
   "35": "main.tsx",
   "36": "RenderOptions",
-  "37": "adapters/registry.ts",
   "38": "App.tsx",
   "39": "gradlew",
   "40": "HtmlAdapter",
@@ -50,7 +49,7 @@
   "48": "store.ts",
   "49": "tauriApi.ts",
   "50": "app/build.gradle.kts",
-  "51": "extractDocumentTitle",
+  "51": "adapters/registry.ts",
   "52": "android/build.gradle.kts",
   "53": "buildSrc/build.gradle.kts",
   "54": "settings.gradle",
@@ -58,6 +57,6 @@
   "56": "setup.ts",
   "57": "Ebook Reader: Cross-Platform & Responsive Refactor Plan",
   "58": "Ebook Reader — Build, Packaging & Deployment Guide",
-  "59": "RenderOptions",
-  "60": "gestures.test.ts"
+  "60": "gestures.test.ts",
+  "64": "extractDocumentTitle"
 }

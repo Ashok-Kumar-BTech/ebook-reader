@@ -20,6 +20,7 @@ export interface BookSettings {
   theme: 'light' | 'dark' | 'sepia';
   twoPageView: boolean;
   continuousScroll: boolean;
+  panelMode?: 'smart' | 'persistent';
 }
 
 export interface BookState {
@@ -55,6 +56,7 @@ const DEFAULT_BOOK_SETTINGS: BookSettings = {
   theme: 'dark',
   twoPageView: false,
   continuousScroll: true,
+  panelMode: 'smart',
 };
 
 const EMPTY_BOOK_STATE: BookState = {

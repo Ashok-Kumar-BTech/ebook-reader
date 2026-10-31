@@ -218,16 +218,16 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: auto;
-  height: auto;
-  max-width: none;
-  max-height: none;
-  overflow: visible;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .reader-page-fit-container img {
   max-width: 100% !important;
   max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
   object-fit: contain !important;
   margin: auto !important;
   display: block !important;
@@ -274,3 +274,78 @@ html, body, #root {
 }
 
 
+
+/* ─── Smart Bottom Panel (Footer) Floating Mode ─────────────────────────── */
+
+/* Bottom hover sensor zone — triggers footer reveal in smart panel mode */
+.reader-bottom-hover-zone {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  z-index: 45;
+  pointer-events: auto;
+  background: transparent;
+}
+
+/* Floating footer — used in smart panel mode (position: absolute like header) */
+.reader-footer-floating {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, box-shadow 0.28s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.reader-footer-floating.reader-footer-visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.16);
+}
+
+.reader-footer-floating.reader-footer-hidden {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+/* Increase top hover zone height to match panel height for comfortable targeting */
+.reader-top-hover-zone {
+  height: 60px !important;
+}
+
+/* In-flow header spacer — reserves vertical space equal to the header height
+   so <main> is not obscured. Used in persistent panel mode. */
+.reader-header-spacer {
+  flex-shrink: 0;
+  height: 48px;
+  pointer-events: none;
+}
+
+/* In persistent mode the header is in-flow (not absolute), so remove absolute positioning */
+.reader-header-inflow {
+  position: relative !important;
+  transform: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* In persistent mode the footer is in-flow (not absolute) */
+.reader-footer-inflow {
+  position: relative !important;
+  transform: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

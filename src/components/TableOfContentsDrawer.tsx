@@ -11,6 +11,7 @@ export interface TableOfContentsDrawerProps {
   onNavigateToPage: (page: number) => void;
   theme: "light" | "dark" | "sepia";
   docked?: boolean;
+  panelMode?: "smart" | "persistent";
 }
 
 export function TableOfContentsDrawer({
@@ -21,6 +22,7 @@ export function TableOfContentsDrawer({
   onNavigateToPage,
   theme,
   docked = false,
+  panelMode = "smart",
 }: TableOfContentsDrawerProps) {
   const { isCompact } = useBreakpoint();
   // Filter/Search within TOC
@@ -187,7 +189,9 @@ export function TableOfContentsDrawer({
   if (docked) {
     return (
       <aside
-        className="w-72 sm:w-80 h-full flex flex-col border-r flex-shrink-0 select-none z-20 animate-in slide-in-from-left duration-200"
+        className={`w-72 sm:w-80 h-full flex flex-col border-r flex-shrink-0 select-none z-20 animate-in slide-in-from-left duration-200 ${
+          panelMode === "smart" ? "pt-12" : ""
+        }`}
         style={{
           backgroundColor: style.bg,
           borderColor: style.border,

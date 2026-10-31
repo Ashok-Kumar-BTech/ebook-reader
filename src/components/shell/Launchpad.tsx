@@ -40,7 +40,7 @@ export function Launchpad({
           Open a folder or an ebook file on your device to read PDF, EPUB, CBZ, and TXT books with complete privacy and zero telemetry.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 w-full max-w-sm mx-auto">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 w-full max-w-md mx-auto">
           {isCompact ? (
             <>
               {onOpenFile && (
@@ -49,7 +49,7 @@ export function Launchpad({
                   className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[var(--color-primary)] text-white text-xs sm:text-sm font-semibold hover:bg-[var(--color-primary-hover)] transition-all shadow-md active:scale-95 cursor-pointer w-full"
                 >
                   <BookIcon size={16} />
-                  <span>Open Book</span>
+                  <span>Open Ebook</span>
                 </button>
               )}
               <button
@@ -64,18 +64,18 @@ export function Launchpad({
             <>
               <button
                 onClick={() => onOpenDirectory()}
-                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[var(--color-primary)] text-white text-xs sm:text-sm font-semibold hover:bg-[var(--color-primary-hover)] transition-all shadow-md active:scale-95 cursor-pointer w-full"
+                className="flex-1 min-w-0 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[var(--color-primary)] text-white text-xs sm:text-sm font-semibold hover:bg-[var(--color-primary-hover)] transition-all shadow-md active:scale-95 cursor-pointer w-full"
               >
                 <FileDirectoryFillIcon size={16} />
-                <span>Open Ebook Folder</span>
+                <span className="truncate">Open Ebook Folder</span>
               </button>
               {onOpenFile && (
                 <button
                   onClick={onOpenFile}
-                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] text-xs sm:text-sm font-semibold hover:bg-black/5 dark:hover:bg-white/5 transition-all shadow-xs active:scale-95 cursor-pointer w-full"
+                  className="flex-1 min-w-0 flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] text-xs sm:text-sm font-semibold hover:bg-black/5 dark:hover:bg-white/5 transition-all shadow-xs active:scale-95 cursor-pointer w-full"
                 >
                   <BookIcon size={16} />
-                  <span>Open Book</span>
+                  <span className="truncate">Open Ebook</span>
                 </button>
               )}
             </>

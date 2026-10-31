@@ -60,15 +60,15 @@
     "semantic_hash": ""
   },
   "src/adapters/cbzAdapter.ts": {
-    "mtime": 1793347597.0013916,
-    "seen": 1793356745.123631,
-    "ast_hash": "1f67d1716eea269773e11cda75dd81b2",
+    "mtime": 1793440326.0104449,
+    "seen": 1793440839.1809566,
+    "ast_hash": "3113a084aaabf244bb8a42824334e8fc",
     "semantic_hash": ""
   },
   "src/adapters/epubAdapter.ts": {
-    "mtime": 1793347579.0845008,
-    "seen": 1793356745.123631,
-    "ast_hash": "75c46f96c2289efa90af6b894ce17031",
+    "mtime": 1793442061.0658054,
+    "seen": 1793442410.3261466,
+    "ast_hash": "bde2f6c0025ba33ce1ada08ea1a1f44f",
     "semantic_hash": ""
   },
   "src/adapters/htmlAdapter.ts": {
@@ -102,9 +102,9 @@
     "semantic_hash": ""
   },
   "src/stores/bookStore.ts": {
-    "mtime": 1793355618.3707654,
-    "seen": 1793356745.123631,
-    "ast_hash": "c6234a7bfd3439891aac2336535f127e",
+    "mtime": 1793438960.400848,
+    "seen": 1793439753.4506648,
+    "ast_hash": "d0a07d7c1dc64fa81a20e488f5b7b142",
     "semantic_hash": ""
   },
   "src/stores/uiStore.ts": {
@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "src/types/reader.ts": {
-    "mtime": 1793332028.4587593,
-    "seen": 1793332291.7551954,
-    "ast_hash": "efda40e1b9ef38223b37687d379160be",
+    "mtime": 1793440361.7916205,
+    "seen": 1793440839.1809566,
+    "ast_hash": "6dbc345a60b06e1bf2f32dadd482cb10",
     "semantic_hash": ""
   },
   "src/utils/store.ts": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793432309.911477,
-    "seen": 1793432330.1053817,
-    "ast_hash": "8485f8aa0af3516326a7edb6337d2882",
+    "mtime": 1793442388.698758,
+    "seen": 1793442410.3261466,
+    "ast_hash": "58b06240b801446a68a89670f43db07a",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
@@ -312,15 +312,15 @@
     "semantic_hash": ""
   },
   "src/components/ReaderView.tsx": {
-    "mtime": 1793432136.4249437,
-    "seen": 1793432330.1053817,
-    "ast_hash": "657abcd105781cc4894dcbfa23aad490",
+    "mtime": 1793442305.531438,
+    "seen": 1793442410.3261466,
+    "ast_hash": "903e72a39fe791d146a868679a319a07",
     "semantic_hash": ""
   },
   "src/components/SettingsDrawer.tsx": {
-    "mtime": 1793336033.8564,
-    "seen": 1793338188.3924057,
-    "ast_hash": "8fd8e101038fc50484e92a5927531cf5",
+    "mtime": 1793439052.877187,
+    "seen": 1793439753.4506648,
+    "ast_hash": "7b45f69f5ac3617a394a72b30f0485c7",
     "semantic_hash": ""
   },
   "src/utils/logger/LogManager.ts": {
@@ -432,9 +432,9 @@
     "semantic_hash": ""
   },
   "src/components/TableOfContentsDrawer.tsx": {
-    "mtime": 1793431941.8773718,
-    "seen": 1793432330.1053817,
-    "ast_hash": "0d8f6fb7ab9080b4fb741d7a4d2fe863",
+    "mtime": 1793442107.1001084,
+    "seen": 1793442410.3261466,
+    "ast_hash": "41a150b959c10d22fcb3fcdbf3810f30",
     "semantic_hash": ""
   },
   "docs/CROSS_PLATFORM_PLAN.md": {
@@ -510,9 +510,9 @@
     "semantic_hash": ""
   },
   "src/components/shell/Launchpad.tsx": {
-    "mtime": 1793342258.137987,
-    "seen": 1793342654.523886,
-    "ast_hash": "e2b6ae5d1f2eb8a1b19697cec0753855",
+    "mtime": 1793442074.2308373,
+    "seen": 1793442410.3261466,
+    "ast_hash": "311d40afd25c397d5284052b93ff392f",
     "semantic_hash": ""
   },
   "src/components/shell/ViewOptionsSheet.tsx": {
@@ -534,9 +534,9 @@
     "semantic_hash": ""
   },
   "src-tauri/gen/android/app/build.gradle.kts": {
-    "mtime": 1793431670.1871219,
-    "seen": 1793432330.1043894,
-    "ast_hash": "70f351a6a1e8051f7f159de89dc918ca",
+    "mtime": 1793432747.0374746,
+    "seen": 1793435566.0246475,
+    "ast_hash": "72d2cdde45283bdb311976885b66de4b",
     "semantic_hash": ""
   },
   "src-tauri/gen/android/app/src/main/java/com/ebook/reader/MainActivity.kt": {

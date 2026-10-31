@@ -89,14 +89,25 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const [isJumpModalOpen, setIsJumpModalOpen] = useState(false);
   const [jumpPageInput, setJumpPageInput] = useState("");
 
-  // Smart Auto-Hiding Top Header & Fullscreen state
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  // Panel behavior mode — loaded from saved settings, default 'smart'
+  const [panelMode, setPanelMode] = useState<'smart' | 'persistent'>('smart');
+
+  // Smart Auto-Hiding Top & Bottom Panels & Fullscreen state
+  const [arePanelsVisible, setArePanelsVisible] = useState(true);
   const [isHeaderPinned, setIsHeaderPinned] = useState(false);
   const [isWindowFullscreen, setIsWindowFullscreen] = useState(false);
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isHeaderHoveredRef = useRef<boolean>(false);
+  const panelsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTopHoveredRef = useRef<boolean>(false);
+  const isBottomHoveredRef = useRef<boolean>(false);
   const isRenderingRef = useRef<boolean>(false);
   const renderPendingRef = useRef<boolean>(false);
+
+  // Exact page dimensions for Single and Spread views to prevent layout clipping
+  const [pageDimensions, setPageDimensions] = useState<{ width: number; height: number }>({ width: 600, height: 800 });
+  const [spreadDimensions, setSpreadDimensions] = useState<{ width: number; height: number }>({ width: 500, height: 700 });
+
+  // EPUB scroll-view container ref — used for single-rendition EPUB scroll mode
+  const epubScrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Independent Drawers state
   const [toc, setToc] = useState<TOCItem[]>([]);
@@ -179,6 +190,15 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         const count = Math.max(1, adapter.getPageCount());
         setTotalPages(count);
 
+        // Wire adapter location change callback (e.g. EPUB continuous scroll / CFI relocation)
+        adapter.onLocationChange = (newPage: number) => {
+          if (!isMounted) return;
+          setCurrentPage(newPage);
+          if (bookPathRef.current) {
+            updateLocation(bookPathRef.current, newPage, count);
+          }
+        };
+
         // Ensure bookStore is hydrated before restoring saved state (non-fatal)
         try {
           await useBookStore.getState().hydrate();
@@ -213,6 +233,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               initialViewMode = "single";
             } else {
               initialViewMode = "scroll";
+            }
+            // Restore panel mode preference
+            if (savedState.settings.panelMode) {
+              setPanelMode(savedState.settings.panelMode);
             }
           }
         }
@@ -279,22 +303,43 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     const width = container.clientWidth || 800;
     const height = container.clientHeight || 600;
 
-    // Responsive baseline width: on mobile, fill available screen width; on desktop, center column
-    const scrollBaselineWidth = isCompact ? Math.max(300, width - 8) : 860;
+    // In smart panel mode both header & footer float over the viewport, so subtract
+    // their heights from the available rendering area to prevent content being clipped.
+    // In persistent mode they are in-flow and already excluded from container height.
+    const HEADER_H = 48;
+    const FOOTER_H = 52;
+    const floatingOffset = panelMode === 'smart' ? HEADER_H + FOOTER_H : 0;
+    const effectiveHeight = Math.max(200, height - floatingOffset);
 
-    // Single view targets full width on mobile, and ~81% of desktop column
-    const idealSingleWidth = isCompact ? width : Math.floor(scrollBaselineWidth * 0.81);
-    const targetSingleWidth = isCompact ? Math.max(280, width - 8) : Math.min(width - 32, idealSingleWidth);
-    const targetSingleHeight = isCompact ? (height - 16) : Math.max(height - 32, Math.floor(targetSingleWidth * 1.35));
+    // Available space for page rendering
+    const availableWidth = width;
+    const availableHeight = effectiveHeight;
+
+    // Responsive baseline width: on mobile, fill available screen width; on desktop, center column
+    const scrollBaselineWidth = isCompact ? Math.max(300, availableWidth - 8) : 860;
+
+    // Single view: fit page within viewport bounds without vertical or horizontal clipping
+    const maxSingleWidth = isCompact ? Math.max(280, availableWidth - 8) : Math.min(availableWidth - 32, Math.floor(scrollBaselineWidth * 0.81));
+    const maxSingleHeight = isCompact ? Math.max(200, availableHeight - 16) : Math.max(200, availableHeight - 32);
+
+    // Maintain aspect ratio (~1.41) so the full page is visible
+    const targetSingleWidth = Math.min(maxSingleWidth, Math.floor(maxSingleHeight / 1.41));
+    const targetSingleHeight = Math.min(maxSingleHeight, Math.floor(targetSingleWidth * 1.41));
     const singleWidth = Math.floor(targetSingleWidth / 2) * 2;
     const singleHeight = Math.floor(targetSingleHeight / 2) * 2;
 
-    // Spread view targets ~70-75% of Scroll view per page (approx 600px-645px)
-    const idealSpreadPageWidth = Math.floor(scrollBaselineWidth * 0.74);
-    const targetSpreadPageWidth = Math.min(Math.floor((width - 32) / 2), idealSpreadPageWidth);
-    const targetSpreadPageHeight = Math.max(height - 32, Math.floor(targetSpreadPageWidth * 1.35));
+    // Spread view: two pages side by side, fitting within available viewport
+    const maxSpreadPageWidth = Math.min(Math.floor((availableWidth - 48) / 2), Math.floor(scrollBaselineWidth * 0.74));
+    const maxSpreadPageHeight = isCompact ? Math.max(200, availableHeight - 16) : Math.max(200, availableHeight - 32);
+
+    const targetSpreadPageWidth = Math.min(maxSpreadPageWidth, Math.floor(maxSpreadPageHeight / 1.41));
+    const targetSpreadPageHeight = Math.min(maxSpreadPageHeight, Math.floor(targetSpreadPageWidth * 1.41));
     const spreadWidth = Math.floor(targetSpreadPageWidth / 2) * 2;
     const spreadHeight = Math.floor(targetSpreadPageHeight / 2) * 2;
+
+    // Keep page dimensions state synchronized to enforce strictly bounded wrapper containers
+    setPageDimensions({ width: singleWidth, height: singleHeight });
+    setSpreadDimensions({ width: spreadWidth, height: spreadHeight });
 
     const baseOptions: RenderOptions = {
       width: viewMode === "two-page" ? spreadWidth : singleWidth,
@@ -312,13 +357,25 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       if (viewMode === "single" && pageContainerRef.current) {
         await adapter.renderPage(currentPage, pageContainerRef.current, baseOptions);
       } else if (viewMode === "two-page" && leftPageRef.current && rightPageRef.current) {
-        await adapter.renderPage(currentPage, leftPageRef.current, baseOptions);
-        if (currentPage + 1 <= totalPages) {
-          rightPageRef.current.style.display = "flex";
-          await adapter.renderPage(currentPage + 1, rightPageRef.current, baseOptions);
-        } else {
+        if (bookInstance?.format === 'epub') {
+          // For reflowable EPUB, a single container renders the entire 2-page spread
           rightPageRef.current.innerHTML = "";
           rightPageRef.current.style.display = "none";
+          const epubSpreadOptions: RenderOptions = {
+            ...baseOptions,
+            width: spreadWidth * 2,
+            twoPageView: true,
+          };
+          await adapter.renderPage(currentPage, leftPageRef.current, epubSpreadOptions);
+        } else {
+          await adapter.renderPage(currentPage, leftPageRef.current, baseOptions);
+          if (currentPage + 1 <= totalPages) {
+            rightPageRef.current.style.display = "flex";
+            await adapter.renderPage(currentPage + 1, rightPageRef.current, baseOptions);
+          } else {
+            rightPageRef.current.innerHTML = "";
+            rightPageRef.current.style.display = "none";
+          }
         }
       }
     } catch (err) {
@@ -349,9 +406,9 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     return () => clearTimeout(timer);
   }, [zoomLevel, loading, error, viewMode, renderPages]);
 
-  // Lazy-loaded page slots IntersectionObserver for Continuous Scroll View
+  // Lazy-loaded page slots IntersectionObserver for Continuous Scroll View (paged formats: PDF, CBZ, TXT, HTML)
   useEffect(() => {
-    if (viewMode !== "scroll" || !scrollContainerRef.current || !adapterRef.current || loading) {
+    if (viewMode !== "scroll" || !scrollContainerRef.current || !adapterRef.current || loading || bookInstance?.format === "epub") {
       return;
     }
 
@@ -405,7 +462,42 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     return () => {
       observer.disconnect();
     };
-  }, [viewMode, totalPages, loading, readerTheme, fontSize, lineHeight, margin, debouncedZoomLevel, logger]);
+  }, [viewMode, totalPages, loading, readerTheme, fontSize, lineHeight, margin, debouncedZoomLevel, logger, bookInstance?.format]);
+
+  // EPUB Continuous Scroll View Rendering
+  useEffect(() => {
+    if (viewMode !== "scroll" || !epubScrollContainerRef.current || !adapterRef.current || loading || bookInstance?.format !== "epub") {
+      return;
+    }
+
+    const adapter = adapterRef.current;
+    const container = containerRef.current;
+    const width = container?.clientWidth || 800;
+    const height = container?.clientHeight || 600;
+    const baselineWidth = isCompact ? Math.max(300, width - 8) : 860;
+
+    const baseOptions: RenderOptions = {
+      width: Math.floor(baselineWidth * debouncedZoomLevel),
+      height: Math.max(400, height - 40),
+      theme: readerTheme,
+      fontSize,
+      lineHeight,
+      margin: isCompact ? 0 : Math.min(margin, 16),
+      twoPageView: false,
+      continuousScroll: true,
+      zoom: debouncedZoomLevel,
+    };
+
+    if (typeof adapter.renderScrollView === "function") {
+      adapter.renderScrollView(epubScrollContainerRef.current, baseOptions).catch((err) => {
+        logger.warn("EPUB_SCROLL_RENDER_ERROR", { error: String(err) });
+      });
+    } else {
+      adapter.renderPage(currentPage, epubScrollContainerRef.current, baseOptions).catch((err) => {
+        logger.warn("EPUB_SCROLL_RENDER_ERROR", { error: String(err) });
+      });
+    }
+  }, [viewMode, loading, bookInstance?.format, debouncedZoomLevel, readerTheme, fontSize, lineHeight, margin, isCompact, logger]);
 
   // Initial scroll position restoration in scroll view
   useEffect(() => {
@@ -433,6 +525,13 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         window.requestAnimationFrame(() => {
           ticking = false;
           if (!scrollEl) return;
+
+          // For EPUB continuous scroll view: location is tracked via adapter.onLocationChange (relocated event),
+          // avoiding linear pixel-ratio resets across variable chapter lengths.
+          if (bookInstance?.format === "epub") {
+            return;
+          }
+
           const containerRect = scrollEl.getBoundingClientRect();
           const centerY = containerRect.top + containerRect.height / 2;
 
@@ -476,7 +575,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
     scrollEl.addEventListener("scroll", handleScroll, { passive: true });
     return () => scrollEl.removeEventListener("scroll", handleScroll);
-  }, [viewMode, loading, totalPages, currentBookPath, updateLocation]);
+  }, [viewMode, loading, totalPages, currentBookPath, updateLocation, bookInstance?.format]);
 
   // Handle window resizing
   useEffect(() => {
@@ -498,17 +597,23 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       updateLocation(currentBookPath, clamped, totalPages);
     }
 
-    if (viewMode === "scroll" && scrollContainerRef.current) {
-      const targetEl = document.getElementById(`reader-page-${clamped}`);
-      if (targetEl) {
-        isScrollingToPageRef.current = true;
-        targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
-        setTimeout(() => {
-          isScrollingToPageRef.current = false;
-        }, 500);
+    if (viewMode === "scroll") {
+      if (bookInstance?.format === "epub") {
+        if (adapterRef.current) {
+          adapterRef.current.goToLocation(clamped - 1);
+        }
+      } else if (scrollContainerRef.current) {
+        const targetEl = document.getElementById(`reader-page-${clamped}`);
+        if (targetEl) {
+          isScrollingToPageRef.current = true;
+          targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
+          setTimeout(() => {
+            isScrollingToPageRef.current = false;
+          }, 500);
+        }
       }
     }
-  }, [totalPages, currentBookPath, updateLocation, viewMode]);
+  }, [totalPages, currentBookPath, updateLocation, viewMode, bookInstance?.format]);
 
   const prevPage = useCallback(() => {
     const step = viewMode === "two-page" ? 2 : 1;
@@ -551,7 +656,6 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   };
 
   const handleViewportMouseMove = (e: React.MouseEvent) => {
-    resetAutoHideTimer();
     if (isDragging && dragStartRef.current) {
       const dx = e.clientX - dragStartRef.current.x;
       const dy = e.clientY - dragStartRef.current.y;
@@ -599,38 +703,66 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     setIsWindowFullscreen(next);
   }, []);
 
-  // Auto-hide top navigation bar timer (3.5s inactivity)
-  const resetAutoHideTimer = useCallback(() => {
-    setIsHeaderVisible(true);
-    if (hideTimerRef.current) {
-      clearTimeout(hideTimerRef.current);
+  // Panels auto-hide timer (in smart mode: 3s inactivity when mouse leaves either panel zone)
+  const resetPanelsAutoHideTimer = useCallback(() => {
+    if (panelMode === "persistent") {
+      setArePanelsVisible(true);
+      return;
+    }
+    setArePanelsVisible(true);
+    if (panelsTimerRef.current) {
+      clearTimeout(panelsTimerRef.current);
     }
     if (!isHeaderPinned && !isTocOpen && !isSearchBookmarksOpen && !isSettingsOpen && !isJumpModalOpen) {
-      hideTimerRef.current = setTimeout(() => {
-        if (!isHeaderHoveredRef.current && !isHeaderPinned && !isTocOpen && !isSearchBookmarksOpen && !isSettingsOpen && !isJumpModalOpen) {
-          setIsHeaderVisible(false);
+      panelsTimerRef.current = setTimeout(() => {
+        if (!isTopHoveredRef.current && !isBottomHoveredRef.current && !isHeaderPinned && !isTocOpen && !isSearchBookmarksOpen && !isSettingsOpen && !isJumpModalOpen) {
+          setArePanelsVisible(false);
         }
-      }, 3500);
+      }, 3000);
     }
-  }, [isHeaderPinned, isTocOpen, isSearchBookmarksOpen, isSettingsOpen, isJumpModalOpen]);
+  }, [panelMode, isHeaderPinned, isTocOpen, isSearchBookmarksOpen, isSettingsOpen, isJumpModalOpen]);
 
-  const handleMouseMove = useCallback(() => {
-    resetAutoHideTimer();
-  }, [resetAutoHideTimer]);
+  const handlePanelMouseEnter = useCallback((panel: "top" | "bottom") => {
+    if (panel === "top") isTopHoveredRef.current = true;
+    if (panel === "bottom") isBottomHoveredRef.current = true;
+    if (panelsTimerRef.current) clearTimeout(panelsTimerRef.current);
+    setArePanelsVisible(true);
+  }, []);
 
-  // Keep header visible when drawers/settings/modals are active or header is pinned
+  const handlePanelMouseLeave = useCallback((panel: "top" | "bottom") => {
+    if (panel === "top") isTopHoveredRef.current = false;
+    if (panel === "bottom") isBottomHoveredRef.current = false;
+    resetPanelsAutoHideTimer();
+  }, [resetPanelsAutoHideTimer]);
+
+  // Unified panel visibility flag: true if in persistent mode, drawer/modal open, pinned, or hovered
+  const isPanelVisible =
+    panelMode === "persistent" ||
+    arePanelsVisible ||
+    isHeaderPinned ||
+    isTocOpen ||
+    isSearchBookmarksOpen ||
+    isSettingsOpen ||
+    isJumpModalOpen;
+
+  // Keep panels visible when drawers/settings/modals are active or header is pinned or mode is persistent
   useEffect(() => {
-    if (isHeaderPinned || isTocOpen || isSearchBookmarksOpen || isSettingsOpen || isJumpModalOpen) {
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      setIsHeaderVisible(true);
+    if (panelMode === "persistent") {
+      if (panelsTimerRef.current) clearTimeout(panelsTimerRef.current);
+      setArePanelsVisible(true);
     } else {
-      resetAutoHideTimer();
+      if (isHeaderPinned || isTocOpen || isSearchBookmarksOpen || isSettingsOpen || isJumpModalOpen) {
+        if (panelsTimerRef.current) clearTimeout(panelsTimerRef.current);
+        setArePanelsVisible(true);
+      } else if (!isTopHoveredRef.current && !isBottomHoveredRef.current) {
+        setArePanelsVisible(false);
+      }
     }
-  }, [isHeaderPinned, isTocOpen, isSearchBookmarksOpen, isSettingsOpen, isJumpModalOpen, resetAutoHideTimer]);
+  }, [panelMode, isHeaderPinned, isTocOpen, isSearchBookmarksOpen, isSettingsOpen, isJumpModalOpen]);
 
   useEffect(() => {
     return () => {
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      if (panelsTimerRef.current) clearTimeout(panelsTimerRef.current);
     };
   }, []);
 
@@ -782,7 +914,6 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      resetAutoHideTimer();
       const now = Date.now();
 
       if (e.touches.length === 2) {
@@ -1051,7 +1182,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       container.removeEventListener("touchend", onTouchEnd);
       container.removeEventListener("touchcancel", onTouchCancel);
     };
-  }, [loading, nextPage, prevPage, viewMode, resetAutoHideTimer, minZoom, maxZoom]);
+  }, [loading, nextPage, prevPage, viewMode, minZoom, maxZoom]);
 
   // Native Trackpad Pinch-to-Zoom & Two-Finger Panning listener (passive: false, window-captured)
   useEffect(() => {
@@ -1168,9 +1299,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         margin,
         twoPageView: viewMode === "two-page",
         continuousScroll: viewMode === "scroll",
+        panelMode,
       });
     }
-  }, [readerTheme, fontSize, lineHeight, margin, viewMode, currentBookPath, updateSettings]);
+  }, [readerTheme, fontSize, lineHeight, margin, viewMode, panelMode, currentBookPath, updateSettings]);
 
   // Android System Back Gesture Handler
   useEffect(() => {
@@ -1236,6 +1368,13 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     if (updates.lineHeight !== undefined) setLineHeight(updates.lineHeight);
     if (updates.margin !== undefined) setMargin(updates.margin);
     if (updates.theme !== undefined) setReaderTheme(updates.theme);
+    if (updates.panelMode !== undefined) {
+      setPanelMode(updates.panelMode);
+      if (updates.panelMode === "smart") {
+        setIsHeaderPinned(false);
+        resetPanelsAutoHideTimer();
+      }
+    }
     if (updates.continuousScroll !== undefined && updates.continuousScroll) {
       setViewMode("scroll");
     } else if (updates.twoPageView !== undefined && updates.twoPageView) {
@@ -1255,6 +1394,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     setMargin(32);
     setReaderTheme("dark");
     setViewMode("single");
+    setPanelMode("smart");
   };
 
   if (loading) {
@@ -1293,36 +1433,26 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     <div
       className="flex-1 flex flex-col h-full overflow-hidden select-none relative"
       style={{ backgroundColor: themeStyle.bg, color: themeStyle.text }}
-      onMouseMove={handleMouseMove}
     >
-      {/* Top Hover Sensor Zone: hovering or touching within top 24px reveals top header */}
-      <div
-        className="reader-top-hover-zone"
-        onMouseEnter={() => {
-          setIsHeaderVisible(true);
-          resetAutoHideTimer();
-        }}
-        onTouchStart={() => {
-          setIsHeaderVisible(true);
-          resetAutoHideTimer();
-        }}
-      />
+      {/* Top Hover Sensor Zone: hovering or touching reveals both panels in smart mode */}
+      {panelMode === "smart" && (
+        <div
+          className="reader-top-hover-zone"
+          onMouseEnter={() => handlePanelMouseEnter("top")}
+          onTouchStart={() => handlePanelMouseEnter("top")}
+        />
+      )}
 
-      {/* Floating Smart Auto-Hiding Top Navigation Bar */}
+      {/* Top Navigation Bar: in-flow in persistent mode, floating in smart mode */}
       <header
-        className={`reader-header-floating flex items-center justify-between px-3 sm:px-4 py-2 border-b z-50 ${
-          isHeaderVisible || isHeaderPinned ? "reader-header-visible" : "reader-header-hidden"
+        className={`flex items-center justify-between px-3 sm:px-4 py-2 border-b ${
+          panelMode === "persistent"
+            ? "reader-header-inflow z-30 flex-shrink-0"
+            : `reader-header-floating z-50 ${isPanelVisible ? "reader-header-visible" : "reader-header-hidden"}`
         }`}
         style={{ backgroundColor: themeStyle.barBg, borderColor: themeStyle.border }}
-        onMouseEnter={() => {
-          isHeaderHoveredRef.current = true;
-          if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-          setIsHeaderVisible(true);
-        }}
-        onMouseLeave={() => {
-          isHeaderHoveredRef.current = false;
-          resetAutoHideTimer();
-        }}
+        onMouseEnter={() => handlePanelMouseEnter("top")}
+        onMouseLeave={() => handlePanelMouseLeave("top")}
       >
         {isCompact ? (
           <>
@@ -1381,24 +1511,6 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               </button>
 
               <button
-                onClick={() => setIsTocOpen(curr => !curr)}
-                className={`relative p-1.5 rounded-lg transition-colors cursor-pointer active:scale-95 ${
-                  isTocOpen
-                    ? "bg-[var(--color-primary)] text-white"
-                    : "hover:bg-black/10 dark:hover:bg-white/10"
-                }`}
-                title="Table of Contents"
-                aria-label="Table of Contents"
-              >
-                <ListUnorderedIcon size={16} />
-                {toc.length > 0 && (
-                  <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] text-[9px] px-0.5 bg-[var(--color-primary)] text-white rounded-full font-bold flex items-center justify-center leading-none">
-                    {toc.length}
-                  </span>
-                )}
-              </button>
-
-              <button
                 onClick={() => setIsSettingsOpen(curr => !curr)}
                 className={`p-1.5 rounded-lg transition-colors cursor-pointer active:scale-95 ${
                   isSettingsOpen
@@ -1446,32 +1558,14 @@ export function ReaderView({ onClose }: ReaderViewProps) {
 
             {/* View Mode & Theme Controls */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Contents, Search & Bookmarks Top Bar Buttons */}
+              {/* Search & Bookmarks Top Bar Buttons */}
               <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
-                <button
-                  onClick={() => setIsTocOpen(curr => !curr)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors ${
-                    isTocOpen
-                      ? "bg-[var(--color-primary)] text-white"
-                      : "hover:bg-black/5 dark:hover:bg-white/5"
-                  }`}
-                  style={{ borderColor: themeStyle.border }}
-                  title="Toggle Table of Contents Sidebar (C)"
-                >
-                  <ListUnorderedIcon size={14} />
-                  <span>Contents</span>
-                  {toc.length > 0 && (
-                    <span className="opacity-75 text-[10px] px-1 py-0.2 bg-[var(--color-primary)] text-white rounded-full font-bold">
-                      {toc.length}
-                    </span>
-                  )}
-                </button>
                 <button
                   onClick={() => {
                     setSearchBookmarksTab("search");
                     setIsSearchBookmarksOpen(curr => (searchBookmarksTab === "search" ? !curr : true));
                   }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors border-l ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors ${
                     isSearchBookmarksOpen && searchBookmarksTab === "search"
                       ? "bg-[var(--color-primary)] text-white"
                       : "hover:bg-black/5 dark:hover:bg-white/5"
@@ -1669,37 +1763,37 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         )}
       </header>
 
-      {/* Left-Side Content / Table of Contents Button (just below top panel menu) - Desktop Only when TOC is collapsed */}
-      {!isCompact && !isTocOpen && (
-        <div
-          className={`absolute left-4 z-40 transition-all duration-300 pointer-events-auto ${
-            isHeaderVisible || isHeaderPinned ? "top-14" : "top-4"
-          }`}
-        >
-          <button
-            onClick={() => {
-              setIsTocOpen(curr => !curr);
-            }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border shadow-md backdrop-blur-md text-xs font-medium transition-all hover:scale-105 hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
-            style={{
-              backgroundColor: themeStyle.barBg,
-              borderColor: themeStyle.border,
-            }}
-            title="Table of Contents (C)"
-          >
-            <ListUnorderedIcon size={14} />
-            <span>Contents</span>
-            {toc.length > 0 && (
-              <span className="opacity-80 text-[10px] px-1.5 py-0.2 bg-black/10 dark:bg-white/10 rounded-full font-bold">
-                {toc.length}
-              </span>
-            )}
-          </button>
-        </div>
-      )}
-
       {/* Reader Main Workspace: Docked Left TOC Sidebar (Desktop) + Main Reading Viewport */}
       <div className="flex-1 flex min-h-0 min-w-0 overflow-hidden relative">
+        {/* Left-Side Floating Table of Contents Button (Desktop) when TOC is collapsed */}
+        {!isCompact && !isTocOpen && (
+          <div
+            className={`absolute left-4 z-40 transition-all duration-300 pointer-events-auto ${
+              panelMode === "persistent" ? "top-3" : "top-14"
+            }`}
+          >
+            <button
+              onClick={() => {
+                setIsTocOpen(true);
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border shadow-md backdrop-blur-md text-xs font-medium transition-all hover:scale-105 hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
+              style={{
+                backgroundColor: themeStyle.barBg,
+                borderColor: themeStyle.border,
+              }}
+              title="Table of Contents (C)"
+            >
+              <ListUnorderedIcon size={14} />
+              <span>Contents</span>
+              {toc.length > 0 && (
+                <span className="opacity-80 text-[10px] px-1.5 py-0.2 bg-black/10 dark:bg-white/10 rounded-full font-bold">
+                  {toc.length}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
         {/* On Desktop: In-Flow Left-Docked Table of Contents Sidebar */}
         {!isCompact && isTocOpen && (
           <TableOfContentsDrawer
@@ -1713,6 +1807,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             }}
             theme={readerTheme}
             docked={true}
+            panelMode={panelMode}
           />
         )}
 
@@ -1769,6 +1864,12 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               <div
                 ref={pageContainerRef}
                 className={`reader-page-fit-container ${isCompact ? "" : "shadow-md rounded"}`}
+                style={{
+                  width: `${pageDimensions.width}px`,
+                  height: `${pageDimensions.height}px`,
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                }}
               />
             </div>
           </div>
@@ -1798,31 +1899,95 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                 transition: (isDragging || isPinching) ? "none" : "transform 100ms ease-out",
               }}
             >
-              <div
-                className="relative flex items-center justify-end overflow-hidden border-r"
-                style={{ borderColor: themeStyle.border }}
-              >
-                {bookBookmarks.some(b => b.location === currentPage) && (
-                  <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage}`}>
-                    <div className="bookmark-corner-ribbon-badge">
-                      <BookmarkFillIcon size={14} />
+              {bookInstance?.format === "epub" ? (
+                <div
+                  className="relative flex items-center justify-center overflow-hidden"
+                  style={{
+                    width: `${spreadDimensions.width * 2}px`,
+                    height: `${spreadDimensions.height}px`,
+                    maxWidth: "100%",
+                    maxHeight: "100%",
+                  }}
+                >
+                  {bookBookmarks.some(b => b.location === currentPage) && (
+                    <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage}`}>
+                      <div className="bookmark-corner-ribbon-badge">
+                        <BookmarkFillIcon size={14} />
+                      </div>
                     </div>
+                  )}
+                  <div
+                    ref={leftPageRef}
+                    className="reader-page-fit-container flex items-center justify-center overflow-hidden"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                    }}
+                  />
+                  {/* Keep rightPageRef in DOM for ref stability */}
+                  <div ref={rightPageRef} style={{ display: "none" }} />
+                </div>
+              ) : (
+                <>
+                  <div
+                    className="relative flex items-center justify-end overflow-hidden border-r"
+                    style={{
+                      borderColor: themeStyle.border,
+                      width: `${spreadDimensions.width}px`,
+                      height: `${spreadDimensions.height}px`,
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                    }}
+                  >
+                    {bookBookmarks.some(b => b.location === currentPage) && (
+                      <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage}`}>
+                        <div className="bookmark-corner-ribbon-badge">
+                          <BookmarkFillIcon size={14} />
+                        </div>
+                      </div>
+                    )}
+                    <div
+                      ref={leftPageRef}
+                      className="reader-page-fit-container flex items-center justify-end overflow-hidden"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        maxWidth: "100%",
+                        maxHeight: "100%",
+                      }}
+                    />
                   </div>
-                )}
-                <div ref={leftPageRef} className="reader-page-fit-container flex items-center justify-end overflow-hidden" />
-              </div>
-              <div
-                className="relative flex items-center justify-start overflow-hidden"
-              >
-                {bookBookmarks.some(b => b.location === currentPage + 1) && (
-                  <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage + 1}`}>
-                    <div className="bookmark-corner-ribbon-badge">
-                      <BookmarkFillIcon size={14} />
-                    </div>
+                  <div
+                    className="relative flex items-center justify-start overflow-hidden"
+                    style={{
+                      width: `${spreadDimensions.width}px`,
+                      height: `${spreadDimensions.height}px`,
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                    }}
+                  >
+                    {bookBookmarks.some(b => b.location === currentPage + 1) && (
+                      <div className="bookmark-corner-ribbon" title={`Bookmarked: Page ${currentPage + 1}`}>
+                        <div className="bookmark-corner-ribbon-badge">
+                          <BookmarkFillIcon size={14} />
+                        </div>
+                      </div>
+                    )}
+                    <div
+                      ref={rightPageRef}
+                      className="reader-page-fit-container flex items-center justify-start overflow-hidden"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        maxWidth: "100%",
+                        maxHeight: "100%",
+                      }}
+                    />
                   </div>
-                )}
-                <div ref={rightPageRef} className="reader-page-fit-container flex items-center justify-start overflow-hidden" />
-              </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -1830,6 +1995,26 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         {/* Continuous Scroll View */}
         {viewMode === "scroll" && (() => {
           const slotWidth = Math.floor((isCompact ? Math.max(300, (containerRef.current?.clientWidth || 390) - 8) : 860) * zoomLevel);
+
+          if (bookInstance?.format === "epub") {
+            return (
+              <div
+                ref={scrollContainerRef}
+                className={`w-full h-full overflow-y-auto overflow-x-auto ${isCompact ? "p-1" : "p-4 sm:p-6"} flex justify-center`}
+                style={{ touchAction: zoomLevel > 1.05 ? "none" : "pan-y" }}
+              >
+                <div
+                  ref={epubScrollContainerRef}
+                  className="mx-auto min-h-full"
+                  style={{
+                    width: `${slotWidth}px`,
+                    minWidth: `${slotWidth}px`,
+                  }}
+                />
+              </div>
+            );
+          }
+
           return (
             <div
               ref={scrollContainerRef}
@@ -1885,14 +2070,29 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       </main>
       </div>
 
+      {/* Bottom Hover Sensor Zone: hovering or touching reveals both panels in smart mode */}
+      {panelMode === "smart" && (
+        <div
+          className="reader-bottom-hover-zone"
+          onMouseEnter={() => handlePanelMouseEnter("bottom")}
+          onTouchStart={() => handlePanelMouseEnter("bottom")}
+        />
+      )}
+
       {/* Bottom Navigation & Scrubber Bar */}
       <footer
-        className="flex items-center justify-between px-3 sm:px-6 py-2 border-t z-20 flex-shrink-0 gap-2 sm:gap-4"
+        className={`flex items-center justify-between px-3 sm:px-6 py-2 border-t gap-2 sm:gap-4 ${
+          panelMode === "persistent"
+            ? "reader-footer-inflow z-20 flex-shrink-0"
+            : `reader-footer-floating z-50 ${isPanelVisible ? "reader-footer-visible" : "reader-footer-hidden"}`
+        }`}
         style={{
           backgroundColor: themeStyle.barBg,
           borderColor: themeStyle.border,
           paddingBottom: "max(0.5rem, calc(0.5rem + var(--sab)))",
         }}
+        onMouseEnter={() => handlePanelMouseEnter("bottom")}
+        onMouseLeave={() => handlePanelMouseLeave("bottom")}
       >
         <div className="flex items-center gap-2">
           <button
@@ -2081,6 +2281,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           }}
           theme={readerTheme}
           docked={false}
+          panelMode={panelMode}
         />
       )}
 
@@ -2123,6 +2324,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           theme: readerTheme,
           twoPageView: viewMode === "two-page",
           continuousScroll: viewMode === "scroll",
+          panelMode,
         }}
         onUpdateSettings={handleUpdateSettings}
         onResetSettings={handleResetSettings}

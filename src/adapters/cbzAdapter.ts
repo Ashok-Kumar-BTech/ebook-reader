@@ -96,10 +96,15 @@ export class CbzAdapter implements BookAdapter {
     const blob = await file.async('blob');
     const url = URL.createObjectURL(blob);
     
+    const maxWidth = Math.max(100, options.width - options.margin * 2);
+    const maxHeight = Math.max(100, options.height - options.margin * 2);
+
     const img = document.createElement('img');
     img.src = url;
-    img.style.maxWidth = '100%';
-    img.style.maxHeight = '100%';
+    img.style.maxWidth = options.continuousScroll ? '100%' : `${maxWidth}px`;
+    img.style.maxHeight = options.continuousScroll ? 'none' : `${maxHeight}px`;
+    img.style.width = 'auto';
+    img.style.height = 'auto';
     img.style.objectFit = 'contain';
     img.style.display = 'block';
     img.style.margin = 'auto';
@@ -121,11 +126,11 @@ export class CbzAdapter implements BookAdapter {
       container.style.height = '100%';
       container.style.overflow = 'hidden';
     } else {
-      container.style.width = 'max-content';
-      container.style.height = 'max-content';
-      container.style.minWidth = '100%';
-      container.style.minHeight = '100%';
-      container.style.overflow = 'visible';
+      container.style.width = `${maxWidth}px`;
+      container.style.height = `${maxHeight}px`;
+      container.style.maxWidth = '100%';
+      container.style.maxHeight = '100%';
+      container.style.overflow = 'hidden';
     }
     container.appendChild(img);
     

@@ -94,6 +94,17 @@ export interface BookAdapter {
    * Render a range of pages (for continuous scroll)
    */
   renderPageRange?(startPage: number, endPage: number, container: HTMLElement, options: RenderOptions): Promise<void>;
+
+  /**
+   * Render the entire book in a single container using continuous-scroll flow.
+   * Only implemented by EPUB adapter; other adapters use per-page renderPage slots.
+   */
+  renderScrollView?(container: HTMLElement, options: RenderOptions): Promise<void>;
+
+  /**
+   * Callback invoked by adapter when the active page or reading location changes (e.g. during continuous scrolling)
+   */
+  onLocationChange?: (location: number) => void;
 }
 
 export interface AdapterFactory {

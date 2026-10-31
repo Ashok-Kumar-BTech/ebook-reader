@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { GearIcon, XIcon, SunIcon, MoonIcon } from "@primer/octicons-react";
+import { GearIcon, XIcon, SunIcon, MoonIcon, EyeIcon } from "@primer/octicons-react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import type { BookSettings } from "../stores/bookStore";
 import type { BookInstance } from "../types/reader";
@@ -145,6 +145,41 @@ export function SettingsDrawer({
                   Scroll
                 </button>
               </div>
+            </div>
+
+            {/* Panel Behavior */}
+            <div className="rounded-lg p-3 border" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <EyeIcon size={12} className="opacity-70" />
+                <label className="text-xs font-medium">Panel Behavior</label>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                <button
+                  onClick={() => onUpdateSettings({ panelMode: 'smart' })}
+                  className={`py-1.5 text-xs rounded-md border font-medium transition-colors ${
+                    (settings.panelMode ?? 'smart') === 'smart'
+                      ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
+                      : "hover:bg-black/5 dark:hover:bg-white/5 border-transparent"
+                  }`}
+                >
+                  Smart
+                </button>
+                <button
+                  onClick={() => onUpdateSettings({ panelMode: 'persistent' })}
+                  className={`py-1.5 text-xs rounded-md border font-medium transition-colors ${
+                    settings.panelMode === 'persistent'
+                      ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
+                      : "hover:bg-black/5 dark:hover:bg-white/5 border-transparent"
+                  }`}
+                >
+                  Persistent
+                </button>
+              </div>
+              <p className="text-[10px] opacity-60 leading-snug">
+                {(settings.panelMode ?? 'smart') === 'smart'
+                  ? 'Panels reveal only when hovering near top or bottom edges.'
+                  : 'Panels are always visible while reading.'}
+              </p>
             </div>
 
             {/* Theme Selector */}
