@@ -2,12 +2,14 @@
   "name": "ebook-reader",
   "private": true,
   "version": "0.1.0",
+  "license": "GPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "generate:logo": "node logo/convert_icons.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },

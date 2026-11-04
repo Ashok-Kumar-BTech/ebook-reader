@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">"ebook-reader"</string>
-    <string name="main_activity_title">"ebook-reader"</string>
+    <string name="app_name">Ebook Reader</string>
+    <string name="main_activity_title">Ebook Reader</string>
 </resources>

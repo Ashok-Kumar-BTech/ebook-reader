@@ -311,7 +311,10 @@ We welcome contributions that align with our local-first, privacy-respecting phi
 - **User Ownership:** Your reading positions, bookmarks, and recent history remain stored entirely on your device in plain JSON format.
 
 ### License & Attribution
-- **License:** Open-source under the GNU General Public License v3.0 (GPLv3).
+- **License:** Open-source under the GNU General Public License v3.0 (GPLv3). See [LICENSE](LICENSE) for the full official text.
+- **Third-Party Notices:** Complete attribution and license text for third-party open-source components are documented in [NOTICE](NOTICE).
+- **Compliance Plan:** Full licensing and distribution compliance plan for GitHub Releases is available in [docs/plans/LICENSING.md](docs/plans/LICENSING.md).
+- **Logo & Branding:** The application logo and icons are AI-generated using Gemini's Nano Banana (see [NOTICE](NOTICE) and [logo/README.md](logo/README.md)).
 - **Core Open-Source Dependencies:**
   - **Tauri 2** (MIT / Apache-2.0)
   - **React 19 & Vite** (MIT)

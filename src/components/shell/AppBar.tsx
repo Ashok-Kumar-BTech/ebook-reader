@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import appLogo from "../../assets/logo.png";
 import {
   BookIcon,
   FileDirectoryFillIcon,
@@ -110,9 +111,11 @@ export function AppBar({
           {/* Left Zone: Brand & Open Folder */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center">
-                <BookIcon size={16} />
-              </div>
+              <img
+                src={appLogo}
+                alt="Ebook Reader Logo"
+                className="w-7 h-7 rounded-lg object-contain shadow-xs flex-shrink-0"
+              />
               <h1 className="text-sm font-bold tracking-tight text-[var(--color-text)] hidden sm:inline">
                 Ebook Reader
               </h1>

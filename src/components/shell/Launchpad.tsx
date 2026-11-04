@@ -1,4 +1,5 @@
 import { BookIcon, FileDirectoryFillIcon, HistoryIcon, ArrowRightIcon } from "@primer/octicons-react";
+import appLogo from "../../assets/logo.png";
 import type { RecentFolder } from "../../stores/uiStore";
 
 export interface LaunchpadProps {
@@ -30,8 +31,8 @@ export function Launchpad({
     <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 text-center overflow-y-auto">
       {/* Hero Welcome Card */}
       <div className="max-w-md w-full mb-6">
-        <div className="w-16 h-16 rounded-2xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center mx-auto mb-4 shadow-sm">
-          <BookIcon size={32} />
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md overflow-hidden bg-transparent">
+          <img src={appLogo} alt="Ebook Reader Logo" className="w-full h-full object-contain" />
         </div>
         <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--color-text)] mb-2">
           Your Local Ebook Library

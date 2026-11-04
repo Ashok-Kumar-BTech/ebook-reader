@@ -109,6 +109,18 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_android_fs::init())
         .plugin(tauri_plugin_store::Builder::default().build())
+        .setup(|app| {
+            #[cfg(desktop)]
+            {
+                use tauri::Manager;
+                if let Some(window) = app.get_webview_window("main") {
+                    if let Ok(icon) = tauri::image::Image::from_bytes(include_bytes!("../icons/128x128.png")) {
+                        let _ = window.set_icon(icon);
+                    }
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             log_from_frontend,
             list_directory,
