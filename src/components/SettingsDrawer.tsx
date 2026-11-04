@@ -3,6 +3,7 @@ import { GearIcon, XIcon, SunIcon, MoonIcon, EyeIcon } from "@primer/octicons-re
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import type { BookSettings } from "../stores/bookStore";
 import type { BookInstance } from "../types/reader";
+import { getFormatInfo } from "../formats/registry";
 import { FormatBadge } from "./FormatBadge";
 
 export interface SettingsDrawerProps {
@@ -47,6 +48,13 @@ export function SettingsDrawer({
   // Theming styles
   const isDark = theme === "dark";
   const isSepia = theme === "sepia";
+
+  const formatInfo = bookInstance?.filePath ? getFormatInfo(bookInstance.filePath) : null;
+  const supportedViews = formatInfo?.views || ['single', 'two-page', 'scroll'];
+  const isSingleSupported = supportedViews.includes('single');
+  const isSpreadSupported = supportedViews.includes('two-page');
+  const isScrollSupported = supportedViews.includes('scroll');
+  const isReflowable = formatInfo ? formatInfo.reflowable : false;
 
   const drawerBg = isDark ? "#182234" : isSepia ? "#f4e8ce" : "#ffffff";
   const drawerText = isDark ? "#f3f4f6" : isSepia ? "#4a3b2c" : "#111827";
@@ -112,12 +120,22 @@ export function SettingsDrawer({
           <div className="space-y-4">
             {/* View Mode */}
             <div className="rounded-lg p-3 border" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
-              <label className="text-xs font-medium block mb-2">Reading View</label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-xs font-medium">Reading View</label>
+                {!isSingleSupported && !isSpreadSupported && (
+                  <span className="text-[10px] opacity-60 italic">Scroll-only format</span>
+                )}
+              </div>
               <div className="grid grid-cols-3 gap-1.5">
                 <button
-                  onClick={() => onUpdateSettings({ continuousScroll: false, twoPageView: false })}
+                  type="button"
+                  disabled={!isSingleSupported}
+                  title={!isSingleSupported ? "This format is scroll-only and does not support single-page view." : "Single Page View"}
+                  onClick={() => isSingleSupported && onUpdateSettings({ continuousScroll: false, twoPageView: false })}
                   className={`py-1.5 text-xs rounded-md border font-medium transition-colors ${
-                    !settings.continuousScroll && !settings.twoPageView
+                    !isSingleSupported
+                      ? "opacity-35 cursor-not-allowed border-transparent"
+                      : !settings.continuousScroll && !settings.twoPageView
                       ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
                       : "hover:bg-black/5 dark:hover:bg-white/5 border-transparent"
                   }`}
@@ -125,9 +143,14 @@ export function SettingsDrawer({
                   Single
                 </button>
                 <button
-                  onClick={() => onUpdateSettings({ continuousScroll: false, twoPageView: true })}
+                  type="button"
+                  disabled={!isSpreadSupported}
+                  title={!isSpreadSupported ? "This format is scroll-only and does not support two-page spread view." : "Two-Page Spread View"}
+                  onClick={() => isSpreadSupported && onUpdateSettings({ continuousScroll: false, twoPageView: true })}
                   className={`py-1.5 text-xs rounded-md border font-medium transition-colors ${
-                    !settings.continuousScroll && settings.twoPageView
+                    !isSpreadSupported
+                      ? "opacity-35 cursor-not-allowed border-transparent"
+                      : !settings.continuousScroll && settings.twoPageView
                       ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
                       : "hover:bg-black/5 dark:hover:bg-white/5 border-transparent"
                   }`}
@@ -135,9 +158,14 @@ export function SettingsDrawer({
                   Spread
                 </button>
                 <button
-                  onClick={() => onUpdateSettings({ continuousScroll: true, twoPageView: false })}
+                  type="button"
+                  disabled={!isScrollSupported}
+                  title={!isScrollSupported ? "Scroll view is not supported for this format." : "Continuous Scroll View"}
+                  onClick={() => isScrollSupported && onUpdateSettings({ continuousScroll: true, twoPageView: false })}
                   className={`py-1.5 text-xs rounded-md border font-medium transition-colors ${
-                    settings.continuousScroll
+                    !isScrollSupported
+                      ? "opacity-35 cursor-not-allowed border-transparent"
+                      : settings.continuousScroll
                       ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
                       : "hover:bg-black/5 dark:hover:bg-white/5 border-transparent"
                   }`}
@@ -229,12 +257,124 @@ export function SettingsDrawer({
           </div>
         </div>
 
-        {/* Section 2: Book Information */}
+        {/* Section 2: Typography (Reflowable Formats) */}
+        <div>
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)] mb-3">
+            Typography
+          </h4>
+          {isReflowable ? (
+            <div className="space-y-3">
+              {/* Font Size */}
+              <div className="rounded-lg p-3 border" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-medium">Font Size</label>
+                  <span className="text-xs font-bold text-[var(--color-primary)]">{settings.fontSize ?? 16}px</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSettings({ fontSize: Math.max(12, (settings.fontSize ?? 16) - 2) })}
+                    className="flex-1 py-1.5 px-2 text-xs rounded border hover:bg-black/5 dark:hover:bg-white/5 font-medium transition-colors"
+                    title="Decrease font size"
+                    disabled={(settings.fontSize ?? 16) <= 12}
+                  >
+                    A-
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSettings({ fontSize: 16 })}
+                    className="py-1.5 px-3 text-xs rounded border hover:bg-black/5 dark:hover:bg-white/5 font-medium opacity-75 hover:opacity-100 transition-colors"
+                    title="Reset font size to default (16px)"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSettings({ fontSize: Math.min(36, (settings.fontSize ?? 16) + 2) })}
+                    className="flex-1 py-1.5 px-2 text-xs rounded border hover:bg-black/5 dark:hover:bg-white/5 font-medium transition-colors"
+                    title="Increase font size"
+                    disabled={(settings.fontSize ?? 16) >= 36}
+                  >
+                    A+
+                  </button>
+                </div>
+              </div>
+
+              {/* Line Height */}
+              <div className="rounded-lg p-3 border" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-medium">Line Spacing</label>
+                  <span className="text-xs opacity-75">{settings.lineHeight ?? 1.6}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { label: 'Compact', val: 1.3 },
+                    { label: 'Normal', val: 1.6 },
+                    { label: 'Relaxed', val: 2.0 },
+                  ].map((item) => (
+                    <button
+                      key={item.val}
+                      type="button"
+                      onClick={() => onUpdateSettings({ lineHeight: item.val })}
+                      className={`py-1.5 text-xs rounded-md border font-medium transition-colors ${
+                        Math.abs((settings.lineHeight ?? 1.6) - item.val) < 0.1
+                          ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
+                          : "hover:bg-black/5 dark:hover:bg-white/5 border-transparent"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Margins */}
+              <div className="rounded-lg p-3 border" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-medium">Page Margins</label>
+                  <span className="text-xs opacity-75">{settings.margin ?? 48}px</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { label: 'Narrow', val: 16 },
+                    { label: 'Normal', val: 48 },
+                    { label: 'Wide', val: 80 },
+                  ].map((item) => (
+                    <button
+                      key={item.val}
+                      type="button"
+                      onClick={() => onUpdateSettings({ margin: item.val })}
+                      className={`py-1.5 text-xs rounded-md border font-medium transition-colors ${
+                        (settings.margin ?? 48) === item.val
+                          ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
+                          : "hover:bg-black/5 dark:hover:bg-white/5 border-transparent"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg p-3 border text-xs opacity-70 leading-relaxed" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
+              Typography reflow (font size, margins) is not applicable for fixed-layout formats ({bookInstance?.format?.toUpperCase() || 'PDF/CBZ'}). Use Document Zoom to scale content.
+            </div>
+          )}
+        </div>
+
+        {/* Section 3: Book Information */}
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)] mb-3">
             Book Information
           </h4>
           <div className="rounded-lg p-3 border space-y-2 text-xs" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
+            {typeof bookInstance?.metadata?.author === 'string' && Boolean(bookInstance.metadata.author.trim()) && (
+              <div className="flex justify-between items-center">
+                <span className="opacity-70">Author:</span>
+                <span className="font-medium truncate max-w-[180px]">{String(bookInstance.metadata.author)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center">
               <span className="opacity-70">Format:</span>
               {bookInstance?.filePath && <FormatBadge path={bookInstance.filePath} />}

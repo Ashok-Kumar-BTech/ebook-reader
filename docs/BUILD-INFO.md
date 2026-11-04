@@ -110,6 +110,21 @@ To compile and automatically install/launch on a connected physical phone (or An
    ```
    *This packages the APK, streams it across ADB, installs it, and starts live debugging.*
 
+> [!NOTE]
+> **Multi-User / Work Profile Dev Behavior:**
+> When running `npm run tauri android dev`, the Tauri CLI internal runner calls `adb install -r <apk>` without `--user current`. In Android's `PackageManagerService`, an install command without a specified user defaults to `UserHandle.USER_ALL`. On phones with multiple user spaces (Work Profiles, Samsung Secure Folder, Xiaomi Second Space, Island/Shelter), ADB will deploy the debug APK into all user profiles.
+>
+> **How to target only your active personal profile during development:**
+> Use the targeted install script after compiling:
+> ```powershell
+> npm run android:install:current
+> ```
+> *(Or manually: `adb install -r --user current src-tauri/gen/android/app/build/outputs/apk/arm64/debug/app-arm64-debug.apk`)*.
+> To remove a bleed build from a secondary user (e.g. user ID 10):
+> ```powershell
+> adb uninstall --user 10 com.ebook.reader
+> ```
+
 ### 3.3 Building Standalone APKs & Google Play Bundles (AAB)
 
 #### Debug APK (for quick local testing & sharing)
@@ -141,14 +156,24 @@ src-tauri/gen/android/app/build/outputs/bundle/arm64Release/app-arm64-release.aa
 
 ### 3.4 Installation & Sideloading Procedure
 
-#### Option 1: Via ADB (Command Line)
-To ensure the app installs strictly for the current active user profile (and does not bleed into Work Profiles, Dual Apps, or secondary accounts):
+#### Option 1: Via ADB (Command Line Developer Install)
+To ensure the app installs strictly for the current active user profile:
 ```powershell
 adb install -r --user current src-tauri/gen/android/app/build/outputs/apk/arm64/debug/app-arm64-debug.apk
 ```
+Or use the npm script:
+```powershell
+npm run android:install:current
+```
 
-#### Option 2: Direct Device Sideloading
-1. Send or copy `app-arm64-debug.apk` to phone storage (via USB file transfer, Telegram, Google Drive, etc.).
+#### Option 2: Direct Device Sideloading (Production `.apk` Behavior)
+> [!IMPORTANT]
+> **Production `.apk` Single-User Guarantee:**
+> Unlike developer ADB commands, installing a production `.apk` directly on a phone (via Files app, WhatsApp, Chrome download, or GitHub Release) is handled by Android's native system **`PackageInstaller`** (`InstallInstalling` activity).
+> 
+> The system `PackageInstaller` operates strictly within the security boundaries of the **active user profile**. It installs the application **exclusively for the profile that initiated the installation** and will **never** bleed or install into Work Profiles, Secure Folders, or secondary accounts.
+
+1. Send or copy `app-arm64-release.apk` (or debug APK) to phone storage.
 2. Locate the `.apk` in the phone's **Files** app and tap it.
 3. If prompted: *"For security, your phone is not allowed to install unknown apps from this source"*, tap **Settings** $\rightarrow$ toggle **Allow from this source**.
 4. Tap **Install** (or **Update**).

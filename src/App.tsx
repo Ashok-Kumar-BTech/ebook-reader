@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { UploadIcon } from "@primer/octicons-react";
 import { useUiStore, type SortBy, type ViewMode, type AppTheme, type RecentFolder } from "./stores/uiStore";
 import { useBookStore } from "./stores/bookStore";
 import { useBreakpoint } from "./hooks/useBreakpoint";
@@ -63,6 +64,115 @@ export default function App() {
   const [error, setError] = useState<AppError | null>(null);
   const [librarySearchQuery, setLibrarySearchQuery] = useState("");
   const [isViewOptionsOpen, setIsViewOptionsOpen] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [canRevealInOS, setCanRevealInOS] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    getFileSystemProvider().then((provider) => {
+      if (isMounted) {
+        setCanRevealInOS(Boolean(provider.capabilities.revealInOS && provider.revealInOS));
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleRevealInOS = useCallback(async (path: string) => {
+    try {
+      const provider = await getFileSystemProvider();
+      if (provider.revealInOS) {
+        await provider.revealInOS(path);
+      }
+    } catch (err) {
+      const appErr = toAppError(err);
+      setError(appErr);
+    }
+  }, []);
+
+  // Check CLI startup path (associated file double-click or CLI argument)
+  useEffect(() => {
+    const checkCliPath = async () => {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const cliPath = await invoke<string | null>("get_cli_open_path");
+        if (cliPath) {
+          logger.info("CLI_OPEN_PATH_DETECTED", { path: cliPath });
+          if (formatRegistry.isSupported(cliPath)) {
+            const name = cliPath.split(/[/\\]/).filter(Boolean).pop() || cliPath;
+            setCurrentBookPath(cliPath, name);
+            addRecentFile(cliPath);
+            setMode("reading");
+          } else {
+            navigateToDir(cliPath);
+            addRecentFolder({ id: cliPath, name: cliPath.split(/[/\\]/).filter(Boolean).pop() || cliPath, platform: "desktop" });
+            setMode("browse");
+          }
+        }
+      } catch {
+        // Non-Tauri environment or command unavailable
+      }
+    };
+    checkCliPath();
+  }, [logger, setCurrentBookPath, addRecentFile, navigateToDir, addRecentFolder]);
+
+  // Window drag-and-drop listener (Tauri native webview events)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    const setupDragDrop = async () => {
+      try {
+        const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+        unlisten = await getCurrentWebview().onDragDropEvent(async (event) => {
+          if (event.payload.type === "enter" || event.payload.type === "over") {
+            setIsDraggingFile(true);
+          } else if (event.payload.type === "leave") {
+            setIsDraggingFile(false);
+          } else if (event.payload.type === "drop") {
+            setIsDraggingFile(false);
+            const paths = event.payload.paths;
+            if (paths && paths.length > 0) {
+              const dropped = paths[0];
+              if (formatRegistry.isSupported(dropped)) {
+                const name = dropped.split(/[/\\]/).filter(Boolean).pop() || dropped;
+                setCurrentBookPath(dropped, name);
+                addRecentFile(dropped);
+                setMode("reading");
+              } else {
+                navigateToDir(dropped);
+                addRecentFolder({ id: dropped, name: dropped.split(/[/\\]/).filter(Boolean).pop() || dropped, platform: "desktop" });
+                setMode("browse");
+              }
+            }
+          }
+        });
+      } catch {
+        // Fallback to browser HTML5 drag & drop
+      }
+    };
+    setupDragDrop();
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [setCurrentBookPath, addRecentFile, navigateToDir, addRecentFolder]);
+
+  const handleHtmlDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingFile(false);
+    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      const filePath = (file as any).path || file.name;
+      if (formatRegistry.isSupported(filePath)) {
+        setCurrentBookPath(filePath, file.name);
+        addRecentFile(filePath);
+        setMode("reading");
+      } else if ((file as any).path) {
+        navigateToDir((file as any).path);
+        addRecentFolder({ id: (file as any).path, name: file.name, platform: "desktop" });
+        setMode("browse");
+      }
+    }
+  }, [setCurrentBookPath, addRecentFile, navigateToDir, addRecentFolder]);
 
   // Directory navigation calculations
   const parentPath = useMemo(() => (currentRoot ? getParentPath(currentRoot) : null), [currentRoot]);
@@ -319,7 +429,36 @@ export default function App() {
   };
 
   return (
-    <div className="app">
+    <div
+      className="app relative"
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDraggingFile(true);
+      }}
+      onDragEnter={(e) => {
+        e.preventDefault();
+        setIsDraggingFile(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+          setIsDraggingFile(false);
+        }
+      }}
+      onDrop={handleHtmlDrop}
+    >
+      {isDraggingFile && (
+        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-[var(--color-surface)] border-2 border-dashed border-[var(--color-primary)] rounded-2xl p-8 max-w-sm text-center shadow-2xl flex flex-col items-center gap-3">
+            <div className="p-4 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+              <UploadIcon size={32} />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-[var(--color-text)]">Drop Ebook or Folder Here</h3>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">Release to open ebook or browse folder</p>
+            </div>
+          </div>
+        </div>
+      )}
       {mode === "browse" ? (
         <div className="flex-1 flex flex-col h-full overflow-hidden">
           {/* Responsive Top Application Bar */}
@@ -390,6 +529,7 @@ export default function App() {
                       entries={filteredEntries}
                       onFileClick={handleFileClick}
                       onDirectoryClick={handleDirectoryNavigate}
+                      onRevealInOS={canRevealInOS ? handleRevealInOS : undefined}
                       parentPath={parentPath}
                       onParentClick={handleNavigateUp}
                       loading={loading}
@@ -397,6 +537,7 @@ export default function App() {
                       emptyMessage={
                         librarySearchQuery ? `No ebooks match "${librarySearchQuery}"` : "No files found"
                       }
+                      isCompact={isCompact}
                     />
                   </div>
                 ) : (
@@ -404,7 +545,9 @@ export default function App() {
                     entries={filteredEntries}
                     onFileClick={handleFileClick}
                     onDirectoryClick={handleDirectoryNavigate}
+                    onRevealInOS={canRevealInOS ? handleRevealInOS : undefined}
                     searchQuery={librarySearchQuery}
+                    isCompact={isCompact}
                   />
                 )}
               </div>

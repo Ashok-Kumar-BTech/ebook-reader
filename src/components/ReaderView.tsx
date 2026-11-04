@@ -20,6 +20,8 @@ import {
   PinIcon,
   PinSlashIcon,
   ArrowLeftIcon,
+  CheckCircleIcon,
+  CheckCircleFillIcon,
 } from "@primer/octicons-react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { useBookStore } from "../stores/bookStore";
@@ -43,8 +45,13 @@ interface ReaderViewProps {
 export function ReaderView({ onClose }: ReaderViewProps) {
   const logger = useLogger("ReaderView");
   const { isCompact } = useBreakpoint();
-  const { currentBookPath, currentBookTitle, bookStates, getBookState, updateLocation, updateSettings, addBookmark, removeBookmark } = useBookStore();
+  const { currentBookPath, currentBookTitle, bookStates, getBookState, updateLocation, updateSettings, addBookmark, removeBookmark, toggleBookCompleted, setBookCompleted } = useBookStore();
   const { toggleSidebar, sidebarVisible } = useUiStore();
+
+  const isCompleted = useMemo(() => {
+    if (!currentBookPath) return false;
+    return Boolean(bookStates[currentBookPath]?.isCompleted);
+  }, [currentBookPath, bookStates]);
 
   const isMobile = useMemo(() => {
     if (typeof navigator === "undefined") return false;
@@ -196,6 +203,9 @@ export function ReaderView({ onClose }: ReaderViewProps) {
           setCurrentPage(newPage);
           if (bookPathRef.current) {
             updateLocation(bookPathRef.current, newPage, count);
+            if (newPage >= count && count > 0) {
+              setBookCompleted(bookPathRef.current, true);
+            }
           }
         };
 
@@ -237,6 +247,13 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             // Restore panel mode preference
             if (savedState.settings.panelMode) {
               setPanelMode(savedState.settings.panelMode);
+            }
+            // Restore per-book zoom level
+            if (typeof savedState.settings.zoom === 'number') {
+              const restoredZoom = Math.min(maxZoom, Math.max(minZoom, savedState.settings.zoom));
+              setZoomLevel(restoredZoom);
+              setDebouncedZoomLevel(restoredZoom);
+              zoomLevelRef.current = restoredZoom;
             }
           }
         }
@@ -519,8 +536,11 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     const scrollEl = scrollContainerRef.current;
     let ticking = false;
 
-    const handleScroll = () => {
+    const handleScroll = (isUserScroll = true) => {
       if (isScrollingToPageRef.current || isPinchingRef.current) return;
+      if (isUserScroll) {
+        resetPanelsAutoHideTimerRef.current(2000);
+      }
       if (!ticking) {
         window.requestAnimationFrame(() => {
           ticking = false;
@@ -563,19 +583,29 @@ export function ReaderView({ onClose }: ReaderViewProps) {
             setCurrentPage(activePage);
             if (currentBookPath) {
               updateLocation(currentBookPath, activePage, totalPages);
+              if (activePage >= totalPages && totalPages > 0) {
+                setBookCompleted(currentBookPath, true);
+              }
             }
+          }
+
+          // Check if scrolled to the end of the continuous scroll document
+          const isAtBottom = scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 30;
+          if (isAtBottom && currentBookPath && totalPages > 0) {
+            setBookCompleted(currentBookPath, true);
           }
         });
         ticking = true;
       }
     };
 
-    // Immediately evaluate active page on mount
-    handleScroll();
+    // Immediately evaluate active page on mount without triggering user-scroll panel reveal
+    handleScroll(false);
 
-    scrollEl.addEventListener("scroll", handleScroll, { passive: true });
-    return () => scrollEl.removeEventListener("scroll", handleScroll);
-  }, [viewMode, loading, totalPages, currentBookPath, updateLocation, bookInstance?.format]);
+    const onScrollListener = () => handleScroll(true);
+    scrollEl.addEventListener("scroll", onScrollListener, { passive: true });
+    return () => scrollEl.removeEventListener("scroll", onScrollListener);
+  }, [viewMode, loading, totalPages, currentBookPath, updateLocation, setBookCompleted, bookInstance?.format]);
 
   // Handle window resizing
   useEffect(() => {
@@ -595,6 +625,9 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     setPanOffset({ x: 0, y: 0 });
     if (currentBookPath) {
       updateLocation(currentBookPath, clamped, totalPages);
+      if ((clamped >= totalPages || (viewMode === "two-page" && clamped >= totalPages - 1)) && totalPages > 0) {
+        setBookCompleted(currentBookPath, true);
+      }
     }
 
     if (viewMode === "scroll") {
@@ -613,7 +646,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         }
       }
     }
-  }, [totalPages, currentBookPath, updateLocation, viewMode, bookInstance?.format]);
+  }, [totalPages, currentBookPath, updateLocation, setBookCompleted, viewMode, bookInstance?.format]);
 
   const prevPage = useCallback(() => {
     const step = viewMode === "two-page" ? 2 : 1;
@@ -703,8 +736,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     setIsWindowFullscreen(next);
   }, []);
 
-  // Panels auto-hide timer (in smart mode: 3s inactivity when mouse leaves either panel zone)
-  const resetPanelsAutoHideTimer = useCallback(() => {
+  // Panels auto-hide timer (in smart mode: 2s inactivity when user stops interacting)
+  const resetPanelsAutoHideTimer = useCallback((durationMs = 2000) => {
     if (panelMode === "persistent") {
       setArePanelsVisible(true);
       return;
@@ -718,9 +751,12 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         if (!isTopHoveredRef.current && !isBottomHoveredRef.current && !isHeaderPinned && !isTocOpen && !isSearchBookmarksOpen && !isSettingsOpen && !isJumpModalOpen) {
           setArePanelsVisible(false);
         }
-      }, 3000);
+      }, durationMs);
     }
   }, [panelMode, isHeaderPinned, isTocOpen, isSearchBookmarksOpen, isSettingsOpen, isJumpModalOpen]);
+
+  const resetPanelsAutoHideTimerRef = useRef(resetPanelsAutoHideTimer);
+  resetPanelsAutoHideTimerRef.current = resetPanelsAutoHideTimer;
 
   const handlePanelMouseEnter = useCallback((panel: "top" | "bottom") => {
     if (panel === "top") isTopHoveredRef.current = true;
@@ -732,7 +768,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
   const handlePanelMouseLeave = useCallback((panel: "top" | "bottom") => {
     if (panel === "top") isTopHoveredRef.current = false;
     if (panel === "bottom") isBottomHoveredRef.current = false;
-    resetPanelsAutoHideTimer();
+    resetPanelsAutoHideTimer(2000);
   }, [resetPanelsAutoHideTimer]);
 
   // Unified panel visibility flag: true if in persistent mode, drawer/modal open, pinned, or hovered
@@ -755,10 +791,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         if (panelsTimerRef.current) clearTimeout(panelsTimerRef.current);
         setArePanelsVisible(true);
       } else if (!isTopHoveredRef.current && !isBottomHoveredRef.current) {
-        setArePanelsVisible(false);
+        resetPanelsAutoHideTimer(2000);
       }
     }
-  }, [panelMode, isHeaderPinned, isTocOpen, isSearchBookmarksOpen, isSettingsOpen, isJumpModalOpen]);
+  }, [panelMode, isHeaderPinned, isTocOpen, isSearchBookmarksOpen, isSettingsOpen, isJumpModalOpen, resetPanelsAutoHideTimer]);
 
   useEffect(() => {
     return () => {
@@ -914,6 +950,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     };
 
     const onTouchStart = (e: TouchEvent) => {
+      resetPanelsAutoHideTimerRef.current(2000);
       const now = Date.now();
 
       if (e.touches.length === 2) {
@@ -993,6 +1030,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     };
 
     const onTouchMove = (e: TouchEvent) => {
+      resetPanelsAutoHideTimerRef.current(2000);
       if (e.touches.length === 2) {
         e.preventDefault();
         const t1 = e.touches[0];
@@ -1084,6 +1122,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     };
 
     const onTouchEnd = (e: TouchEvent) => {
+      resetPanelsAutoHideTimerRef.current(2000);
       if (e.touches.length === 0) {
         if (track.mode === "pinch") {
           isPinchingRef.current = false;
@@ -1159,6 +1198,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     };
 
     const onTouchCancel = () => {
+      resetPanelsAutoHideTimerRef.current(2000);
       if (track.mode === "pinch") {
         isPinchingRef.current = false;
         setIsPinching(false);
@@ -1300,9 +1340,10 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         twoPageView: viewMode === "two-page",
         continuousScroll: viewMode === "scroll",
         panelMode,
+        zoom: debouncedZoomLevel,
       });
     }
-  }, [readerTheme, fontSize, lineHeight, margin, viewMode, panelMode, currentBookPath, updateSettings]);
+  }, [readerTheme, fontSize, lineHeight, margin, viewMode, panelMode, debouncedZoomLevel, currentBookPath, updateSettings]);
 
   // Android System Back Gesture Handler
   useEffect(() => {
@@ -1453,6 +1494,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         style={{ backgroundColor: themeStyle.barBg, borderColor: themeStyle.border }}
         onMouseEnter={() => handlePanelMouseEnter("top")}
         onMouseLeave={() => handlePanelMouseLeave("top")}
+        onTouchStart={() => handlePanelMouseEnter("top")}
+        onTouchEnd={() => handlePanelMouseLeave("top")}
       >
         {isCompact ? (
           <>
@@ -1508,6 +1551,19 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                     {bookBookmarks.length}
                   </span>
                 )}
+              </button>
+
+              <button
+                onClick={() => currentBookPath && toggleBookCompleted(currentBookPath)}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer active:scale-95 ${
+                  isCompleted
+                    ? "text-emerald-500 bg-emerald-500/15"
+                    : "hover:bg-black/10 dark:hover:bg-white/10 opacity-70"
+                }`}
+                title={isCompleted ? "Completed (Tap to toggle)" : "Not Completed (Tap to mark completed)"}
+                aria-label={isCompleted ? "Completed" : "Not Completed"}
+              >
+                {isCompleted ? <CheckCircleFillIcon size={16} /> : <CheckCircleIcon size={16} />}
               </button>
 
               <button
@@ -1598,6 +1654,25 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                   )}
                 </button>
               </div>
+
+              {/* Completed / Not Completed Toggle Button */}
+              <button
+                onClick={() => currentBookPath && toggleBookCompleted(currentBookPath)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded border transition-colors cursor-pointer select-none active:scale-95 ${
+                  isCompleted
+                    ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/40 hover:bg-emerald-500/25"
+                    : "hover:bg-black/5 dark:hover:bg-white/5 opacity-80"
+                }`}
+                style={isCompleted ? undefined : { borderColor: themeStyle.border }}
+                title={isCompleted ? "Click to mark as Not Completed" : "Click to mark as Completed"}
+              >
+                {isCompleted ? (
+                  <CheckCircleFillIcon size={14} className="text-emerald-500" />
+                ) : (
+                  <CheckCircleIcon size={14} />
+                )}
+                <span>{isCompleted ? "Completed" : "Not Completed"}</span>
+              </button>
 
               {/* View Mode Selectors */}
               <div className="flex items-center rounded border overflow-hidden" style={{ borderColor: themeStyle.border }}>
@@ -1819,6 +1894,7 @@ export function ReaderView({ onClose }: ReaderViewProps) {
               : `overflow-hidden flex items-center justify-center ${isCompact ? "p-0" : "p-2"}`
           }`}
           ref={containerRef}
+          onClick={() => resetPanelsAutoHideTimer(2000)}
           style={{
             backgroundColor: themeStyle.pageBg,
             touchAction: (viewMode !== "scroll" || zoomLevel > 1.05) ? "none" : "pan-y",
@@ -2036,9 +2112,11 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                       key={pageNum}
                       id={`reader-page-${pageNum}`}
                       data-page-num={pageNum}
-                      className={`reader-page-slot my-2 sm:my-6 relative ${isCompact ? "" : "rounded shadow-sm border"}`}
+                      className={`reader-page-slot my-2 sm:my-6 relative overflow-hidden ${isCompact ? "" : "rounded shadow-sm border"}`}
                       style={{
                         width: `${slotWidth}px`,
+                        maxWidth: "100%",
+                        boxSizing: "border-box",
                         minHeight: isCompact ? "380px" : "700px",
                         backgroundColor: themeStyle.pageBg,
                         borderColor: themeStyle.border,
@@ -2053,7 +2131,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
                       )}
                       <div
                         id={`reader-page-content-${pageNum}`}
-                        className={`w-full h-full flex items-center justify-center ${isCompact ? "min-h-[380px] p-0" : "min-h-[700px] p-2"}`}
+                        className={`w-full h-full flex flex-col items-center justify-start overflow-hidden ${isCompact ? "min-h-[380px] p-0" : "min-h-[700px] p-2"}`}
+                        style={{ maxWidth: "100%", boxSizing: "border-box" }}
                       >
                         <div className="text-xs text-[var(--color-text-muted)] opacity-50 flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
@@ -2093,6 +2172,8 @@ export function ReaderView({ onClose }: ReaderViewProps) {
         }}
         onMouseEnter={() => handlePanelMouseEnter("bottom")}
         onMouseLeave={() => handlePanelMouseLeave("bottom")}
+        onTouchStart={() => handlePanelMouseEnter("bottom")}
+        onTouchEnd={() => handlePanelMouseLeave("bottom")}
       >
         <div className="flex items-center gap-2">
           <button

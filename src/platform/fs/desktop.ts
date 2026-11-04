@@ -219,4 +219,22 @@ export class DesktopFsProvider implements FileSystemProvider {
       platform: 'desktop',
     };
   }
+
+  async revealInOS(path: string): Promise<void> {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('reveal_in_file_manager', { path });
+      logger.info('REVEAL_IN_OS_SUCCESS', { path });
+    } catch (err) {
+      // Fallback to tauri-plugin-opener revealItemInDir if invoke fails
+      try {
+        const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+        await revealItemInDir(path);
+        logger.info('REVEAL_IN_OS_FALLBACK_SUCCESS', { path });
+      } catch (openerErr) {
+        logger.error('REVEAL_IN_OS_FAILED', { path, error: String(err), openerError: String(openerErr) });
+        throw toAppError(err);
+      }
+    }
+  }
 }

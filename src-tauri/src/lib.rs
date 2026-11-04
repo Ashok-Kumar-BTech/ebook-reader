@@ -101,6 +101,102 @@ async fn get_file_metadata(path: String) -> Result<FileEntry, String> {
     get_file_entry(&path)
 }
 
+#[tauri::command]
+fn get_cli_open_path() -> Option<String> {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 {
+        for arg in &args[1..] {
+            if !arg.starts_with('-') {
+                let p = Path::new(arg);
+                if p.exists() {
+                    return Some(arg.clone());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn validate_reveal_path(path: &str) -> Result<PathBuf, String> {
+    let p = PathBuf::from(path);
+    if !p.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+    Ok(p)
+}
+
+#[tauri::command]
+async fn reveal_in_file_manager(path: String) -> Result<(), String> {
+    let p = validate_reveal_path(&path)?;
+    let _ = &p; // Used in Linux/macOS target configs
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let clean_path = path.replace('/', "\\");
+        Command::new("explorer")
+            .arg(format!("/select,{}", clean_path))
+            .spawn()
+            .map_err(|e| format!("Failed to launch Windows Explorer: {}", e))?;
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        use std::process::Command;
+
+        let target_dir = if p.is_dir() {
+            p.to_path_buf()
+        } else {
+            p.parent().map(|parent| parent.to_path_buf()).unwrap_or_else(|| p.to_path_buf())
+        };
+
+        let mut launched = false;
+        // If it's a file, try file managers supporting direct item selection
+        if !p.is_dir() {
+            for (cmd, args) in [
+                ("nautilus", vec!["--select", path.as_str()]),
+                ("dolphin", vec!["--select", path.as_str()]),
+                ("nemo", vec!["--no-desktop", path.as_str()]),
+            ] {
+                if Command::new(cmd).args(&args).spawn().is_ok() {
+                    launched = true;
+                    break;
+                }
+            }
+        }
+
+        if !launched {
+            // Universal Freedesktop standard xdg-open on target directory (PRD §14)
+            if Command::new("xdg-open").arg(&target_dir).spawn().is_err() {
+                // Secondary fallback: gio open
+                Command::new("gio")
+                    .args(["open", &target_dir.to_string_lossy()])
+                    .spawn()
+                    .map_err(|e| format!("Failed to open file manager via xdg-open or gio: {}", e))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+        Command::new("open")
+            .args(["-R", &path])
+            .spawn()
+            .map_err(|e| format!("Failed to reveal item in Finder: {}", e))?;
+        Ok(())
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+    {
+        let _ = p;
+        Err("Platform does not support revealing items in file manager".to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -125,7 +221,9 @@ pub fn run() {
             log_from_frontend,
             list_directory,
             read_file,
-            get_file_metadata
+            get_file_metadata,
+            get_cli_open_path,
+            reveal_in_file_manager
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -159,6 +257,16 @@ mod tests {
         assert!(SUPPORTED_EXTENSIONS.contains(&"cbz"));
         assert!(SUPPORTED_EXTENSIONS.contains(&"docx"));
         assert_eq!(SUPPORTED_EXTENSIONS.len(), 9);
+    }
+
+    #[test]
+    fn test_validate_reveal_path() {
+        let non_existent = validate_reveal_path("this_file_should_not_exist_987654.pdf");
+        assert!(non_existent.is_err());
+        assert!(non_existent.unwrap_err().contains("does not exist"));
+
+        let cargo_toml = validate_reveal_path("Cargo.toml");
+        assert!(cargo_toml.is_ok());
     }
 }
 

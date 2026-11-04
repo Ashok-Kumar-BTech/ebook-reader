@@ -7,10 +7,16 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:frontend": "tsc && vite build",
+    "build:desktop": "tauri build",
+    "build:android": "tauri android build --apk --target aarch64",
+    "android:install:current": "adb install -r --user current src-tauri/gen/android/app/build/outputs/apk/arm64/debug/app-arm64-debug.apk",
     "preview": "vite preview",
     "tauri": "tauri",
     "generate:logo": "node logo/convert_icons.js",
     "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
     "test:watch": "vitest"
   },
   "dependencies": {

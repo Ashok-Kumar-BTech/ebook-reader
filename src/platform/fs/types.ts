@@ -41,4 +41,5 @@ export interface FileSystemProvider {
   readFile(entry: Pick<Entry, 'id' | 'name'>): Promise<Uint8Array>;
   reopen(dir: DirRef): Promise<DirRef>;
   getParentDir?(dir: DirRef): Promise<DirRef | null>;
+  revealInOS?(path: string): Promise<void>;
 }

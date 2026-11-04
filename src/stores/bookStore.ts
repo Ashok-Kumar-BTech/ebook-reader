@@ -21,6 +21,7 @@ export interface BookSettings {
   twoPageView: boolean;
   continuousScroll: boolean;
   panelMode?: 'smart' | 'persistent';
+  zoom?: number;
 }
 
 export interface BookState {
@@ -29,6 +30,7 @@ export interface BookState {
   bookmarks: Bookmark[];
   settings: BookSettings;
   lastOpened: number;
+  isCompleted?: boolean;
 }
 
 export interface BookStoreState {
@@ -44,6 +46,9 @@ export interface BookStoreState {
   updateBookmark: (path: string, bookmarkId: string, updates: Partial<Bookmark>) => void;
   updateSettings: (path: string, settings: Partial<BookSettings>) => void;
   clearBookState: (path: string) => void;
+  toggleBookCompleted: (path: string) => void;
+  setBookCompleted: (path: string, isCompleted: boolean) => void;
+  isBookCompleted: (path: string) => boolean;
   isHydrated: boolean;
   hydrate: () => Promise<void>;
 }
@@ -57,6 +62,7 @@ const DEFAULT_BOOK_SETTINGS: BookSettings = {
   twoPageView: false,
   continuousScroll: true,
   panelMode: 'smart',
+  zoom: 1.0,
 };
 
 const EMPTY_BOOK_STATE: BookState = {
@@ -65,6 +71,7 @@ const EMPTY_BOOK_STATE: BookState = {
   bookmarks: [],
   settings: DEFAULT_BOOK_SETTINGS,
   lastOpened: Date.now(),
+  isCompleted: false,
 };
 
 // Tauri store for persistence
@@ -178,6 +185,39 @@ const loggedStoreCreator = createLoggedStore<BookStoreState>(
       const { [path]: _, ...rest } = s.bookStates;
       return { bookStates: rest };
     }),
+
+    toggleBookCompleted: (path: string) => set((s) => {
+      const existing = s.bookStates[path] ?? EMPTY_BOOK_STATE;
+      const nextCompleted = !existing.isCompleted;
+      return {
+        bookStates: {
+          ...s.bookStates,
+          [path]: {
+            ...existing,
+            isCompleted: nextCompleted,
+            lastOpened: Date.now(),
+          },
+        },
+      };
+    }),
+
+    setBookCompleted: (path: string, isCompleted: boolean) => set((s) => {
+      const existing = s.bookStates[path] ?? EMPTY_BOOK_STATE;
+      return {
+        bookStates: {
+          ...s.bookStates,
+          [path]: {
+            ...existing,
+            isCompleted,
+            lastOpened: Date.now(),
+          },
+        },
+      };
+    }),
+
+    isBookCompleted: (path: string) => {
+      return Boolean(get().bookStates[path]?.isCompleted);
+    },
 
     hydrate: async () => {
       try {

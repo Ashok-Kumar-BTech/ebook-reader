@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, dev]
+  pull_request:
+    branches: [main, master, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend Quality & Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Static Typecheck (TypeScript)
+        run: npx tsc --noEmit
+
+      - name: Unit & Component Tests (Vitest)
+        run: npm run test:unit
+
+      - name: Integration & System Flow Tests (Vitest)
+        run: npm run test:integration
+
+      - name: Complete Test Suite Verification
+        run: npm test
+
+      - name: Production Bundle Build (Vite)
+        run: npm run build:frontend
+
+  rust:
+    name: Tauri Rust Backend Tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Run Cargo Core Unit & Integration Tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --verbose
+
+      - name: Cargo Typecheck & Dependency Verification
+        run: cargo check --manifest-path src-tauri/Cargo.toml

@@ -89,11 +89,15 @@ export class HtmlAdapter implements BookAdapter {
     const html = this.sections[pageNum] || this.content;
     const wrapper = document.createElement('div');
     wrapper.className = 'html-book-content prose max-w-none';
+    wrapper.style.boxSizing = 'border-box';
+    wrapper.style.overflowWrap = 'anywhere';
+    wrapper.style.wordBreak = 'break-word';
     wrapper.style.fontFamily = 'Inter, system-ui, -apple-system, sans-serif';
     wrapper.style.fontSize = `${options.fontSize}px`;
     wrapper.style.lineHeight = String(options.lineHeight);
     wrapper.style.padding = `${options.margin}px`;
-    wrapper.style.maxWidth = `${Math.max(280, options.width - options.margin * 2)}px`;
+    wrapper.style.width = '100%';
+    wrapper.style.maxWidth = '100%';
     wrapper.style.margin = '0 auto';
     wrapper.style.color = this.getThemeColor(options.theme);
     wrapper.style.backgroundColor = this.getThemeBg(options.theme);

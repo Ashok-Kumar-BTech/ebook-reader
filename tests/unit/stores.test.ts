@@ -82,6 +82,22 @@ describe("State Stores", () => {
       expect(bookState?.settings.theme).toBe("sepia");
       expect(bookState?.settings.twoPageView).toBe(false);
     });
+
+    it("toggles and checks book completed status", () => {
+      const bookPath = "/books/finished-book.pdf";
+      expect(useBookStore.getState().isBookCompleted(bookPath)).toBe(false);
+
+      useBookStore.getState().toggleBookCompleted(bookPath);
+      expect(useBookStore.getState().isBookCompleted(bookPath)).toBe(true);
+      expect(useBookStore.getState().getBookState(bookPath)?.isCompleted).toBe(true);
+
+      useBookStore.getState().toggleBookCompleted(bookPath);
+      expect(useBookStore.getState().isBookCompleted(bookPath)).toBe(false);
+      expect(useBookStore.getState().getBookState(bookPath)?.isCompleted).toBe(false);
+
+      useBookStore.getState().setBookCompleted(bookPath, true);
+      expect(useBookStore.getState().isBookCompleted(bookPath)).toBe(true);
+    });
   });
 
   describe("useUiStore", () => {

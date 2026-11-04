@@ -258,6 +258,21 @@ html, body, #root {
 }
 
 /* Ensure canvas and images dynamically scale with slot width during real-time zoom in Scroll View */
+.reader-page-slot {
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.reader-page-slot > div {
+  max-width: 100%;
+  box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 .reader-page-slot canvas,
 .reader-page-slot img {
   width: 100% !important;
@@ -318,6 +333,15 @@ html, body, #root {
 /* Increase top hover zone height to match panel height for comfortable targeting */
 .reader-top-hover-zone {
   height: 60px !important;
+}
+
+/* On touch screens where hover does not exist, disable pointer events on edge hover zones
+   so touches pass directly to the underlying reader viewport and trigger interaction-driven panel reveal */
+@media (hover: none) and (pointer: coarse) {
+  .reader-top-hover-zone,
+  .reader-bottom-hover-zone {
+    pointer-events: none;
+  }
 }
 
 /* In-flow header spacer — reserves vertical space equal to the header height

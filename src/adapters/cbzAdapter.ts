@@ -1,5 +1,6 @@
 import type { BookAdapter, BookInstance, RenderOptions, SearchResult, TOCItem } from '../types/reader';
 import { extractDocumentTitle } from '../utils/pathUtils';
+import { AppError } from '../errors/appError';
 
 // Dynamic import for JSZip
 let JSZip: any = null;
@@ -24,6 +25,15 @@ export class CbzAdapter implements BookAdapter {
   private title: string = 'Comic Book';
 
   async load(bookPath: string, fileData: Uint8Array): Promise<BookInstance> {
+    // Inspect magic bytes for RAR archive signature:
+    // RAR archives start with 0x52, 0x61, 0x72, 0x21 ('Rar!')
+    if (fileData.length >= 4 && fileData[0] === 0x52 && fileData[1] === 0x61 && fileData[2] === 0x72 && fileData[3] === 0x21) {
+      throw new AppError(
+        'UNSUPPORTED_VERSION',
+        'This comic book uses RAR compression (.cbr). Genuine RAR archives require Phase 2 unrar sidecar support. Please convert to a .cbz (ZIP) archive or open a .cbz comic.'
+      );
+    }
+
     const jszip = await loadJSZip();
     
     this.zip = new jszip.default ? jszip.default() : new jszip();

@@ -82,14 +82,17 @@ export class TxtAdapter implements BookAdapter {
     if (idx < 0 || idx >= this.pageCount) return;
     const text = this.pages[idx];
     const div = document.createElement('div');
+    div.style.boxSizing = 'border-box';
     div.style.whiteSpace = 'pre-wrap';
+    div.style.wordBreak = 'break-word';
+    div.style.overflowWrap = 'anywhere';
     div.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     div.style.fontSize = options.fontSize + 'px';
     div.style.lineHeight = options.lineHeight.toString();
     div.style.color = this.getThemeColor(options.theme);
     div.style.backgroundColor = this.getThemeBg(options.theme);
     div.style.width = '100%';
-    div.style.maxWidth = Math.max(280, (options.width - options.margin * 2)) + 'px';
+    div.style.maxWidth = '100%';
     div.style.margin = '0 auto';
     div.style.padding = options.margin + 'px';
     div.textContent = text;
@@ -106,7 +109,10 @@ export class TxtAdapter implements BookAdapter {
     for (let pageNum = startIdx; pageNum <= endIdx && pageNum < this.pageCount; pageNum++) {
       const text = this.pages[pageNum];
       const div = document.createElement('div');
+      div.style.boxSizing = 'border-box';
       div.style.whiteSpace = 'pre-wrap';
+      div.style.wordBreak = 'break-word';
+      div.style.overflowWrap = 'anywhere';
       div.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       div.style.fontSize = options.fontSize + 'px';
       div.style.lineHeight = options.lineHeight.toString();
@@ -116,6 +122,8 @@ export class TxtAdapter implements BookAdapter {
       div.style.padding = options.margin + 'px';
       div.style.borderRadius = '4px';
       div.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+      div.style.width = '100%';
+      div.style.maxWidth = '100%';
       div.textContent = text;
       fragment.appendChild(div);
     }

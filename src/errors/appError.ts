@@ -122,6 +122,10 @@ export function toAppError(e: unknown): AppError {
     return new AppError('FILE_NOT_FOUND', rawMessage, e);
   }
 
+  if (lower.includes('busy') || lower.includes('locked') || lower.includes('in use') || lower.includes('ebusy')) {
+    return new AppError('FILE_IN_USE', rawMessage, e);
+  }
+
   if (lower.includes('drm') || lower.includes('encrypted') || lower.includes('rights management')) {
     return new AppError('DRM_PROTECTED', rawMessage, e);
   }
