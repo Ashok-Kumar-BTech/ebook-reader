@@ -1,4 +1,5 @@
 import type { BookAdapter, BookInstance, RenderOptions, SearchResult, TOCItem } from '../types/reader';
+import { extractDocumentTitle } from '../utils/pathUtils';
 
 // Dynamic import for pdf.js to avoid SSR issues and allow worker configuration
 let pdfjsLib: any = null;
@@ -31,10 +32,15 @@ export class PdfAdapter implements BookAdapter {
     this.pdfDoc = await loadingTask.promise;
     this.pageCount = this.pdfDoc.numPages;
     
-    const metadata = await this.pdfDoc.getMetadata();
-    this.title = metadata.info?.Title || bookPath.split('/').pop() || 'PDF Document';
-    this.author = metadata.info?.Author;
+    const fileName = extractDocumentTitle(bookPath) || 'PDF Document';
+    this.title = fileName;
     this.currentPage = 1;
+
+    // Asynchronously resolve metadata without blocking initial open
+    this.pdfDoc.getMetadata().then((metadata: any) => {
+      if (metadata?.info?.Title) this.title = metadata.info.Title;
+      if (metadata?.info?.Author) this.author = metadata.info.Author;
+    }).catch(() => {});
     
     return {
       format: 'pdf',
@@ -42,7 +48,7 @@ export class PdfAdapter implements BookAdapter {
       title: this.title,
       author: this.author,
       pageCount: this.pageCount,
-      metadata: metadata.info || {},
+      metadata: {},
     };
   }
 
@@ -73,24 +79,42 @@ export class PdfAdapter implements BookAdapter {
     if (!this.pdfDoc || !query.trim()) return [];
     
     const results: SearchResult[] = [];
-    const searchTerm = query.toLowerCase();
+    const searchTerm = query.toLowerCase().trim();
     
     for (let pageNum = 1; pageNum <= this.pageCount; pageNum++) {
       try {
         const page = await this.pdfDoc.getPage(pageNum);
         const textContent = await page.getTextContent();
-        const text = textContent.items.map((item: any) => item.str).join(' ');
         
-        if (text.toLowerCase().includes(searchTerm)) {
-          const index = text.toLowerCase().indexOf(searchTerm);
-          const start = Math.max(0, index - 100);
-          const end = Math.min(text.length, index + query.length + 100);
+        // Assemble text stream respecting EOL and natural word spaces
+        let rawText = '';
+        for (const item of textContent.items as any[]) {
+          if (!item.str) continue;
+          rawText += item.str;
+          if (item.hasEOL) {
+            rawText += '\n';
+          } else if (!item.str.endsWith(' ') && !item.str.endsWith('\t')) {
+            rawText += ' ';
+          }
+        }
+        
+        // Clean multi-spaces while keeping single spaces
+        const normalizedText = rawText.replace(/[ \t]+/g, ' ');
+        const lowerText = normalizedText.toLowerCase();
+        
+        let searchIndex = lowerText.indexOf(searchTerm);
+        while (searchIndex !== -1 && results.length < 500) {
+          const start = Math.max(0, searchIndex - 80);
+          const end = Math.min(normalizedText.length, searchIndex + searchTerm.length + 80);
+          const snippet = normalizedText.substring(start, end).replace(/\n+/g, ' ').trim();
           
           results.push({
             location: pageNum,
-            context: text.substring(start, end),
+            context: snippet,
             matchedText: query,
           });
+          
+          searchIndex = lowerText.indexOf(searchTerm, searchIndex + searchTerm.length);
         }
       } catch (e) {
         console.warn('Failed to search page ' + pageNum + ':', e);
@@ -149,30 +173,89 @@ export class PdfAdapter implements BookAdapter {
     if (!this.pdfDoc || pageNum < 1 || pageNum > this.pageCount) return;
     
     const page = await this.pdfDoc.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 1.5 });
+    const baseViewport = page.getViewport({ scale: 1.0 });
     
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;
     
-    const containerWidth = options.width - options.margin * 2;
-    const scale = Math.min(containerWidth / viewport.width, 2);
+    const availableWidth = Math.max(100, options.width - options.margin * 2);
+    const availableHeight = Math.max(100, options.height - options.margin * 2);
+    const scaleX = availableWidth / baseViewport.width;
+    const scaleY = availableHeight / baseViewport.height;
+
+    // For continuous scroll, fit to available width; for paginated views, fit completely (contain)
+    const fitScale = options.continuousScroll ? scaleX : Math.min(scaleX, scaleY);
     
-    const scaledViewport = page.getViewport({ scale });
-    canvas.width = scaledViewport.width;
-    canvas.height = scaledViewport.height;
+    // Pixel-perfect integer geometry: ensure CSS display dimensions are exact integers
+    const cssWidth = Math.floor(baseViewport.width * fitScale);
+    const cssHeight = Math.floor(baseViewport.height * fitScale);
+
+    // Native display pixel ratio and zoom factor (capped to avoid memory exhaustion on mobile)
+    const effectiveZoom = options.zoom && options.zoom > 0 ? options.zoom : 1.0;
+    const rawDpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+    const dpr = Math.min(rawDpr, 2.5); // Cap DPR at 2.5 to prevent massive canvas textures on 3x-4x mobile screens
+    
+    // Exact integer physical backing store buffer
+    let pixelWidth = Math.floor(cssWidth * effectiveZoom * dpr);
+    let pixelHeight = Math.floor(cssHeight * effectiveZoom * dpr);
+    
+    // Safety guard against exceeding 16 Megapixels (OOM guard on phones)
+    const MAX_PIXELS = 16 * 1024 * 1024;
+    const currentPixels = pixelWidth * pixelHeight;
+    if (currentPixels > MAX_PIXELS) {
+      const scaleFactor = Math.sqrt(MAX_PIXELS / currentPixels);
+      pixelWidth = Math.floor(pixelWidth * scaleFactor);
+      pixelHeight = Math.floor(pixelHeight * scaleFactor);
+    }
+
+    // Safety guard against exceeding maximum GPU texture dimension (8192px)
+    let renderScale = pixelWidth / baseViewport.width;
+    const maxDimension = 8192;
+    if (pixelWidth > maxDimension || pixelHeight > maxDimension) {
+      const maxScale = maxDimension / Math.max(baseViewport.width, baseViewport.height);
+      renderScale = maxScale;
+      canvas.width = Math.floor(baseViewport.width * maxScale);
+      canvas.height = Math.floor(baseViewport.height * maxScale);
+    } else {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
+
+    const scaledViewport = page.getViewport({ scale: renderScale });
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
+
+    // Enable high-quality smoothing for any downscaled raster elements inside the PDF
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
     
     if (options.theme === 'dark') {
       canvas.style.filter = 'invert(1) hue-rotate(180deg)';
     } else if (options.theme === 'sepia') {
       canvas.style.filter = 'sepia(1) contrast(1.2) brightness(0.9)';
+    } else {
+      canvas.style.filter = 'none';
     }
     
-    canvas.style.maxWidth = '100%';
-    canvas.style.height = 'auto';
     canvas.style.display = 'block';
-    canvas.style.margin = '0 auto';
+    canvas.style.margin = 'auto';
+    canvas.style.imageRendering = '-webkit-optimize-contrast';
     
     container.innerHTML = '';
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.justifyContent = 'center';
+    if (options.continuousScroll) {
+      container.style.width = '100%';
+      container.style.height = '100%';
+      container.style.overflow = 'hidden';
+    } else {
+      container.style.width = 'max-content';
+      container.style.height = 'max-content';
+      container.style.minWidth = '100%';
+      container.style.minHeight = '100%';
+      container.style.overflow = 'visible';
+    }
     container.appendChild(canvas);
     
     try {

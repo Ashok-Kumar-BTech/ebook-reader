@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Tracker Files
+PLAN-PROGRESS.md
+
+# Android Gradle build caches
+.gradle/
+.kotlin/
+
+
+# Logo generator codebase (run locally; generated assets stored in src/assets and src-tauri/icons)
+logo/

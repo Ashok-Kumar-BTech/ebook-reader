@@ -1,14 +1,24 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useUiStore, type SortBy } from "./stores/uiStore";
+import { UploadIcon } from "@primer/octicons-react";
+import { useUiStore, type SortBy, type ViewMode, type AppTheme, type RecentFolder } from "./stores/uiStore";
 import { useBookStore } from "./stores/bookStore";
-import { FileTree, DirectoryPicker } from "./components/FileTree";
+import { useBreakpoint } from "./hooks/useBreakpoint";
 import { VirtualizedFileList } from "./components/VirtualizedFileList";
 import { ReaderView } from "./components/ReaderView";
-import { FormatBadge } from "./components/FormatBadge";
-import { openDirectoryDialog, readDirectory, getFileStat, listDirectory } from "./utils/tauriApi";
+import { ErrorHost } from "./components/ErrorHost";
+import { LogViewer } from "./components/LogViewer";
+import { AppBar } from "./components/shell/AppBar";
+import { BreadcrumbsBar } from "./components/shell/BreadcrumbsBar";
+import { ViewOptionsSheet } from "./components/shell/ViewOptionsSheet";
+import { Launchpad } from "./components/shell/Launchpad";
+import { BrowseGrid } from "./components/shell/BrowseGrid";
+import { getFileSystemProvider, type DirRef } from "./platform/fs";
+import { formatRegistry } from "./adapters/registry";
 import { useLogRender, useLogger } from "./utils/logger";
-import { initWindowStateWatcher } from "./utils/windowState";
+import { initWindowStateWatcher, toggleFullscreen } from "./utils/windowState";
+import { initPlatformBackNavigation, registerBackHandler } from "./utils/backNavigation";
 import { getParentPath, getBreadcrumbSegments } from "./utils/pathUtils";
+import { AppError, toAppError } from "./errors/appError";
 
 interface FileEntry {
   name: string;
@@ -22,12 +32,10 @@ interface FileEntry {
 type AppMode = "browse" | "reading";
 
 export default function App() {
-  const logger = useLogger('App');
+  const logger = useLogger("App");
+  const { isCompact, isMedium } = useBreakpoint();
 
   const {
-    sidebarVisible,
-    setSidebarVisible,
-    sidebarWidth,
     currentRoot,
     dirHistory,
     dirHistoryIndex,
@@ -38,27 +46,189 @@ export default function App() {
     sortOrder,
     viewMode,
     appTheme,
-    setSidebarWidth,
+    recentFolders,
+    clearRecents,
     setSort,
     setSortOrder,
     setViewMode,
     setTheme,
     addRecentFolder,
     addRecentFile,
-    hydrate,
+    setCurrentRoot,
+    hydrate: hydrateUiStore,
   } = useUiStore();
 
-  const { setCurrentBookPath } = useBookStore();
+  const { setCurrentBookPath, hydrate: hydrateBookStore } = useBookStore();
 
   const [mode, setMode] = useState<AppMode>("browse");
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resizing, setResizing] = useState(false);
+  const [error, setError] = useState<AppError | null>(null);
   const [librarySearchQuery, setLibrarySearchQuery] = useState("");
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [isViewOptionsOpen, setIsViewOptionsOpen] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [canRevealInOS, setCanRevealInOS] = useState(false);
+  const [showExitToast, setShowExitToast] = useState(false);
+  const [isLogViewerOpen, setIsLogViewerOpen] = useState(false);
+  const exitToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Directory navigation state
+  // Close Log Viewer on Back gesture / Escape
+  useEffect(() => {
+    if (!isLogViewerOpen) return;
+    const unregister = registerBackHandler(() => {
+      setIsLogViewerOpen(false);
+      return true;
+    }, 20); // Priority 20: closes before reader modals or directory navigation
+    return unregister;
+  }, [isLogViewerOpen]);
+
+  // Global keyboard shortcut: Ctrl+Shift+L to toggle In-App Log Console
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "L" || e.key === "l" || e.code === "KeyL")) {
+        e.preventDefault();
+        setIsLogViewerOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
+
+  const triggerExitToast = useCallback(() => {
+    setShowExitToast(true);
+    if (exitToastTimerRef.current) {
+      clearTimeout(exitToastTimerRef.current);
+    }
+    exitToastTimerRef.current = setTimeout(() => {
+      setShowExitToast(false);
+      exitToastTimerRef.current = null;
+    }, 2000);
+  }, []);
+
+  // Initialize native platform back gesture & button listener
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    initPlatformBackNavigation({
+      onExitPrompt: triggerExitToast,
+      enableTouchFallback: isCompact,
+    }).then((cleanup) => {
+      unlisten = cleanup;
+    });
+
+    return () => {
+      if (unlisten) unlisten();
+      if (exitToastTimerRef.current) clearTimeout(exitToastTimerRef.current);
+    };
+  }, [triggerExitToast, isCompact]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getFileSystemProvider().then((provider) => {
+      if (isMounted) {
+        setCanRevealInOS(Boolean(provider.capabilities.revealInOS && provider.revealInOS));
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleRevealInOS = useCallback(async (path: string) => {
+    try {
+      const provider = await getFileSystemProvider();
+      if (provider.revealInOS) {
+        await provider.revealInOS(path);
+      }
+    } catch (err) {
+      const appErr = toAppError(err);
+      setError(appErr);
+    }
+  }, []);
+
+  // Check CLI startup path (associated file double-click or CLI argument)
+  useEffect(() => {
+    const checkCliPath = async () => {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const cliPath = await invoke<string | null>("get_cli_open_path");
+        if (cliPath) {
+          logger.info("CLI_OPEN_PATH_DETECTED", { path: cliPath });
+          if (formatRegistry.isSupported(cliPath)) {
+            const name = cliPath.split(/[/\\]/).filter(Boolean).pop() || cliPath;
+            setCurrentBookPath(cliPath, name);
+            addRecentFile(cliPath);
+            setMode("reading");
+          } else {
+            navigateToDir(cliPath);
+            addRecentFolder({ id: cliPath, name: cliPath.split(/[/\\]/).filter(Boolean).pop() || cliPath, platform: "desktop" });
+            setMode("browse");
+          }
+        }
+      } catch {
+        // Non-Tauri environment or command unavailable
+      }
+    };
+    checkCliPath();
+  }, [logger, setCurrentBookPath, addRecentFile, navigateToDir, addRecentFolder]);
+
+  // Window drag-and-drop listener (Tauri native webview events)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    const setupDragDrop = async () => {
+      try {
+        const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+        unlisten = await getCurrentWebview().onDragDropEvent(async (event) => {
+          if (event.payload.type === "enter" || event.payload.type === "over") {
+            setIsDraggingFile(true);
+          } else if (event.payload.type === "leave") {
+            setIsDraggingFile(false);
+          } else if (event.payload.type === "drop") {
+            setIsDraggingFile(false);
+            const paths = event.payload.paths;
+            if (paths && paths.length > 0) {
+              const dropped = paths[0];
+              if (formatRegistry.isSupported(dropped)) {
+                const name = dropped.split(/[/\\]/).filter(Boolean).pop() || dropped;
+                setCurrentBookPath(dropped, name);
+                addRecentFile(dropped);
+                setMode("reading");
+              } else {
+                navigateToDir(dropped);
+                addRecentFolder({ id: dropped, name: dropped.split(/[/\\]/).filter(Boolean).pop() || dropped, platform: "desktop" });
+                setMode("browse");
+              }
+            }
+          }
+        });
+      } catch {
+        // Fallback to browser HTML5 drag & drop
+      }
+    };
+    setupDragDrop();
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [setCurrentBookPath, addRecentFile, navigateToDir, addRecentFolder]);
+
+  const handleHtmlDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingFile(false);
+    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      const filePath = (file as any).path || file.name;
+      if (formatRegistry.isSupported(filePath)) {
+        setCurrentBookPath(filePath, file.name);
+        addRecentFile(filePath);
+        setMode("reading");
+      } else if ((file as any).path) {
+        navigateToDir((file as any).path);
+        addRecentFolder({ id: (file as any).path, name: file.name, platform: "desktop" });
+        setMode("browse");
+      }
+    }
+  }, [setCurrentBookPath, addRecentFile, navigateToDir, addRecentFolder]);
+
+  // Directory navigation calculations
   const parentPath = useMemo(() => (currentRoot ? getParentPath(currentRoot) : null), [currentRoot]);
   const breadcrumbSegments = useMemo(() => (currentRoot ? getBreadcrumbSegments(currentRoot) : []), [currentRoot]);
   const canGoBack = dirHistoryIndex > 0;
@@ -66,36 +236,95 @@ export default function App() {
   const canGoUp = parentPath !== null;
 
   const handleDirectoryNavigate = useCallback((path: string) => {
-    logger.info('NAVIGATE_TO_DIRECTORY', { path });
+    logger.info("NAVIGATE_TO_DIRECTORY", { path });
     navigateToDir(path);
   }, [logger, navigateToDir]);
 
   const handleNavigateUp = useCallback(() => {
     if (parentPath) {
-      logger.info('NAVIGATE_UP_TO_PARENT', { parentPath });
+      logger.info("NAVIGATE_UP_TO_PARENT", { parentPath });
       navigateToDir(parentPath);
     }
   }, [parentPath, logger, navigateToDir]);
 
-  // Filter entries based on library search query
+  // Filter entries based on search query
   const filteredEntries = useMemo(() => {
     if (!librarySearchQuery.trim()) return entries;
     const q = librarySearchQuery.toLowerCase().trim();
-    return entries.filter(e => {
+    return entries.filter((e) => {
       const nameMatch = e.name.toLowerCase().includes(q);
       const extMatch = e.name.toLowerCase().slice(e.name.lastIndexOf(".")).includes(q);
       return nameMatch || extMatch;
     });
   }, [entries, librarySearchQuery]);
 
-  // Global keyboard shortcuts in browse mode
+  // Android System Back Gesture Handler in Browse Mode
   useEffect(() => {
+    if (mode !== "browse") return;
+
+    const unregister = registerBackHandler(() => {
+      if (isViewOptionsOpen) {
+        setIsViewOptionsOpen(false);
+        return true;
+      }
+      if (librarySearchQuery) {
+        setLibrarySearchQuery("");
+        return true;
+      }
+      if (canGoBack) {
+        navigateBack();
+        return true;
+      }
+      if (canGoUp) {
+        handleNavigateUp();
+        return true;
+      }
+      if (currentRoot) {
+        setCurrentRoot(null);
+        return true;
+      }
+      return false; // Exit app / root reached
+    }, 0);
+
+    (window as any).__handleAndroidBack = () => {
+      if (isViewOptionsOpen) {
+        setIsViewOptionsOpen(false);
+        return true;
+      }
+      if (librarySearchQuery) {
+        setLibrarySearchQuery("");
+        return true;
+      }
+      if (canGoBack) {
+        navigateBack();
+        return true;
+      }
+      if (canGoUp) {
+        handleNavigateUp();
+        return true;
+      }
+      if (currentRoot) {
+        setCurrentRoot(null);
+        return true;
+      }
+      return false; // Exit app
+    };
+
+    return () => {
+      unregister();
+      delete (window as any).__handleAndroidBack;
+    };
+  }, [mode, isViewOptionsOpen, librarySearchQuery, canGoBack, canGoUp, currentRoot, navigateBack, handleNavigateUp, setCurrentRoot]);
+
+  // Desktop keyboard shortcuts (disabled on compact/touch)
+  useEffect(() => {
+    if (isCompact) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (mode === "browse") {
-        if ((e.ctrlKey || e.metaKey) && (e.key === "f" || e.key === "F")) {
+        if (e.key === "F11") {
           e.preventDefault();
-          searchInputRef.current?.focus();
-          searchInputRef.current?.select();
+          toggleFullscreen();
         } else if (e.altKey && e.key === "ArrowLeft") {
           if (canGoBack) {
             e.preventDefault();
@@ -116,29 +345,29 @@ export default function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mode, canGoBack, canGoForward, canGoUp, navigateBack, navigateForward, handleNavigateUp]);
+  }, [mode, isCompact, canGoBack, canGoForward, canGoUp, navigateBack, navigateForward, handleNavigateUp]);
 
-  // Add render logging (after state declarations)
-  useLogRender('App', { 
-    mode, 
-    currentRoot, 
-    sidebarVisible, 
-    viewMode, 
+  // Render logging
+  useLogRender("App", {
+    mode,
+    currentRoot,
+    viewMode,
     appTheme,
-    entriesCount: entries.length 
+    entriesCount: entries.length,
   });
 
-  // Hydrate store on mount
+  // Hydrate stores on mount
   useEffect(() => {
-    logger.info('HYDRATE_START');
-    hydrate().then(() => {
-      // In browse mode, ensure sidebar is visible per PRD 5.4.1 rule 1
-      setSidebarVisible(true);
-    });
-  }, [hydrate, logger, setSidebarVisible]);
+    logger.info("HYDRATE_START");
+    hydrateUiStore();
+    hydrateBookStore();
+  }, [hydrateUiStore, hydrateBookStore, logger]);
 
-  // Initialize window state persistence
+  // Initialize desktop window state persistence
   useEffect(() => {
+    if (typeof navigator !== "undefined" && /android/i.test(navigator.userAgent)) {
+      return;
+    }
     let cleanup: (() => void) | undefined;
     initWindowStateWatcher().then((fn) => {
       cleanup = fn;
@@ -148,87 +377,48 @@ export default function App() {
     };
   }, []);
 
-  // Sync appTheme to DOM
+  // Sync theme to DOM
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', appTheme);
+    document.documentElement.setAttribute("data-theme", appTheme);
   }, [appTheme]);
 
-  // Load directory entries when root changes
+  // Load directory entries via FileSystemProvider
   const loadDirectory = useCallback(async (path: string) => {
-    const dirLogger = logger.child({ operation: 'loadDirectory', path });
-    dirLogger.info('LOAD_DIRECTORY_START', { path });
-    
+    const dirLogger = logger.child({ operation: "loadDirectory", path });
+    dirLogger.info("LOAD_DIRECTORY_START", { path });
+
     setLoading(true);
     setError(null);
     try {
-      const fastEntries = await listDirectory(path);
-      if (fastEntries) {
-        dirLogger.debug('LOAD_DIRECTORY_FAST_IPC', { path, entryCount: fastEntries.length });
-        const fileEntries: FileEntry[] = fastEntries.map((e) => ({
-          name: e.name,
-          path: e.path,
-          isDirectory: e.is_directory,
-          size: e.size,
-          modified: e.modified * 1000,
-          isSupported: e.is_supported,
-        }));
-        const sorted = sortEntries(fileEntries, sortBy, sortOrder);
-        setEntries(sorted);
-        dirLogger.info('LOAD_DIRECTORY_SUCCESS', { path, count: sorted.length });
-        return;
-      }
-
-      const dirEntries = await readDirectory(path);
-      if (!dirEntries) {
-        dirLogger.warn('LOAD_DIRECTORY_UNAVAILABLE', { path });
-        setError("Directory reading not available in this environment");
-        setEntries([]);
-        setLoading(false);
-        return;
-      }
-      
-      dirLogger.debug('LOAD_DIRECTORY_READ', { path, entryCount: dirEntries.length });
-      
-      const fileEntries: FileEntry[] = [];
-
-      for (const entry of dirEntries) {
-        const fullPath = path + "/" + entry.name;
-        const isDirectory = entry.isDirectory ?? false;
-        const isSupported = !isDirectory && SUPPORTED_EXTENSIONS.has(
-          entry.name.toLowerCase().slice(entry.name.lastIndexOf("."))
-        );
-
-        let size = 0;
-        let modified = 0;
-
-        if (!isDirectory) {
-          try {
-            const fileStat = await getFileStat(fullPath);
-            size = fileStat?.size ?? 0;
-            const mtime = fileStat?.mtime;
-            modified = mtime instanceof Date ? mtime.getTime() : (mtime ?? 0);
-          } catch {
-            // Ignore stat errors
-          }
+      const provider = await getFileSystemProvider();
+      const existingRecent = useUiStore.getState().recentFolders.find((f) => f.id === path);
+      let dirName = existingRecent?.name;
+      if (!dirName) {
+        if (path.startsWith("collection:") || path.startsWith("virtual:")) {
+          dirName = "Selected Ebooks";
+        } else {
+          dirName = path.split(/[/\\]/).filter(Boolean).pop() || path;
         }
-
-        fileEntries.push({
-          name: entry.name,
-          path: fullPath,
-          isDirectory,
-          size,
-          modified,
-          isSupported,
-        });
       }
+      const dirRef: DirRef = { id: path, name: dirName, platform: provider.kind };
 
-      // Apply sorting
+      const rawEntries = await provider.listChildren(dirRef);
+      const fileEntries: FileEntry[] = rawEntries.map((e) => ({
+        name: e.name,
+        path: e.id,
+        isDirectory: e.isDirectory,
+        size: e.size,
+        modified: e.modifiedMs,
+        isSupported: e.isSupported,
+      }));
+
       const sorted = sortEntries(fileEntries, sortBy, sortOrder);
       setEntries(sorted);
-      dirLogger.info('LOAD_DIRECTORY_SUCCESS', { path, count: sorted.length });
+      dirLogger.info("LOAD_DIRECTORY_SUCCESS", { path, count: sorted.length });
     } catch (err) {
-      dirLogger.error('LOAD_DIRECTORY_ERROR', { path }, err as Error);
-      setError(err instanceof Error ? err.message : "Failed to load directory");
+      const appErr = toAppError(err);
+      dirLogger.error("LOAD_DIRECTORY_ERROR", { path }, appErr);
+      setError(appErr);
       setEntries([]);
     } finally {
       setLoading(false);
@@ -243,438 +433,261 @@ export default function App() {
     }
   }, [currentRoot, loadDirectory]);
 
-  const handleOpenDirectory = async (selectedPath?: string | unknown) => {
-    logger.info('OPEN_DIRECTORY_DIALOG');
-    const path = typeof selectedPath === 'string' && selectedPath
-      ? selectedPath
-      : await openDirectoryDialog("Select a directory containing your ebooks");
-    if (path) {
-      logger.info('DIRECTORY_SELECTED', { path });
-      navigateToDir(path);
-      addRecentFolder(path);
-      setMode("browse");
-    } else {
-      logger.debug('DIRECTORY_DIALOG_CANCELLED');
+  const handleOpenDirectory = async (selectedDir?: string | RecentFolder | DirRef | unknown) => {
+    logger.info("OPEN_DIRECTORY");
+    try {
+      const provider = await getFileSystemProvider();
+      let dir: DirRef | null = null;
+      if (selectedDir && typeof selectedDir === "object" && "id" in selectedDir) {
+        const item = selectedDir as { id: string; name?: string };
+        const existingRecent = useUiStore.getState().recentFolders.find((f) => f.id === item.id);
+        const name = item.name || existingRecent?.name || item.id.split(/[/\\]/).filter(Boolean).pop() || item.id;
+        dir = { id: item.id, name, platform: provider.kind };
+      } else if (typeof selectedDir === "string" && selectedDir) {
+        const existingRecent = useUiStore.getState().recentFolders.find((f) => f.id === selectedDir);
+        const name = existingRecent?.name || selectedDir.split(/[/\\]/).filter(Boolean).pop() || selectedDir;
+        dir = { id: selectedDir, name, platform: provider.kind };
+      } else {
+        dir = await provider.pickDirectory("Select a directory containing your ebooks");
+      }
+
+      if (dir) {
+        logger.info("DIRECTORY_SELECTED", { dir });
+        navigateToDir(dir.id);
+        addRecentFolder({ id: dir.id, name: dir.name, platform: provider.kind });
+        setMode("browse");
+      } else {
+        logger.debug("DIRECTORY_DIALOG_CANCELLED");
+      }
+    } catch (err) {
+      const appErr = toAppError(err);
+      setError(appErr);
     }
   };
 
-  const handleFileClick = async (path: string) => {
-    logger.info('FILE_CLICKED', { path });
-    const ext = path.toLowerCase().slice(path.lastIndexOf("."));
-    if (!SUPPORTED_EXTENSIONS.has(ext)) {
-      logger.warn('FILE_NOT_SUPPORTED', { path, ext });
+  const handleOpenFile = async () => {
+    logger.info("OPEN_FILE");
+    try {
+      const provider = await getFileSystemProvider();
+      if (provider.pickFile) {
+        const file = await provider.pickFile("Select Ebook");
+        if (file) {
+          await handleFileClick(file.id, file.name);
+        } else {
+          logger.debug("FILE_DIALOG_CANCELLED");
+        }
+      } else if (provider.pickFiles) {
+        const res = await provider.pickFiles("Select Ebook");
+        if (res && res.files.length > 0) {
+          await handleFileClick(res.files[0].id, res.files[0].name);
+        }
+      } else {
+        await handleOpenDirectory();
+      }
+    } catch (err) {
+      const appErr = toAppError(err);
+      setError(appErr);
+    }
+  };
+
+  const handleFileClick = async (path: string, name?: string) => {
+    logger.info("FILE_CLICKED", { path, name });
+    if (!formatRegistry.isSupported(path)) {
+      logger.warn("FILE_NOT_SUPPORTED", { path });
       return;
     }
 
-    setCurrentBookPath(path);
+    setCurrentBookPath(path, name);
     addRecentFile(path);
-    setSidebarVisible(false); // auto-hide sidebar when opening book per PRD 5.4.3
     setMode("reading");
   };
 
   const handleCloseBook = () => {
-    setCurrentBookPath(null);
     setMode("browse");
-    setSidebarVisible(true);
-  };
-
-  const handleSidebarResize = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setResizing(true);
-    const startX = e.clientX;
-    const startWidth = sidebarWidth;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = startWidth + (moveEvent.clientX - startX);
-      setSidebarWidth(Math.max(200, Math.min(600, newWidth)));
-    };
-
-    const onMouseUp = () => {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-      setResizing(false);
-    };
-
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
+    setTimeout(() => setCurrentBookPath(null), 50);
   };
 
   return (
-    <div className="app" style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--color-background)' }}>
-      <aside
-        className="sidebar"
-        style={{ 
-          width: sidebarWidth, 
-          minWidth: 200, 
-          maxWidth: 600,
-          backgroundColor: 'var(--color-surface)',
-          borderRight: '1px solid var(--color-border)',
-          display: sidebarVisible ? 'flex' : 'none',
-          flexDirection: 'column',
-        }}
-      >
-        <div className="sidebar-header" style={{ padding: '12px 16px', borderBottom: '1px solid var(--color-border)' }}>
-          <h2 className="text-lg font-semibold text-[var(--color-text)]">Library</h2>
-        </div>
-        <div className="sidebar-toolbar" style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <DirectoryPicker onSelect={handleOpenDirectory} />
-          <div className="theme-toggle">
-            <button
-              onClick={() => setTheme(appTheme === 'dark' ? 'light' : 'dark')}
-              className="px-3 py-1.5 text-sm bg-[var(--color-primary)] text-white rounded hover:bg-[var(--color-primary-hover)] transition-colors"
-            >
-              {appTheme === 'dark' ? '☀️' : '🌙'}
-            </button>
-          </div>
-        </div>
-
-        {/* Global Library Search Input */}
-        <div className="sidebar-search" style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-border)' }}>
-          <div className="relative flex items-center">
-            <svg className="w-4 h-4 absolute left-2.5 text-[var(--color-text-muted)] pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search library... (Ctrl+F)"
-              value={librarySearchQuery}
-              onChange={(e) => setLibrarySearchQuery(e.target.value)}
-              className="w-full pl-8 pr-7 py-1.5 text-xs rounded-md border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
-            />
-            {librarySearchQuery && (
-              <button
-                onClick={() => setLibrarySearchQuery("")}
-                className="absolute right-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] p-0.5"
-                title="Clear library search"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          {librarySearchQuery && (
-            <div className="mt-1 flex items-center justify-between text-[11px] text-[var(--color-text-muted)] px-1">
-              <span>{filteredEntries.length} {filteredEntries.length === 1 ? 'item' : 'items'} found</span>
-              <button
-                onClick={() => setLibrarySearchQuery("")}
-                className="hover:underline text-[var(--color-primary)] cursor-pointer"
-              >
-                Clear
-              </button>
+    <div
+      className="app relative"
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDraggingFile(true);
+      }}
+      onDragEnter={(e) => {
+        e.preventDefault();
+        setIsDraggingFile(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+          setIsDraggingFile(false);
+        }
+      }}
+      onDrop={handleHtmlDrop}
+    >
+      {isDraggingFile && (
+        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-[var(--color-surface)] border-2 border-dashed border-[var(--color-primary)] rounded-2xl p-8 max-w-sm text-center shadow-2xl flex flex-col items-center gap-3">
+            <div className="p-4 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+              <UploadIcon size={32} />
             </div>
-          )}
-        </div>
-        <div className="sidebar-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div className="sort-controls" style={{ padding: '12px', borderBottom: '1px solid var(--color-border)' }}>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-                Sort by:
-                <select
-                  value={sortBy}
-                  onChange={e => setSort(e.target.value as SortBy)}
-                  className="px-2 py-1 text-sm border border-[var(--color-border)] rounded bg-[var(--color-background)] text-[var(--color-text)]"
-                >
-                  <option value="name">Name</option>
-                  <option value="date">Date</option>
-                  <option value="size">Size</option>
-                  <option value="type">Type</option>
-                </select>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-                Order:
-                <select
-                  value={sortOrder}
-                  onChange={e => setSortOrder(e.target.value as "asc" | "desc")}
-                  className="px-2 py-1 text-sm border border-[var(--color-border)] rounded bg-[var(--color-background)] text-[var(--color-text)]"
-                >
-                  <option value="asc">↑</option>
-                  <option value="desc">↓</option>
-                </select>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-                View:
-                <select
-                  value={viewMode}
-                  onChange={e => setViewMode(e.target.value as "tree" | "list")}
-                  className="px-2 py-1 text-sm border border-[var(--color-border)] rounded bg-[var(--color-background)] text-[var(--color-text)]"
-                >
-                  <option value="tree">Tree</option>
-                  <option value="list">List</option>
-                </select>
-              </label>
+            <div>
+              <h3 className="font-bold text-base text-[var(--color-text)]">Drop Ebook or Folder Here</h3>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">Release to open ebook or browse folder</p>
             </div>
           </div>
-
-          {viewMode === "tree" ? (
-            <FileTree
-              rootPath={currentRoot ?? ""}
-              onFileClick={handleFileClick}
-              onDirectoryChange={handleDirectoryNavigate}
-              searchQuery={librarySearchQuery}
-            />
-          ) : (
-            <VirtualizedFileList
-              entries={filteredEntries}
-              onFileClick={handleFileClick}
-              onDirectoryClick={handleDirectoryNavigate}
-              parentPath={parentPath}
-              onParentClick={handleNavigateUp}
-              loading={loading}
-              error={error}
-              emptyMessage={librarySearchQuery ? `No ebooks match "${librarySearchQuery}"` : "No files found"}
-            />
-          )}
         </div>
-      </aside>
-
-      {sidebarVisible && (
-        <div
-          className="sidebar-resizer"
-          onMouseDown={handleSidebarResize}
-          style={{ cursor: resizing ? "ew-resize" : "col-resize" }}
-          aria-label="Resize sidebar"
-        />
       )}
+      {mode === "browse" ? (
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          {/* Responsive Top Application Bar */}
+          <AppBar
+            isCompact={isCompact}
+            isMedium={isMedium}
+            recentFolders={recentFolders}
+            currentRoot={currentRoot}
+            onOpenDirectory={handleOpenDirectory}
+            onOpenFile={handleOpenFile}
+            onClearRecents={clearRecents}
+            searchQuery={librarySearchQuery}
+            onSearchChange={setLibrarySearchQuery}
+            onToggleViewOptions={() => setIsViewOptionsOpen((prev) => !prev)}
+            isViewOptionsOpen={isViewOptionsOpen}
+          />
 
-      <main className="content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {mode === "browse" ? (
-          <> 
+          {/* Non-overlapping Error Banner Surface */}
+          <ErrorHost
+            error={error}
+            onDismiss={() => setError(null)}
+            onAction={() => handleOpenDirectory()}
+            actionLabel="Open Folder"
+          />
+
+          {/* View Options Modal Sheet / Popover */}
+          <ViewOptionsSheet
+            isOpen={isViewOptionsOpen}
+            onClose={() => setIsViewOptionsOpen(false)}
+            isCompact={isCompact}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            viewMode={viewMode}
+            appTheme={appTheme}
+            onSortChange={(sort: SortBy) => setSort(sort)}
+            onSortOrderToggle={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+            onViewModeChange={(mode: ViewMode) => setViewMode(mode)}
+            onThemeChange={(theme: AppTheme) => setTheme(theme)}
+          />
+
+          {/* Main Content Area */}
+          <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {currentRoot ? (
-              <div className="flex-1 flex flex-col h-full overflow-hidden">
-                <div className="list-toolbar" style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {!sidebarVisible && (
-                      <button
-                        onClick={() => setSidebarVisible(true)}
-                        className="p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex-shrink-0"
-                        title="Show Sidebar (M)"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                      </button>
-                    )}
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                {/* Secondary Breadcrumbs Navigation Toolbar */}
+                <BreadcrumbsBar
+                  breadcrumbs={breadcrumbSegments}
+                  onNavigate={handleDirectoryNavigate}
+                  onNavigateHome={() => setCurrentRoot(null)}
+                  onNavigateBack={navigateBack}
+                  onNavigateForward={navigateForward}
+                  onNavigateUp={handleNavigateUp}
+                  canGoBack={canGoBack}
+                  canGoForward={canGoForward}
+                  canGoUp={canGoUp}
+                  parentPath={parentPath}
+                  itemCount={filteredEntries.length}
+                  totalCount={entries.length}
+                  isFiltered={!!librarySearchQuery.trim()}
+                  loading={loading}
+                  isCompact={isCompact}
+                />
 
-                    {/* Navigation Buttons: Back, Forward, Up */}
-                    <div className="flex items-center gap-0.5 bg-black/5 dark:bg-white/5 p-0.5 rounded-lg flex-shrink-0 border border-[var(--color-border)]">
-                      <button
-                        onClick={navigateBack}
-                        disabled={!canGoBack}
-                        className="p-1.5 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10"
-                        title="Go Back (Alt + Left)"
-                        aria-label="Go Back"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={navigateForward}
-                        disabled={!canGoForward}
-                        className="p-1.5 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10"
-                        title="Go Forward (Alt + Right)"
-                        aria-label="Go Forward"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={handleNavigateUp}
-                        disabled={!canGoUp}
-                        className="p-1.5 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/10 dark:hover:bg-white/10"
-                        title={parentPath ? `Up to parent (${parentPath})` : "Parent folder"}
-                        aria-label="Up to parent directory"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                        </svg>
-                      </button>
-                    </div>
-
-                    {/* Breadcrumbs Trail */}
-                    <div className="flex items-center gap-1 overflow-x-auto text-xs py-1 px-2.5 rounded-lg bg-black/5 dark:bg-white/5 border border-[var(--color-border)] max-w-xl scrollbar-none">
-                      {breadcrumbSegments.map((segment, idx) => (
-                        <div key={segment.path} className="flex items-center gap-1 flex-shrink-0">
-                          {idx > 0 && <span className="text-[var(--color-text-muted)] opacity-40">/</span>}
-                          <button
-                            onClick={() => handleDirectoryNavigate(segment.path)}
-                            disabled={segment.isLast}
-                            className={`px-1.5 py-0.5 rounded transition-colors ${
-                              segment.isLast
-                                ? "font-semibold text-[var(--color-text)] cursor-default bg-black/5 dark:bg-white/10"
-                                : "text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                            }`}
-                            title={segment.path}
-                          >
-                            {idx === 0 && (
-                              <svg className="w-3.5 h-3.5 inline mr-1 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                              </svg>
-                            )}
-                            {segment.name}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                {/* View Container: List or Grid */}
+                {viewMode === "list" ? (
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <VirtualizedFileList
+                      entries={filteredEntries}
+                      onFileClick={handleFileClick}
+                      onDirectoryClick={handleDirectoryNavigate}
+                      onRevealInOS={canRevealInOS ? handleRevealInOS : undefined}
+                      parentPath={parentPath}
+                      onParentClick={handleNavigateUp}
+                      loading={loading}
+                      error={error ? error.message : null}
+                      emptyMessage={
+                        librarySearchQuery ? `No ebooks match "${librarySearchQuery}"` : "No files found"
+                      }
+                      isCompact={isCompact}
+                    />
                   </div>
-
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="entry-count" style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                      {librarySearchQuery.trim()
-                        ? `Showing ${filteredEntries.length} of ${entries.length} items`
-                        : `${entries.length} items`}
-                    </span>
-                    {librarySearchQuery.trim() && (
-                      <button
-                        onClick={() => setLibrarySearchQuery("")}
-                        className="text-xs text-[var(--color-primary)] hover:underline flex items-center gap-1"
-                      >
-                        Clear search
-                      </button>
-                    )}
-                    {loading && <span className="loading" style={{ fontSize: '12px', color: 'var(--color-primary)' }}>Loading...</span>}
-                    {error && <span className="error" style={{ fontSize: '12px', color: 'var(--color-error)' }}>{error}</span>}
-                  </div>
-                </div>
-
-                {/* Main Content Area: Book Library Grid */}
-                <div className="flex-1 overflow-auto p-6">
-                  {filteredEntries.length === 0 && !canGoUp ? (
-                    <div className="flex flex-col items-center justify-center p-12 text-[var(--color-text-muted)]">
-                      <p className="text-base font-medium">
-                        {librarySearchQuery ? `No ebooks match "${librarySearchQuery}"` : "No books found in this folder"}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {/* Parent Directory item card */}
-                      {canGoUp && !librarySearchQuery.trim() && (
-                        <div
-                          onClick={handleNavigateUp}
-                          className="flex flex-col p-4 rounded-xl border border-dashed border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] hover:shadow-lg transition-all cursor-pointer group"
-                          title={`Up to parent (${parentPath})`}
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="w-10 h-10 rounded-lg bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)] group-hover:scale-105 transition-transform">
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                              </svg>
-                            </div>
-                            <span className="text-xs font-mono px-2 py-0.5 rounded bg-black/5 dark:bg-white/10 text-[var(--color-text-muted)]">
-                              ..
-                            </span>
-                          </div>
-                          <span className="font-semibold text-sm text-[var(--color-text)] truncate group-hover:text-[var(--color-primary)] transition-colors mb-1">
-                            .. (Parent Directory)
-                          </span>
-                          <span className="text-xs text-[var(--color-text-muted)] truncate">
-                            {parentPath}
-                          </span>
-                        </div>
-                      )}
-
-                      {filteredEntries.map((entry) => (
-                        <div
-                          key={entry.path}
-                          onClick={() => {
-                            if (entry.isDirectory) {
-                              handleDirectoryNavigate(entry.path);
-                            } else {
-                              handleFileClick(entry.path);
-                            }
-                          }}
-                          className="flex flex-col p-4 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)] hover:shadow-lg transition-all cursor-pointer group"
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="w-10 h-10 rounded-lg bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)] group-hover:scale-105 transition-transform">
-                              {entry.isDirectory ? (
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                </svg>
-                              ) : (
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477 4.5 1.253" />
-                                </svg>
-                              )}
-                            </div>
-                            {!entry.isDirectory && <FormatBadge path={entry.path} />}
-                          </div>
-                          <span className="font-semibold text-sm text-[var(--color-text)] truncate group-hover:text-[var(--color-primary)] transition-colors mb-1">
-                            {entry.name}
-                          </span>
-                          <span className="text-xs text-[var(--color-text-muted)] truncate">
-                            {entry.isDirectory ? "Folder" : entry.path}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                ) : (
+                  <BrowseGrid
+                    entries={filteredEntries}
+                    onFileClick={handleFileClick}
+                    onDirectoryClick={handleDirectoryNavigate}
+                    onRevealInOS={canRevealInOS ? handleRevealInOS : undefined}
+                    searchQuery={librarySearchQuery}
+                    isCompact={isCompact}
+                  />
+                )}
               </div>
             ) : (
-              // Welcome screen when no directory opened
-              <div className="text-center text-[var(--color-text-muted)]" style={{ padding: '48px 24px' }}>
-                <svg className="w-24 h-24 mx-auto mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477 4.5 1.253" />
-                </svg>
-                <h2 className="text-2xl font-semibold mb-2">Welcome to Ebook Reader</h2>
-                <p className="text-[var(--color-text-muted)] mb-6">Open a directory containing your ebooks to get started</p>
-                <button
-                  onClick={handleOpenDirectory}
-                  className="px-6 py-3 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors flex items-center justify-center gap-2 mx-auto"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                  </svg>
-                  Open Directory
-                </button>
-              </div>
+              <Launchpad
+                recentFolders={recentFolders}
+                onOpenDirectory={handleOpenDirectory}
+                onOpenFile={handleOpenFile}
+                onClearRecents={clearRecents}
+                isCompact={isCompact}
+              />
             )}
-          </>
-        ) : (
-          <ReaderView onClose={handleCloseBook} />
-        )}
-      </main>
+          </main>
+        </div>
+      ) : (
+        <ReaderView onClose={handleCloseBook} />
+      )}
+
+      {showExitToast && (
+        <div
+          role="status"
+          data-testid="exit-toast"
+          className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-black/85 text-white text-xs font-medium shadow-2xl backdrop-blur-md pointer-events-none animate-in fade-in zoom-in-95 duration-150 border border-white/10 select-none"
+        >
+          Press back again to exit
+        </div>
+      )}
+
+      <LogViewer
+        isOpen={isLogViewerOpen}
+        onClose={() => setIsLogViewerOpen(false)}
+      />
     </div>
   );
 }
 
-// Helper functions
-const SUPPORTED_EXTENSIONS = new Set([
-  ".pdf",
-  ".epub",
-  ".cbz",
-  ".cbr",
-  ".txt",
-  ".html",
-  ".htm",
-  ".xhtml",
-  ".docx",
-]);
-
 function sortEntries(entries: FileEntry[], sortBy: string, sortOrder: string): FileEntry[] {
   return [...entries].sort((a, b) => {
-    // Directories first
-    if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
-
+    if (a.isDirectory !== b.isDirectory) {
+      return a.isDirectory ? -1 : 1;
+    }
     let comparison = 0;
     switch (sortBy) {
       case "name":
-        comparison = a.name.localeCompare(b.name);
+        comparison = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
         break;
       case "date":
-        comparison = a.modified - b.modified;
+        comparison = (b.modified || 0) - (a.modified || 0);
         break;
       case "size":
-        comparison = a.size - b.size;
+        comparison = (b.size || 0) - (a.size || 0);
         break;
-      case "type":
-        comparison = a.name.split(".").pop()?.localeCompare(b.name.split(".").pop() || "") || 0;
+      case "type": {
+        const extA = a.name.slice(a.name.lastIndexOf(".")).toLowerCase();
+        const extB = b.name.slice(b.name.lastIndexOf(".")).toLowerCase();
+        comparison = extA.localeCompare(extB);
         break;
+      }
+      default:
+        comparison = a.name.localeCompare(b.name);
     }
     return sortOrder === "asc" ? comparison : -comparison;
   });
 }
-
-

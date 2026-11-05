@@ -2,14 +2,27 @@
   "name": "ebook-reader",
   "private": true,
   "version": "0.1.0",
+  "license": "GPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:frontend": "tsc && vite build",
+    "build:desktop": "tauri build",
+    "build:android": "tauri android build --apk --target aarch64",
+    "android:install:current": "adb install -r --user current src-tauri/gen/android/app/build/outputs/apk/arm64/debug/app-arm64-debug.apk",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev -c src-tauri/tauri.dev.conf.json",
+    "dev:desktop": "tauri dev -c src-tauri/tauri.dev.conf.json",
+    "generate:logo": "node logo/convert_icons.js",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@primer/octicons-react": "^19.42.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.8.3",
     "@tauri-apps/plugin-fs": "^2.7.1",
@@ -23,18 +36,23 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-window": "^2.5.0",
+    "tauri-plugin-android-fs-api": "^30.2.0",
     "zustand": "^5.0.16"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@tauri-apps/cli": "^2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.6.1",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5.31",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "^5.0.5"
   }
 }

@@ -1,4 +1,5 @@
 import type { BookAdapter, BookInstance, RenderOptions, SearchResult, TOCItem } from '../types/reader';
+import { extractDocumentTitle } from '../utils/pathUtils';
 
 export class TxtAdapter implements BookAdapter {
   readonly format = 'txt' as const;
@@ -13,7 +14,7 @@ export class TxtAdapter implements BookAdapter {
   async load(bookPath: string, fileData: Uint8Array): Promise<BookInstance> {
     const decoder = new TextDecoder('utf-8', { fatal: false });
     this.content = decoder.decode(fileData);
-    this.title = bookPath.split('/').pop()?.replace(/\.[^.]+$/, '') || 'Text Document';
+    this.title = extractDocumentTitle(bookPath) || 'Text Document';
     this.pages = this.splitIntoPages(this.content);
     this.pageCount = this.pages.length;
     this.currentPage = 0;
@@ -81,14 +82,17 @@ export class TxtAdapter implements BookAdapter {
     if (idx < 0 || idx >= this.pageCount) return;
     const text = this.pages[idx];
     const div = document.createElement('div');
+    div.style.boxSizing = 'border-box';
     div.style.whiteSpace = 'pre-wrap';
-    div.style.fontFamily = this.getFontFamily(options.fontFamily);
+    div.style.wordBreak = 'break-word';
+    div.style.overflowWrap = 'anywhere';
+    div.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     div.style.fontSize = options.fontSize + 'px';
     div.style.lineHeight = options.lineHeight.toString();
     div.style.color = this.getThemeColor(options.theme);
     div.style.backgroundColor = this.getThemeBg(options.theme);
     div.style.width = '100%';
-    div.style.maxWidth = Math.max(400, (options.width - options.margin * 2)) + 'px';
+    div.style.maxWidth = '100%';
     div.style.margin = '0 auto';
     div.style.padding = options.margin + 'px';
     div.textContent = text;
@@ -105,8 +109,11 @@ export class TxtAdapter implements BookAdapter {
     for (let pageNum = startIdx; pageNum <= endIdx && pageNum < this.pageCount; pageNum++) {
       const text = this.pages[pageNum];
       const div = document.createElement('div');
+      div.style.boxSizing = 'border-box';
       div.style.whiteSpace = 'pre-wrap';
-      div.style.fontFamily = this.getFontFamily(options.fontFamily);
+      div.style.wordBreak = 'break-word';
+      div.style.overflowWrap = 'anywhere';
+      div.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       div.style.fontSize = options.fontSize + 'px';
       div.style.lineHeight = options.lineHeight.toString();
       div.style.marginBottom = options.margin * 2 + 'px';
@@ -115,15 +122,13 @@ export class TxtAdapter implements BookAdapter {
       div.style.padding = options.margin + 'px';
       div.style.borderRadius = '4px';
       div.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+      div.style.width = '100%';
+      div.style.maxWidth = '100%';
       div.textContent = text;
       fragment.appendChild(div);
     }
     container.appendChild(fragment);
     this.currentPage = endIdx;
-  }
-
-  private getFontFamily(fontFamily: string): string {
-    switch (fontFamily) { case 'serif': return 'Georgia, "Times New Roman", serif'; case 'sans': return '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'; case 'mono': return '"Fira Code", "Consolas", monospace'; default: return 'Georgia, "Times New Roman", serif'; }
   }
 
   private getThemeColor(theme: string): string {

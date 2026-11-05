@@ -6,6 +6,7 @@ import type { LoggerConfig, LogLevel } from './types';
 import { createConsoleTransport } from './transports/console';
 import { createFileTransport } from './transports/file';
 import { createTauriTransport } from './transports/tauri';
+import { memoryTransport } from './transports/memory';
 import { isTauri } from '@tauri-apps/api/core';
 
 const isDev = import.meta.env.DEV;
@@ -23,6 +24,7 @@ function getTransports(): LoggerConfig['transports'] {
       useColors: true,
       useJson: false,
     }),
+    memoryTransport,
   ];
 }
 

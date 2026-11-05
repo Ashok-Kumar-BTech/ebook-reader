@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ebook-reader",
+  "productName": "Ebook Reader",
   "version": "0.1.0",
   "identifier": "com.ebook.reader",
   "build": {
@@ -28,10 +28,50 @@
     "targets": "all",
     "icon": [
       "icons/32x32.png",
+      "icons/64x64.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
+      "icons/icon.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["pdf"],
+        "name": "PDF Document",
+        "description": "Portable Document Format",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["epub"],
+        "name": "EPUB Ebook",
+        "description": "Electronic Publication Ebook",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["cbz", "cbr"],
+        "name": "Comic Book Archive",
+        "description": "Comic Book Archive File",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["txt"],
+        "name": "Plain Text Document",
+        "description": "Plain Text Document",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["html", "htm", "xhtml"],
+        "name": "HTML Document",
+        "description": "HyperText Markup Language Document",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["docx"],
+        "name": "Microsoft Word Document",
+        "description": "Office Open XML Document",
+        "role": "Viewer"
+      }
     ]
   },
   "plugins": {}

@@ -1,16 +1,19 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
+  "description": "Capability for the desktop main window",
+  "platforms": ["windows", "linux", "macOS"],
   "windows": ["main"],
   "permissions": [
     "core:default",
     "core:app:default",
+    "core:app:allow-exit",
     "core:app:allow-fetch-data-store-identifiers",
     "core:app:allow-remove-data-store",
     "opener:default",
     "dialog:default",
     "fs:default",
+    "store:default",
     "fs:allow-document-read",
     "fs:allow-document-write",
     "fs:allow-download-read",
@@ -20,6 +23,18 @@
     "fs:allow-home-read",
     "fs:allow-home-write",
     "fs:allow-appdata-read",
-    "fs:allow-appdata-write"
+    "fs:allow-appdata-write",
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-stat",
+      "allow": [{ "path": "**" }]
+    }
   ]
 }

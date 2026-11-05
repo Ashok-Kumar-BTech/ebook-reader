@@ -1,9 +1,12 @@
 import type { Format, AdapterFactory, BookAdapter } from '../types/reader';
+import { isFormatSupported, getAllSupportedExtensions } from '../formats/registry';
 import { createPdfAdapter } from './pdfAdapter';
 import { createEpubAdapter } from './epubAdapter';
 import { createCbzAdapter } from './cbzAdapter';
 import { createTxtAdapter } from './txtAdapter';
 import { createHtmlAdapter, createDocxAdapter } from './htmlAdapter';
+
+export * from '../formats/registry';
 
 /**
  * Central registry for format adapters.
@@ -79,15 +82,14 @@ class FormatRegistry {
    * Get all registered extensions
    */
   getSupportedExtensions(): string[] {
-    return [...this.adapters.keys()];
+    return getAllSupportedExtensions();
   }
 
   /**
    * Check if a format is supported
    */
   isSupported(filePath: string): boolean {
-    const ext = filePath.split('.').pop()?.toLowerCase();
-    return ext ? this.adapters.has(ext) : false;
+    return isFormatSupported(filePath);
   }
 
   /**

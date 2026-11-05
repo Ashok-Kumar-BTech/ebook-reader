@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { createStore } from '../utils/store';
-import { createLoggedStore } from '../utils/logger';
+import { createLoggedStore, logManager } from '../utils/logger';
+import { extractDocumentTitle } from '../utils/pathUtils';
+
+const logger = logManager.getLogger('store:bookStore');
 
 export interface Bookmark {
   id: string;
@@ -17,7 +20,8 @@ export interface BookSettings {
   theme: 'light' | 'dark' | 'sepia';
   twoPageView: boolean;
   continuousScroll: boolean;
-  fontFamily: 'serif' | 'sans' | 'mono';
+  panelMode?: 'smart' | 'persistent';
+  zoom?: number;
 }
 
 export interface BookState {
@@ -26,12 +30,14 @@ export interface BookState {
   bookmarks: Bookmark[];
   settings: BookSettings;
   lastOpened: number;
+  isCompleted?: boolean;
 }
 
 export interface BookStoreState {
   bookStates: Record<string, BookState>;
   currentBookPath: string | null;
-  setCurrentBookPath: (path: string | null) => void;
+  currentBookTitle: string | null;
+  setCurrentBookPath: (path: string | null, title?: string | null) => void;
   getBookState: (path: string) => BookState | undefined;
   setBookState: (path: string, state: Partial<BookState>) => void;
   updateLocation: (path: string, location: string | number, totalLocations?: number) => void;
@@ -40,6 +46,10 @@ export interface BookStoreState {
   updateBookmark: (path: string, bookmarkId: string, updates: Partial<Bookmark>) => void;
   updateSettings: (path: string, settings: Partial<BookSettings>) => void;
   clearBookState: (path: string) => void;
+  toggleBookCompleted: (path: string) => void;
+  setBookCompleted: (path: string, isCompleted: boolean) => void;
+  isBookCompleted: (path: string) => boolean;
+  isHydrated: boolean;
   hydrate: () => Promise<void>;
 }
 
@@ -51,7 +61,8 @@ const DEFAULT_BOOK_SETTINGS: BookSettings = {
   theme: 'dark',
   twoPageView: false,
   continuousScroll: true,
-  fontFamily: 'serif',
+  panelMode: 'smart',
+  zoom: 1.0,
 };
 
 const EMPTY_BOOK_STATE: BookState = {
@@ -60,6 +71,7 @@ const EMPTY_BOOK_STATE: BookState = {
   bookmarks: [],
   settings: DEFAULT_BOOK_SETTINGS,
   lastOpened: Date.now(),
+  isCompleted: false,
 };
 
 // Tauri store for persistence
@@ -75,8 +87,14 @@ const loggedStoreCreator = createLoggedStore<BookStoreState>(
   (set, get) => ({
     bookStates: {},
     currentBookPath: null,
+    currentBookTitle: null,
+    isHydrated: false,
 
-    setCurrentBookPath: (path: string | null) => set({ currentBookPath: path }),
+    setCurrentBookPath: (path: string | null, title?: string | null) =>
+      set({
+        currentBookPath: path,
+        currentBookTitle: title ? extractDocumentTitle(title) : (path ? extractDocumentTitle(path) : null),
+      }),
 
     getBookState: (path: string) => get().bookStates[path],
 
@@ -168,11 +186,51 @@ const loggedStoreCreator = createLoggedStore<BookStoreState>(
       return { bookStates: rest };
     }),
 
+    toggleBookCompleted: (path: string) => set((s) => {
+      const existing = s.bookStates[path] ?? EMPTY_BOOK_STATE;
+      const nextCompleted = !existing.isCompleted;
+      return {
+        bookStates: {
+          ...s.bookStates,
+          [path]: {
+            ...existing,
+            isCompleted: nextCompleted,
+            lastOpened: Date.now(),
+          },
+        },
+      };
+    }),
+
+    setBookCompleted: (path: string, isCompleted: boolean) => set((s) => {
+      const existing = s.bookStates[path] ?? EMPTY_BOOK_STATE;
+      return {
+        bookStates: {
+          ...s.bookStates,
+          [path]: {
+            ...existing,
+            isCompleted,
+            lastOpened: Date.now(),
+          },
+        },
+      };
+    }),
+
+    isBookCompleted: (path: string) => {
+      return Boolean(get().bookStates[path]?.isCompleted);
+    },
+
     hydrate: async () => {
-      await bookStorePersist.load();
-      const stored = bookStorePersist.get();
-      if (stored && Object.keys(stored).length > 0) {
-        set({ bookStates: stored });
+      try {
+        await bookStorePersist.load();
+        const stored = bookStorePersist.get();
+        if (stored && Object.keys(stored).length > 0) {
+          set({ bookStates: stored, isHydrated: true });
+        } else {
+          set({ isHydrated: true });
+        }
+      } catch (err) {
+        logger.warn('BOOK_STORE_HYDRATE_ERROR', { error: err instanceof Error ? err.message : String(err) });
+        set({ isHydrated: true });
       }
     },
   })
@@ -180,9 +238,11 @@ const loggedStoreCreator = createLoggedStore<BookStoreState>(
 
 export const useBookStore = create<BookStoreState>()(loggedStoreCreator);
 
-// Subscribe to changes and persist to Tauri store
+// Subscribe to changes and persist to Tauri store (only after initial hydration)
 useBookStore.subscribe(
   (newState: BookStoreState, _oldState: BookStoreState) => {
-    bookStorePersist.set(newState.bookStates);
+    if (newState.isHydrated) {
+      bookStorePersist.set(newState.bookStates);
+    }
   }
 );

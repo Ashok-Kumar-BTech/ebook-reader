@@ -2,18 +2,45 @@ import { Store, LazyStore } from '@tauri-apps/plugin-store';
 import { checkIsTauri } from './tauriApi';
 
 /**
+ * Returns whether the application is running in development mode (Vite dev server / tauri dev).
+ */
+export function isDevEnvironment(): boolean {
+  return Boolean(import.meta.env?.DEV);
+}
+
+/**
+ * Computes the scoped Tauri store file name.
+ * Development builds use `${key}.dev.json` while production releases use `${key}.json`.
+ */
+export function getStoreFileName(key: string, isDev = isDevEnvironment()): string {
+  return isDev ? `${key}.dev.json` : `${key}.json`;
+}
+
+/**
+ * Computes the scoped web localStorage key.
+ * Development builds use `dev:${key}` while production releases use `${key}`.
+ */
+export function getStorageKey(key: string, isDev = isDevEnvironment()): string {
+  return isDev ? `dev:${key}` : key;
+}
+
+/**
  * Fallback store implementation using localStorage for web development.
  * Used when not running in Tauri environment.
  */
-class WebStore<T> {
+export class WebStore<T> {
   private key: string;
   private defaultValue: T;
   private cache: T | null = null;
   private loaded: boolean = false;
 
   constructor(key: string, defaultValue: T) {
-    this.key = key;
+    this.key = getStorageKey(key);
     this.defaultValue = defaultValue;
+  }
+
+  getStorageKey(): string {
+    return this.key;
   }
 
   async load(): Promise<T> {
@@ -21,7 +48,23 @@ class WebStore<T> {
     
     try {
       const stored = localStorage.getItem(this.key);
-      this.cache = stored ? JSON.parse(stored) : this.defaultValue;
+      if (stored !== null) {
+        this.cache = JSON.parse(stored);
+      } else if (isDevEnvironment() && this.key.startsWith('dev:')) {
+        // One-time self-healing migration: if dev key has no data, check legacy un-prefixed key
+        const legacyKey = this.key.substring(4);
+        const legacyData = localStorage.getItem(legacyKey);
+        if (legacyData !== null) {
+          this.cache = JSON.parse(legacyData);
+          localStorage.setItem(this.key, legacyData);
+          // Clear legacy key so production releases on the same device start clean
+          localStorage.removeItem(legacyKey);
+        } else {
+          this.cache = this.defaultValue;
+        }
+      } else {
+        this.cache = this.defaultValue;
+      }
     } catch {
       this.cache = this.defaultValue;
     }
@@ -76,9 +119,10 @@ class WebStore<T> {
  * Internal Tauri store implementation.
  * Kept separate to avoid loading Tauri imports in web context.
  */
-class TypedStoreImpl<T> {
+export class TypedStoreImpl<T> {
   private store: Store | LazyStore;
   private key: string;
+  private storeFileName: string;
   private defaultValue: T;
   private cache: T | null = null;
   private saveDebounceMs: number;
@@ -89,16 +133,49 @@ class TypedStoreImpl<T> {
     this.key = key;
     this.defaultValue = defaultValue;
     this.saveDebounceMs = saveDebounceMs;
-    this.store = new LazyStore(key + '.json');
+    this.storeFileName = getStoreFileName(key);
+    this.store = new LazyStore(this.storeFileName);
+  }
+
+  getStoreFileName(): string {
+    return this.storeFileName;
   }
 
   async load(): Promise<T> {
     if (this.loaded) return this.cache ?? this.defaultValue;
     
-    const stored = await this.store.get<T>(this.key);
-    this.cache = stored ?? this.defaultValue;
+    try {
+      const stored = await this.store.get<T>(this.key);
+      if (stored !== null && stored !== undefined) {
+        this.cache = stored;
+      } else if (isDevEnvironment()) {
+        // One-time self-healing migration: if in dev and *.dev.json is empty,
+        // migrate existing dev test data from legacy *.json and sanitize legacy store
+        try {
+          const legacyStore = new LazyStore(`${this.key}.json`);
+          const legacyData = await legacyStore.get<T>(this.key);
+          if (legacyData !== null && legacyData !== undefined) {
+            this.cache = legacyData;
+            await this.store.set(this.key, legacyData);
+            await this.store.save();
+            // Wipe legacy store so production releases on this device start clean
+            await legacyStore.delete(this.key);
+            await legacyStore.save();
+          } else {
+            this.cache = this.defaultValue;
+          }
+        } catch {
+          this.cache = this.defaultValue;
+        }
+      } else {
+        this.cache = this.defaultValue;
+      }
+    } catch {
+      this.cache = this.defaultValue;
+    }
+
     this.loaded = true;
-    return this.cache;
+    return this.cache ?? this.defaultValue;
   }
 
   get(): T {
@@ -161,6 +238,14 @@ export class UnifiedStore<T> {
     private defaultValue: T,
     private saveDebounceMs = 300
   ) {}
+
+  getStorageKey(): string {
+    return getStorageKey(this.key);
+  }
+
+  getStoreFileName(): string {
+    return getStoreFileName(this.key);
+  }
 
   private async getStore() {
     if (this.initialized) {

@@ -11,6 +11,12 @@
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
 
+  /* Safe Area Inset Variables (Edge-to-Edge Support) */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+
   /* Default Light Theme Variables */
   --color-primary: #3b82f6;
   --color-primary-hover: #2563eb;
@@ -72,9 +78,298 @@
   box-sizing: border-box;
 }
 
-body {
+html, body, #root {
   margin: 0;
-  min-height: 100vh;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
   background-color: var(--color-background);
   color: var(--color-text);
+  user-select: none;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  padding-top: var(--sat);
+  padding-bottom: var(--sab);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+  box-sizing: border-box;
+}
+
+/* Custom internal scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(150, 150, 150, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(150, 150, 150, 0.5);
+}
+
+/* Bookmark In-Document Corner Ribbon */
+.bookmark-corner-ribbon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.bookmark-corner-ribbon-badge {
+  position: absolute;
+  top: 0;
+  right: 12px;
+  background: #f59e0b;
+  color: #ffffff;
+  padding: 4px 6px 8px 6px;
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Scrubber Timeline Bookmark Pin */
+.scrubber-bookmark-pin {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #f59e0b;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 4px rgba(245, 158, 11, 0.8);
+  cursor: pointer;
+  z-index: 10;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.scrubber-bookmark-pin:hover {
+  transform: translate(-50%, -50%) scale(1.6);
+  background-color: #d97706;
+  box-shadow: 0 0 8px rgba(217, 119, 6, 1);
+}
+
+/* Smart Auto-Hiding Reader Top Header & Hover Sensor */
+.reader-top-hover-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  z-index: 45;
+  pointer-events: auto;
+  background: transparent;
+}
+
+.reader-header-floating {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, box-shadow 0.28s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.reader-header-floating.reader-header-visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+}
+
+.reader-header-floating.reader-header-hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+/* Page Fit & Sizing for Single and Spread Views */
+.reader-page-fit-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.reader-page-fit-container img {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  margin: auto !important;
+  display: block !important;
+}
+
+.reader-page-fit-container canvas {
+  display: block !important;
+  margin: auto !important;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* Document Zoom Wrapper and Panning */
+.reader-zoom-wrapper {
+  transform-origin: center center;
+  user-select: none;
+}
+
+.reader-zoom-wrapper.is-zoomed {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* Enable multi-touch pinch gestures and vertical scrolling in reader */
+.reader-viewport-main {
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+}
+
+/* Ensure canvas and images dynamically scale with slot width during real-time zoom in Scroll View */
+.reader-page-slot {
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.reader-page-slot > div {
+  max-width: 100%;
+  box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.reader-page-slot canvas,
+.reader-page-slot img {
+  width: 100% !important;
+  height: auto !important;
+  max-width: none !important;
+  display: block;
+}
+
+/* Two-page spread open book styling */
+.reader-spread-book {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+
+
+/* ─── Smart Bottom Panel (Footer) Floating Mode ─────────────────────────── */
+
+/* Bottom hover sensor zone — triggers footer reveal in smart panel mode */
+.reader-bottom-hover-zone {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  z-index: 45;
+  pointer-events: auto;
+  background: transparent;
+}
+
+/* Floating footer — used in smart panel mode (position: absolute like header) */
+.reader-footer-floating {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, box-shadow 0.28s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.reader-footer-floating.reader-footer-visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.16);
+}
+
+.reader-footer-floating.reader-footer-hidden {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+/* Increase top hover zone height to match panel height for comfortable targeting */
+.reader-top-hover-zone {
+  height: 60px !important;
+}
+
+/* On touch screens where hover does not exist, disable pointer events on edge hover zones
+   so touches pass directly to the underlying reader viewport and trigger interaction-driven panel reveal */
+@media (hover: none) and (pointer: coarse) {
+  .reader-top-hover-zone,
+  .reader-bottom-hover-zone {
+    pointer-events: none;
+  }
+}
+
+/* In-flow header spacer — reserves vertical space equal to the header height
+   so <main> is not obscured. Used in persistent panel mode. */
+.reader-header-spacer {
+  flex-shrink: 0;
+  height: 48px;
+  pointer-events: none;
+}
+
+/* In persistent mode the header is in-flow (not absolute), so remove absolute positioning */
+.reader-header-inflow {
+  position: relative !important;
+  transform: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* In persistent mode the footer is in-flow (not absolute) */
+.reader-footer-inflow {
+  position: relative !important;
+  transform: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }

@@ -1,11 +1,19 @@
 import { create } from 'zustand';
 import { createStore } from '../utils/store';
-import { createLoggedStore } from '../utils/logger';
+import { createLoggedStore, logManager } from '../utils/logger';
+
+const logger = logManager.getLogger('store:uiStore');
 
 export type SortBy = 'name' | 'date' | 'size' | 'type';
 export type SortOrder = 'asc' | 'desc';
-export type ViewMode = 'tree' | 'list';
+export type ViewMode = 'grid' | 'list' | 'tree';
 export type AppTheme = 'light' | 'dark' | 'sepia';
+
+export interface RecentFolder {
+  id: string;
+  name: string;
+  platform?: 'desktop' | 'android' | 'web';
+}
 
 export interface UiState {
   // Sidebar
@@ -23,7 +31,7 @@ export interface UiState {
   appTheme: AppTheme;
   
   // Recents (max 10 each)
-  recentFolders: string[];
+  recentFolders: RecentFolder[];
   recentFiles: string[];
   
   // Directory Navigation History
@@ -43,12 +51,14 @@ export interface UiState {
   setSortOrder: (order: SortOrder) => void;
   setViewMode: (mode: ViewMode) => void;
   setTheme: (theme: AppTheme) => void;
-  addRecentFolder: (path: string) => void;
+  addRecentFolder: (folder: string | RecentFolder) => void;
   addRecentFile: (path: string) => void;
   clearRecents: () => void;
+  isHydrated: boolean;
   hydrate: () => Promise<void>;
 }
 
+const MAX_RECENT_DIRECTORIES = 5;
 const MAX_RECENTS = 10;
 
 // Tauri store for persistence
@@ -86,6 +96,7 @@ const loggedStoreCreator = createLoggedStore<UiState>(
     recentFiles: [],
     dirHistory: [],
     dirHistoryIndex: -1,
+    isHydrated: false,
 
     // Actions
     toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
@@ -158,9 +169,17 @@ const loggedStoreCreator = createLoggedStore<UiState>(
 
     setTheme: (theme: AppTheme) => set({ appTheme: theme }),
 
-    addRecentFolder: (path: string) => set((state) => {
-      const filtered = state.recentFolders.filter((p) => p !== path);
-      return { recentFolders: [path, ...filtered].slice(0, MAX_RECENTS) };
+    addRecentFolder: (folder: string | RecentFolder) => set((state) => {
+      const entry: RecentFolder = typeof folder === 'string'
+        ? {
+            id: folder.trim(),
+            name: folder.trim().split(/[/\\]/).filter(Boolean).pop() || folder.trim(),
+            platform: 'desktop',
+          }
+        : folder;
+      if (!entry.id) return {};
+      const filtered = state.recentFolders.filter((f) => f.id !== entry.id);
+      return { recentFolders: [entry, ...filtered].slice(0, MAX_RECENT_DIRECTORIES) };
     }),
 
     addRecentFile: (path: string) => set((state) => {
@@ -171,15 +190,34 @@ const loggedStoreCreator = createLoggedStore<UiState>(
     clearRecents: () => set({ recentFolders: [], recentFiles: [] }),
 
     hydrate: async () => {
-      await uiStorePersist.load();
-      const stored = uiStorePersist.get();
-      if (stored) {
-        set((state) => ({
-          ...state,
-          ...stored,
-          dirHistory: stored.currentRoot ? [stored.currentRoot] : [],
-          dirHistoryIndex: stored.currentRoot ? 0 : -1,
-        }));
+      try {
+        await uiStorePersist.load();
+        const stored = uiStorePersist.get();
+        if (stored) {
+          const rawRecents = stored.recentFolders || [];
+          const migratedRecents: RecentFolder[] = rawRecents.map((item: any) => {
+            if (typeof item === 'string') {
+              const name = item.split(/[/\\]/).filter(Boolean).pop() || item;
+              return { id: item, name, platform: 'desktop' as const };
+            }
+            return item;
+          });
+
+          set((state) => ({
+            ...state,
+            ...stored,
+            currentRoot: null,
+            dirHistory: [],
+            dirHistoryIndex: -1,
+            recentFolders: migratedRecents.slice(0, MAX_RECENT_DIRECTORIES),
+            isHydrated: true,
+          }));
+        } else {
+          set({ isHydrated: true });
+        }
+      } catch (err) {
+        logger.warn('UI_STORE_HYDRATE_ERROR', { error: err instanceof Error ? err.message : String(err) });
+        set({ isHydrated: true });
       }
     },
   })
@@ -187,13 +225,13 @@ const loggedStoreCreator = createLoggedStore<UiState>(
 
 export const useUiStore = create<UiState>()(loggedStoreCreator);
 
-// Subscribe to changes and persist to Tauri store
+// Subscribe to changes and persist to Tauri store (only after initial hydration)
 useUiStore.subscribe(
   (newState: UiState, _oldState: UiState) => {
+    if (!newState.isHydrated) return;
     uiStorePersist.set({
       sidebarVisible: newState.sidebarVisible,
       sidebarWidth: newState.sidebarWidth,
-      currentRoot: newState.currentRoot,
       expandedPaths: newState.expandedPaths,
       sortBy: newState.sortBy,
       sortOrder: newState.sortOrder,
