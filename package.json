@@ -1,7 +1,7 @@
 {
   "name": "ebook-reader",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "license": "GPL-3.0-only",
   "type": "module",
   "scripts": {
@@ -15,6 +15,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev -c src-tauri/tauri.dev.conf.json",
     "dev:desktop": "tauri dev -c src-tauri/tauri.dev.conf.json",
+    "version:bump": "node scripts/bump-version.js",
+    "version:current": "node scripts/bump-version.js --current",
     "generate:logo": "node logo/convert_icons.js",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",

@@ -68,15 +68,15 @@ When completed, the following outputs are generated under `src-tauri/target/rele
 | Artifact Path | Format | Description |
 | :--- | :--- | :--- |
 | `src-tauri/target/release/ebook-reader.exe` | **Standalone Executable** | Raw compiled portable binary. Requires zero installation. |
-| `src-tauri/target/release/bundle/nsis/ebook-reader_0.1.0_x64-setup.exe` | **NSIS Installer** | Standard wizard installer for end users with Desktop/Start menu shortcuts. |
-| `src-tauri/target/release/bundle/msi/ebook-reader_0.1.0_x64_en-US.msi` | **MSI Package** | Windows Installer package (generated if WiX Toolset is installed). |
+| `src-tauri/target/release/bundle/nsis/ebook-reader_1.0.0_x64-setup.exe` | **NSIS Installer** | Standard wizard installer for end users with Desktop/Start menu shortcuts. |
+| `src-tauri/target/release/bundle/msi/ebook-reader_1.0.0_x64_en-US.msi` | **MSI Package** | Windows Installer package (generated if WiX Toolset is installed). |
 
 ### 2.3 Installer vs. Direct App Usage (Portable)
 
 > [!TIP]
 > **Which one should you choose?**
 > - **Direct App Usage (`ebook-reader.exe`)**: Ideal for portable usage (e.g., running off a USB drive or without administrative rights). Simply place the `.exe` anywhere and double-click to run. All reading state and bookmarks persist to the user's `%APPDATA%\com.ebook.reader` folder.
-> - **Installer (`ebook-reader_0.1.0_x64-setup.exe`)**: Ideal for standard desktop deployment. Manages file association registration, Start Menu search indexing, automatic desktop icon creation, and provides a clean entry in *Windows Settings > Installed apps* for uninstallation.
+> - **Installer (`ebook-reader_1.0.0_x64-setup.exe`)**: Ideal for standard desktop deployment. Manages file association registration, Start Menu search indexing, automatic desktop icon creation, and provides a clean entry in *Windows Settings > Installed apps* for uninstallation.
 
 ---
 
@@ -238,10 +238,10 @@ Run the build command:
 npm run tauri build
 ```
 Outputs in `src-tauri/target/release/`:
-- **AppImage**: `src-tauri/target/release/bundle/appimage/ebook-reader_0.1.0_amd64.AppImage`
-  - *Usage:* `chmod +x ebook-reader_0.1.0_amd64.AppImage && ./ebook-reader_0.1.0_amd64.AppImage`
-- **Debian Package**: `src-tauri/target/release/bundle/deb/ebook-reader_0.1.0_amd64.deb`
-  - *Usage:* `sudo dpkg -i ebook-reader_0.1.0_amd64.deb`
+- **AppImage**: `src-tauri/target/release/bundle/appimage/ebook-reader_1.0.0_amd64.AppImage`
+  - *Usage:* `chmod +x ebook-reader_1.0.0_amd64.AppImage && ./ebook-reader_1.0.0_amd64.AppImage`
+- **Debian Package**: `src-tauri/target/release/bundle/deb/ebook-reader_1.0.0_amd64.deb`
+  - *Usage:* `sudo dpkg -i ebook-reader_1.0.0_amd64.deb`
 - **Raw Binary**: `src-tauri/target/release/ebook-reader`
 
 ---

@@ -1,6 +1,6 @@
 [package]
 name = "ebook-reader"
-version = "0.1.0"
+version = "1.0.0"
 description = "A cross-platform, local-first ebook reader"
 license = "GPL-3.0-only"
 authors = ["Ashok-Kumar-BTech"]

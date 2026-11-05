@@ -95,7 +95,7 @@ Before publishing release tags:
 - [x] `NOTICE` file present at root with third-party attributions.
 - [x] `package.json` declared as `GPL-3.0-only`.
 - [x] `Cargo.toml` declared as `GPL-3.0-only`.
-- [ ] Tag releases with semantic versions (e.g. `v0.1.0`).
+- [ ] Tag releases with semantic versions (e.g. `v1.0.0`).
 - [ ] Attach generated binaries (Windows installer `.msi`, setup `.exe`, portable `.zip`, Linux `.AppImage`).
 - [ ] Provide source code archive accompanying binaries as required by GPLv3 Section 6.
 
