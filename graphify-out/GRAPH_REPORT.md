@@ -1,17 +1,17 @@
 # Graph Report - ebook-reader  (2026-11-05)
 
 ## Corpus Check
-- 99 files · ~547,555 words
+- 99 files · ~547,007 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 28 file(s) not represented in the graph (top: .xml 12, (none) 8, .properties 2)
 
 ## Summary
-- 907 nodes · 1852 edges · 66 communities (49 shown, 17 thin omitted)
-- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 101 edges (avg confidence: 0.94)
+- 897 nodes · 1837 edges · 67 communities (50 shown, 17 thin omitted)
+- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 99 edges (avg confidence: 0.94)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `685a3a95`
+- Built from commit: `edbb961e`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -28,7 +28,7 @@
 - RenderOptions
 - Ebook Reader — Product & Technical Requirements Document
 - dependencies
-- formatRegistry
+- formats/registry.ts
 - 12. Functional Requirements
 - compilerOptions
 - 15. Build & Distribution
@@ -42,7 +42,7 @@
 - 9. Format Support
 - 2. Goals & Non-Goals
 - 8. Book-Level Configuration
-- Ebook Reader
+- Open Source Licensing & Compliance Plan (GitHub Releases)
 - ebook-reader
 - logger/index.ts
 - BuildTask.kt
@@ -56,20 +56,21 @@
 - devDependencies
 - LoggerInstance
 - mobile.json
-- VirtualizedFileList.tsx
+- Ebook Reader
 - LogViewer.tsx
 - ReaderView.tsx
 - store.ts
 - AppError
 - adapters/registry.ts
 - bookStore.ts
-- backNavigation.ts
+- RenderOptions
 - Ebook Reader: Cross-Platform & Responsive Refactor Plan
 - Ebook Reader — Build, Packaging & Deployment Guide
-- vitest
+- formatRegistry
 - pathUtils.ts
-- BookAdapter
+- Features & Capabilities
 - scripts
+- 4.3 Reader Adapter Pattern
 - @vitejs/plugin-react
 - setup.ts
 - gestures.test.ts
@@ -78,7 +79,7 @@
 1. `AppError` - 34 edges
 2. `toAppError()` - 32 edges
 3. `logManager` - 32 edges
-4. `BookAdapter` - 30 edges
+4. `BookAdapter` - 28 edges
 5. `App()` - 25 edges
 6. `EpubAdapter` - 23 edges
 7. `RenderOptions` - 22 edges
@@ -95,17 +96,17 @@
   docs/CROSS_PLATFORM_PLAN.md → src/errors/appError.ts
 - `4.2 Breakpoints (by **width**, not device type; foldables/split-screen must work)` --references--> `useBreakpoint()`  [INFERRED]
   docs/CROSS_PLATFORM_PLAN.md → src/hooks/useBreakpoint.ts
-- `Key Architectural Patterns` --references--> `BookAdapter`  [INFERRED]
-  README.md → src/types/reader.ts
+- `Phase 0: Observability and quick wins (do first)` --references--> `logTauriCall()`  [INFERRED]
+  docs/CROSS_PLATFORM_PLAN.md → src/utils/tauriApi.ts
 
 ## Import Cycles
 - 2-file cycle: `src/utils/logger/index.ts -> src/utils/logger/react.ts -> src/utils/logger/index.ts`
 
-## Communities (66 total, 17 thin omitted)
+## Communities (67 total, 17 thin omitted)
 
 ### Community 0 - "extractDocumentTitle"
 Cohesion: 0.14
-Nodes (6): jszip, CbzAdapter, createCbzAdapter(), loadJSZip(), TableOfContentsDrawerProps, TOCItem
+Nodes (5): jszip, CbzAdapter, createCbzAdapter(), loadJSZip(), SearchResult
 
 ### Community 1 - "package.json"
 Cohesion: 0.12
@@ -132,20 +133,24 @@ Cohesion: 0.11
 Nodes (18): compilerOptions, allowImportingTsExtensions, isolatedModules, jsx, lib, module, moduleResolution, noEmit (+10 more)
 
 ### Community 7 - "PdfAdapter"
-Cohesion: 0.16
-Nodes (5): 4.1 High-Level, 4.2 FileSystemProvider Abstraction, 4.3 Reader Adapter Pattern, 4. Architecture, PdfAdapter
+Cohesion: 0.18
+Nodes (3): pdfjs-dist, loadPdfJs(), PdfAdapter
+
+### Community 8 - "EpubAdapter"
+Cohesion: 0.21
+Nodes (3): epubjs, EpubAdapter, loadEpubJs()
 
 ### Community 10 - "Ebook Reader — Product & Technical Requirements Document"
-Cohesion: 0.20
+Cohesion: 0.18
 Nodes (10): 11. Persistence Model, 13. Non-Functional Requirements, 14. Platform Matrix, 16. Testing Strategy, 19. Open Decisions, 1.1 Core Principles, 1. Project Overview, 20. Glossary (+2 more)
 
 ### Community 11 - "dependencies"
 Cohesion: 0.12
 Nodes (17): dependencies, dompurify, epubjs, jszip, mammoth, pdfjs-dist, @primer/octicons-react, react (+9 more)
 
-### Community 12 - "formatRegistry"
-Cohesion: 0.11
-Nodes (9): formatRegistry, registerAdapter(), EXT_MAP, extractExtension(), FORMAT_DEFINITIONS, FormatInfo, ViewType, AdapterFactory (+1 more)
+### Community 12 - "formats/registry.ts"
+Cohesion: 0.19
+Nodes (8): Phase 2: Single sources of truth, EXT_MAP, extractExtension(), FORMAT_DEFINITIONS, getFormatBadge(), getFormatInfo(), isFormatSupported(), ViewType
 
 ### Community 13 - "12. Functional Requirements"
 Cohesion: 0.22
@@ -199,9 +204,9 @@ Nodes (3): 2.1 Goals, 2.2 Non-Goals, 2. Goals & Non-Goals
 Cohesion: 0.67
 Nodes (3): 8.1 The Configure Button, 8.2 Settings Groups, 8. Book-Level Configuration
 
-### Community 26 - "Ebook Reader"
-Cohesion: 0.05
-Nodes (41): 1. Executive Summary, 2. License Selection & Rationale, 3.1 Runtime Frontend Dependencies (`package.json`), 3.2 Runtime Backend Crates (`src-tauri/Cargo.toml`), 3.3 Build-Time & Development Tooling (Not Distributed in Binary), 3.4 Application Logo & Branding Artwork, 3. Dependency License Audit, 4. Implemented Licensing Artifacts (+33 more)
+### Community 26 - "Open Source Licensing & Compliance Plan (GitHub Releases)"
+Cohesion: 0.15
+Nodes (12): 1. Executive Summary, 2. License Selection & Rationale, 3.1 Runtime Frontend Dependencies (`package.json`), 3.2 Runtime Backend Crates (`src-tauri/Cargo.toml`), 3.3 Build-Time & Development Tooling (Not Distributed in Binary), 3.4 Application Logo & Branding Artwork, 3. Dependency License Audit, 4. Implemented Licensing Artifacts (+4 more)
 
 ### Community 32 - "logger/index.ts"
 Cohesion: 0.27
@@ -212,28 +217,24 @@ Cohesion: 0.14
 Nodes (3): BuildTask, Config, RustPlugin
 
 ### Community 34 - "config.ts"
-Cohesion: 0.17
-Nodes (12): getLoggerConfig(), getTransports(), initializeLoggerWithTauri(), createConsoleTransport(), createFileTransport(), enqueueWrite(), fileWriteQueue, processQueue() (+4 more)
+Cohesion: 0.18
+Nodes (11): getLoggerConfig(), getTransports(), initializeLoggerWithTauri(), createConsoleTransport(), createFileTransport(), enqueueWrite(), fileWriteQueue, processQueue() (+3 more)
 
 ### Community 35 - "main.tsx"
 Cohesion: 0.18
 Nodes (5): react-dom, ErrorBoundary, ErrorBoundaryProps, ErrorBoundaryState, loggerConfig
 
 ### Community 36 - "htmlAdapter.ts"
-Cohesion: 0.14
-Nodes (6): dompurify, mammoth, createDocxAdapter(), createHtmlAdapter(), DocxAdapter, SearchResult
+Cohesion: 0.15
+Nodes (7): dompurify, mammoth, createDocxAdapter(), createHtmlAdapter(), DocxAdapter, TableOfContentsDrawerProps, TOCItem
 
 ### Community 37 - "tauri.dev.conf.json"
 Cohesion: 0.50
 Nodes (3): identifier, productName, $schema
 
 ### Community 38 - "App.tsx"
-Cohesion: 0.15
-Nodes (20): Phase 3: Responsive shell, AppMode, FileEntry, sortEntries(), AppBar(), AppBarProps, getFolderSubtitle(), Launchpad() (+12 more)
-
-### Community 40 - "HtmlAdapter"
-Cohesion: 0.18
-Nodes (5): Core Functionality, Features & Support Status, Important Limitations, Supported Formats & Support Matrix, HtmlAdapter
+Cohesion: 0.06
+Nodes (55): Phase 3: Responsive shell, react-window, App(), AppMode, FileEntry, sortEntries(), AppBar(), AppBarProps (+47 more)
 
 ### Community 41 - "logger/types.ts"
 Cohesion: 0.29
@@ -247,9 +248,9 @@ Nodes (15): devDependencies, autoprefixer, jsdom, postcss, tailwindcss, @tailwin
 Cohesion: 0.29
 Nodes (6): description, identifier, permissions, platforms, $schema, windows
 
-### Community 45 - "VirtualizedFileList.tsx"
-Cohesion: 0.13
-Nodes (20): 4.3 Concrete layout changes in `App.tsx` (browse mode), @primer/octicons-react, react-window, @testing-library/react, BrowseGrid(), BrowseGridCard(), BrowseGridCardProps, BrowseGridEntry (+12 more)
+### Community 45 - "Ebook Reader"
+Cohesion: 0.11
+Nodes (18): Android (ARM64), Architecture & Codebase Map, Architecture Diagram, Checksum Verification, Clone & Install Dependencies, Development Scripts & Commands, Development Setup, Diagnostics & Troubleshooting (+10 more)
 
 ### Community 46 - "LogViewer.tsx"
 Cohesion: 0.50
@@ -257,7 +258,7 @@ Nodes (4): LEVEL_COLORS, LogEntryComponent(), LogViewer(), LogViewerProps
 
 ### Community 47 - "ReaderView.tsx"
 Cohesion: 0.21
-Nodes (19): 5.4 Window state (A8), react, getAdapterForPath(), App(), ReaderView(), loadBook(), ReaderViewProps, SearchAndBookmarksDrawer() (+11 more)
+Nodes (19): @primer/octicons-react, react, getAdapterForPath(), FormatBadge(), ReaderView(), loadBook(), ReaderViewProps, escapeRegex() (+11 more)
 
 ### Community 48 - "store.ts"
 Cohesion: 0.07
@@ -265,58 +266,62 @@ Nodes (12): @tauri-apps/plugin-store, createStore(), getStorageKey(), getStoreFi
 
 ### Community 49 - "AppError"
 Cohesion: 0.05
-Nodes (60): 2.1 Why folder opening fails on Android (traced through the code), 2.3 Cross-cutting code smells that block a clean port, 2. Findings from the code review, 3.1 Principle, 3.2 Types (new file `src/platform/fs/types.ts`), 3.3 Navigation model (replaces path-string parsing), 3.4 Providers, 3.5 Single sources of truth (+52 more)
+Nodes (58): 2.1 Why folder opening fails on Android (traced through the code), 2.3 Cross-cutting code smells that block a clean port, 2. Findings from the code review, 3.1 Principle, 3.2 Types (new file `src/platform/fs/types.ts`), 3.3 Navigation model (replaces path-string parsing), 3.4 Providers, 3.5 Single sources of truth (+50 more)
 
 ### Community 51 - "adapters/registry.ts"
-Cohesion: 0.13
-Nodes (12): epubjs, pdfjs-dist, createEpubAdapter(), loadEpubJs(), createPdfAdapter(), loadPdfJs(), getSupportedExtensions(), createTxtAdapter() (+4 more)
+Cohesion: 0.09
+Nodes (9): createEpubAdapter(), createPdfAdapter(), getSupportedExtensions(), createTxtAdapter(), FormatInfo, BookAdapter, Bookmark, Format (+1 more)
 
 ### Community 55 - "bookStore.ts"
-Cohesion: 0.18
-Nodes (12): escapeRegex(), renderHighlightedContext(), SearchAndBookmarksDrawerProps, SearchBookmarksTab, Bookmark, BookState, bookStorePersist, BookStoreState (+4 more)
-
-### Community 56 - "backNavigation.ts"
-Cohesion: 0.24
-Nodes (12): BackHandlerFn, dispatchBackNavigation(), getBackHandlerCount(), getLastExitPressTime(), handlePlatformBackAction(), handlers, initPlatformBackNavigation(), logger (+4 more)
+Cohesion: 0.15
+Nodes (13): SearchAndBookmarksDrawerProps, SettingsDrawerProps, Bookmark, BookSettings, BookState, bookStorePersist, BookStoreState, DEFAULT_BOOK_SETTINGS (+5 more)
 
 ### Community 57 - "Ebook Reader: Cross-Platform & Responsive Refactor Plan"
-Cohesion: 0.10
-Nodes (16): 10. Guardrails for the agent, 11. Open questions for the maintainer, 1. Problem statement, 4.1 Viewport and insets (fixes the status-bar / gesture-bar overlap), 4.2 Breakpoints (by **width**, not device type; foldables/split-screen must work), 4.4 Reader (`ReaderView.tsx`, not yet reviewed: audit required), 4. Responsive design specification (mandatory on all targets), 5.1 `src-tauri/src/lib.rs` (+8 more)
+Cohesion: 0.07
+Nodes (23): 10. Guardrails for the agent, 11. Open questions for the maintainer, 1. Problem statement, 4.1 Viewport and insets (fixes the status-bar / gesture-bar overlap), 4.2 Breakpoints (by **width**, not device type; foldables/split-screen must work), 4.3 Concrete layout changes in `App.tsx` (browse mode), 4.4 Reader (`ReaderView.tsx`, not yet reviewed: audit required), 4. Responsive design specification (mandatory on all targets) (+15 more)
 
 ### Community 58 - "Ebook Reader — Build, Packaging & Deployment Guide"
 Cohesion: 0.07
 Nodes (28): 1. Architecture & Build Prerequisites, 2.1 Development Mode, 2.2 Production Build & Artifacts, 2.3 Installer vs. Direct App Usage (Portable), 2. Building for Windows, 3.1 Android SDK & Toolchain Setup, 3.2 Development & Direct Device Deployment (ADB), 3.3 Building Standalone APKs & Google Play Bundles (AAB) (+20 more)
 
-### Community 59 - "vitest"
-Cohesion: 0.30
-Nodes (8): vitest, FormatBadge(), SettingsDrawer(), SettingsDrawerProps, getFormatBadge(), getFormatInfo(), BookSettings, baseSettings
+### Community 59 - "formatRegistry"
+Cohesion: 0.29
+Nodes (3): formatRegistry, registerAdapter(), AdapterFactory
 
 ### Community 60 - "pathUtils.ts"
+Cohesion: 0.68
+Nodes (5): 2.2 Windows-only or desktop-only assumptions, extractDocumentTitle(), getBreadcrumbSegments(), getParentPath(), normalizePath()
+
+### Community 61 - "Features & Capabilities"
 Cohesion: 0.40
-Nodes (7): 2.2 Windows-only or desktop-only assumptions, BreadcrumbsBar(), BreadcrumbsBarProps, BreadcrumbSegment, getBreadcrumbSegments(), getParentPath(), normalizePath()
+Nodes (5): Core Functionality & Shell, Data Isolation & Developer Experience, Features & Capabilities, Mobile & Android Experience, Reading Engine & Layout Modes
 
 ### Community 62 - "scripts"
 Cohesion: 0.12
 Nodes (16): scripts, android:install:current, build, build:android, build:desktop, build:frontend, dev, dev:desktop (+8 more)
 
+### Community 63 - "4.3 Reader Adapter Pattern"
+Cohesion: 0.50
+Nodes (4): 4.1 High-Level, 4.2 FileSystemProvider Abstraction, 4.3 Reader Adapter Pattern, 4. Architecture
+
 ## Knowledge Gaps
 - **11 isolated node(s):** `@tailwindcss/postcss`, `@tauri-apps/cli`, `@types/react`, `@types/react-dom`, `autoprefixer` (+6 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 411 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 409 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **17 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Ebook Reader — Product & Technical Requirements Document` connect `Ebook Reader — Product & Technical Requirements Document` to `PdfAdapter`, `12. Functional Requirements`, `15. Build & Distribution`, `5. Application Shell & UI/UX`, `AppError`, `6. File Navigation System`, `10. Error Reporting`, `18. Roadmap`, `3. Tech Stack`, `7. Reader Views`, `9. Format Support`, `2. Goals & Non-Goals`, `8. Book-Level Configuration`, `Ebook Reader`?**
+- **Why does `Ebook Reader — Product & Technical Requirements Document` connect `Ebook Reader — Product & Technical Requirements Document` to `12. Functional Requirements`, `15. Build & Distribution`, `5. Application Shell & UI/UX`, `AppError`, `6. File Navigation System`, `10. Error Reporting`, `18. Roadmap`, `3. Tech Stack`, `7. Reader Views`, `9. Format Support`, `2. Goals & Non-Goals`, `8. Book-Level Configuration`, `4.3 Reader Adapter Pattern`?**
   _High betweenness centrality (0.108) - this node is a cross-community bridge._
 - **Are the 6 inferred relationships involving `AppError` (e.g. with `DEV-LOG.md` and `2.3 Cross-cutting code smells that block a clean port`) actually correct?**
   _`AppError` has 6 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `@tailwindcss/postcss`, `@tauri-apps/cli`, `@types/react` to the rest of the system?**
   _11 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `extractDocumentTitle` be split into smaller, more focused modules?**
-  _Cohesion score 0.13725490196078433 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.13970588235294118 - nodes in this community are weakly interconnected._
 - **Why does `17. Risks & Mitigations` connect `AppError` to `Ebook Reader — Product & Technical Requirements Document`?**
-  _High betweenness centrality (0.075) - this node is a cross-community bridge._
+  _High betweenness centrality (0.085) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `toAppError()` (e.g. with `DEV-LOG.md` and `5.1 `src-tauri/src/lib.rs``) actually correct?**
   _`toAppError()` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **Should `package.json` be split into smaller, more focused modules?**
