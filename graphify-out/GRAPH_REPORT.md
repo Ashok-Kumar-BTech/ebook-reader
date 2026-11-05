@@ -1,7 +1,7 @@
 # Graph Report - ebook-reader  (2026-11-05)
 
 ## Corpus Check
-- 104 files · ~550,172 words
+- 104 files · ~572,184 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 28 file(s) not represented in the graph (top: .xml 12, (none) 8, .properties 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6b6e35c0`
+- Built from commit: `2979cb90`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
