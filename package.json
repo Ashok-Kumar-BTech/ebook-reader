@@ -13,6 +13,8 @@
     "android:install:current": "adb install -r --user current src-tauri/gen/android/app/build/outputs/apk/arm64/debug/app-arm64-debug.apk",
     "preview": "vite preview",
     "tauri": "tauri",
+    "tauri:dev": "tauri dev -c src-tauri/tauri.dev.conf.json",
+    "dev:desktop": "tauri dev -c src-tauri/tauri.dev.conf.json",
     "generate:logo": "node logo/convert_icons.js",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",

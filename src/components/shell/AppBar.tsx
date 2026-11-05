@@ -119,6 +119,15 @@ export function AppBar({
               <h1 className="text-sm font-bold tracking-tight text-[var(--color-text)] hidden sm:inline">
                 Ebook Reader
               </h1>
+              {Boolean(import.meta.env?.DEV) && (
+                <span
+                  data-testid="dev-badge"
+                  className="px-1.5 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 select-none"
+                  title="Running in Development Sandbox (Isolated Storage)"
+                >
+                  DEV
+                </span>
+              )}
             </div>
 
             {/* Open Folder & Recents */}

@@ -8,6 +8,9 @@ import { listDirectory, readFileData, getFileStat } from '../../utils/tauriApi';
 
 const logger = logManager.getLogger('fs:desktop');
 
+const isDev = Boolean(import.meta.env?.DEV);
+const VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX = isDev ? 'dev:ebook_reader_virtual_collection_' : 'ebook_reader_virtual_collection_';
+
 export class DesktopFsProvider implements FileSystemProvider {
   readonly kind = 'desktop' as const;
   readonly capabilities = {
@@ -138,7 +141,7 @@ export class DesktopFsProvider implements FileSystemProvider {
       this.virtualCollections.set(dirId, entries);
       try {
         if (typeof window !== 'undefined' && window.localStorage) {
-          localStorage.setItem(`ebook_reader_virtual_collection_${dirId}`, JSON.stringify(entries));
+          localStorage.setItem(`${VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX}${dirId}`, JSON.stringify(entries));
         }
       } catch {}
 
@@ -158,7 +161,15 @@ export class DesktopFsProvider implements FileSystemProvider {
       let entries = this.virtualCollections.get(dir.id);
       if (!entries) {
         try {
-          const raw = localStorage.getItem(`ebook_reader_virtual_collection_${dir.id}`);
+          let raw = localStorage.getItem(`${VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX}${dir.id}`);
+          if (!raw && isDev) {
+            // Check legacy un-prefixed key
+            raw = localStorage.getItem(`ebook_reader_virtual_collection_${dir.id}`);
+            if (raw) {
+              localStorage.setItem(`${VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX}${dir.id}`, raw);
+              localStorage.removeItem(`ebook_reader_virtual_collection_${dir.id}`);
+            }
+          }
           if (raw) {
             entries = JSON.parse(raw) as Entry[];
             this.virtualCollections.set(dir.id, entries);

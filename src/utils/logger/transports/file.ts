@@ -65,8 +65,10 @@ export function createFileTransport(): LogTransport {
         await mkdir(logDir, { recursive: true });
       }
       
+      const isDev = Boolean(import.meta.env?.DEV);
       const date = new Date().toISOString().split('T')[0];
-      logFilePath = await join(logDir, `app-${date}.log`);
+      const logFileName = isDev ? `app-dev-${date}.log` : `app-${date}.log`;
+      logFilePath = await join(logDir, logFileName);
       
       // Check current file size
       if (await exists(logFilePath)) {

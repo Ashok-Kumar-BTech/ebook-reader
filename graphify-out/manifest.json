@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1793792836.6719246,
-    "seen": 1793792979.0380275,
-    "ast_hash": "ea49fe5f51a6558d06f8a4df66c265f6",
+    "mtime": 1793849498.873631,
+    "seen": 1793849885.6670702,
+    "ast_hash": "662fb8da6e1cf242ced69c7867778fb4",
     "semantic_hash": ""
   },
   "postcss.config.js": {
@@ -120,9 +120,9 @@
     "semantic_hash": ""
   },
   "src/utils/store.ts": {
-    "mtime": 1792997875.8357844,
-    "seen": 1793004659.5236838,
-    "ast_hash": "81a4aee73b4e4203fd5e201a51346fad",
+    "mtime": 1793849553.5584161,
+    "seen": 1793849885.6670702,
+    "ast_hash": "41fc31b9e297e7db97a33072a3000014",
     "semantic_hash": ""
   },
   "src/vite-env.d.ts": {
@@ -264,9 +264,9 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793810045.2454245,
-    "seen": 1793810063.3103342,
-    "ast_hash": "f704c6a4c18aa6b9fc2f9cdae793a1e3",
+    "mtime": 1793849865.2820127,
+    "seen": 1793849885.6670702,
+    "ast_hash": "5c78b3cea0695971a5a0d8a9614a33b0",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
@@ -366,9 +366,9 @@
     "semantic_hash": ""
   },
   "src/utils/logger/transports/file.ts": {
-    "mtime": 1793337632.7409759,
-    "seen": 1793338188.3924057,
-    "ast_hash": "faab722304b2b0cbaf2cee5b3521aeb5",
+    "mtime": 1793849626.5478866,
+    "seen": 1793849885.6670702,
+    "ast_hash": "735c47a00b29d651e63f203264335f61",
     "semantic_hash": ""
   },
   "src/utils/logger/transports/index.ts": {
@@ -438,15 +438,15 @@
     "semantic_hash": ""
   },
   "src/platform/fs/android.ts": {
-    "mtime": 1793342155.4807272,
-    "seen": 1793342654.523886,
-    "ast_hash": "30512abd2278cd1e1820cbad7382a9a0",
+    "mtime": 1793849615.1990502,
+    "seen": 1793849885.6670702,
+    "ast_hash": "b869d9117fb402152642079786bcacb8",
     "semantic_hash": ""
   },
   "src/platform/fs/desktop.ts": {
-    "mtime": 1793809797.2999454,
-    "seen": 1793810063.3103342,
-    "ast_hash": "66029a4cac958da93ccb4e85b31263b7",
+    "mtime": 1793849601.8106494,
+    "seen": 1793849885.6670702,
+    "ast_hash": "8c8b1cf1bcc91dacbac6eac07a009e6a",
     "semantic_hash": ""
   },
   "src/platform/fs/index.ts": {
@@ -468,9 +468,9 @@
     "semantic_hash": ""
   },
   "src/components/shell/AppBar.tsx": {
-    "mtime": 1793778119.905113,
-    "seen": 1793778486.762454,
-    "ast_hash": "88c6bd618f3028160971897ed255cfe2",
+    "mtime": 1793849639.9316213,
+    "seen": 1793849885.6670702,
+    "ast_hash": "f6b235c91e73155a4ba56435429aba6f",
     "semantic_hash": ""
   },
   "src/components/shell/BreadcrumbsBar.tsx": {
@@ -690,9 +690,9 @@
     "semantic_hash": ""
   },
   "tests/unit/stores.test.ts": {
-    "mtime": 1793788740.1902277,
-    "seen": 1793789180.9840555,
-    "ast_hash": "6a5a8f06ad724b721519675328e1adde",
+    "mtime": 1793849732.5313387,
+    "seen": 1793849885.6670702,
+    "ast_hash": "ec6dcd4ba718e8f6fbe2195edbf3f41d",
     "semantic_hash": ""
   },
   "vitest.config.ts": {
@@ -864,9 +864,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1793787101.2326343,
-    "seen": 1793787260.3603292,
-    "ast_hash": "783faea1dc4f79c020b0af0a931a0f54",
+    "mtime": 1793810736.6815357,
+    "seen": 1793849885.6670702,
+    "ast_hash": "2d55d77fbc286b4c3d3cbcc6980de4f8",
     "semantic_hash": ""
   },
   "tests/integration/errorPipeline.test.tsx": {
@@ -891,6 +891,12 @@
     "mtime": 1793787345.519961,
     "seen": 1793789180.9840555,
     "ast_hash": "5def0984c38282cf924a849a62a8b0d3",
+    "semantic_hash": ""
+  },
+  "src-tauri/tauri.dev.conf.json": {
+    "mtime": 1793849761.3543413,
+    "seen": 1793849885.6670702,
+    "ast_hash": "1726d6b5f87cd3747ed0dd3de6383c93",
     "semantic_hash": ""
   }
 }

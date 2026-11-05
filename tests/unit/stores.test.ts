@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useBookStore } from "../../src/stores/bookStore";
 import { useUiStore } from "../../src/stores/uiStore";
+import {
+  getStoreFileName,
+  getStorageKey,
+  isDevEnvironment,
+  WebStore,
+  createStore,
+} from "../../src/utils/store";
 
 describe("State Stores", () => {
   describe("useBookStore", () => {
@@ -148,6 +155,63 @@ describe("State Stores", () => {
       expect(useUiStore.getState().currentRoot).toBeNull();
       useUiStore.getState().navigateToDir("D:/Books");
       expect(useUiStore.getState().currentRoot).toBe("D:/Books");
+    });
+  });
+
+  describe("Instance Isolation & Storage Namespacing", () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it("scopes Tauri store file names between dev and release environments", () => {
+      expect(getStoreFileName("ui-state", true)).toBe("ui-state.dev.json");
+      expect(getStoreFileName("ui-state", false)).toBe("ui-state.json");
+      expect(getStoreFileName("book-states", true)).toBe("book-states.dev.json");
+      expect(getStoreFileName("book-states", false)).toBe("book-states.json");
+      expect(getStoreFileName("window-state", true)).toBe("window-state.dev.json");
+      expect(getStoreFileName("window-state", false)).toBe("window-state.json");
+    });
+
+    it("scopes web/localStorage keys between dev and release environments", () => {
+      expect(getStorageKey("ui-state", true)).toBe("dev:ui-state");
+      expect(getStorageKey("ui-state", false)).toBe("ui-state");
+      expect(getStorageKey("book-states", true)).toBe("dev:book-states");
+      expect(getStorageKey("book-states", false)).toBe("book-states");
+    });
+
+    it("UnifiedStore exposes current environment file name and storage key", () => {
+      const testStore = createStore("test-store", { count: 0 });
+      const currentDev = isDevEnvironment();
+      expect(testStore.getStoreFileName()).toBe(currentDev ? "test-store.dev.json" : "test-store.json");
+      expect(testStore.getStorageKey()).toBe(currentDev ? "dev:test-store" : "test-store");
+    });
+
+    it("WebStore writes and reads data strictly within its scoped key", async () => {
+      const store = new WebStore("custom-key", { text: "default" });
+      await store.load();
+      expect(store.get()).toEqual({ text: "default" });
+
+      store.set({ text: "updated" });
+      expect(store.get()).toEqual({ text: "updated" });
+      expect(localStorage.getItem(store.getStorageKey())).toBe(JSON.stringify({ text: "updated" }));
+    });
+
+    it("WebStore self-healing migration imports legacy un-prefixed data and cleans legacy key in dev", async () => {
+      if (!isDevEnvironment()) return;
+
+      const baseKey = "migration-test";
+      // Simulate existing production/legacy key left over from prior runs
+      localStorage.setItem(baseKey, JSON.stringify({ legacyField: "legacyValue" }));
+
+      const devStore = new WebStore(baseKey, { legacyField: "defaultValue" });
+      const loadedData = await devStore.load();
+
+      // Data should be migrated into devStore cache
+      expect(loadedData).toEqual({ legacyField: "legacyValue" });
+      // Scoped dev key in localStorage should now contain the migrated data
+      expect(localStorage.getItem(`dev:${baseKey}`)).toBe(JSON.stringify({ legacyField: "legacyValue" }));
+      // Legacy un-prefixed key MUST be deleted to sanitize production instance
+      expect(localStorage.getItem(baseKey)).toBeNull();
     });
   });
 });

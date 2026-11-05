@@ -18,7 +18,8 @@ import {
 
 const logger = logManager.getLogger('fs:android');
 
-const VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX = 'ebook_reader_virtual_collection_';
+const isDev = Boolean(import.meta.env?.DEV);
+const VIRTUAL_COLLECTION_STORAGE_KEY_PREFIX = isDev ? 'dev:ebook_reader_virtual_collection_' : 'ebook_reader_virtual_collection_';
 
 /**
  * Extracts the root tree URI from a document URI inside a tree, or returns the URI itself.
