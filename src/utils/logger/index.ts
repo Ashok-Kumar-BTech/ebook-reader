@@ -52,6 +52,9 @@ export {
   createConsoleTransport,
   createFileTransport,
   createTauriTransport,
+  memoryTransport,
+  MemoryTransport,
+  createMemoryTransport,
 } from './transports';
 
 // Formatters

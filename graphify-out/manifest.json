@@ -54,9 +54,9 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1793856609.5933416,
-    "seen": 1793856813.1694436,
-    "ast_hash": "5130d91095f33b954791d705e582bdd7",
+    "mtime": 1793860477.3886933,
+    "seen": 1793860669.384609,
+    "ast_hash": "33575c40f47fce6273551461c6cd7c16",
     "semantic_hash": ""
   },
   "src/adapters/cbzAdapter.ts": {
@@ -264,9 +264,9 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793858809.1521504,
-    "seen": 1793858826.4784694,
-    "ast_hash": "a5b1eba902bb3afde176c85da033f313",
+    "mtime": 1793860642.0759318,
+    "seen": 1793860669.384609,
+    "ast_hash": "afb483842b019fe3ff428b7e60c34065",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
@@ -282,9 +282,9 @@
     "semantic_hash": ""
   },
   "src/components/LogViewer.tsx": {
-    "mtime": 1792942134.8407705,
-    "seen": 1793004659.5226798,
-    "ast_hash": "d4a870c0fba4f949fe11abf62e563bd2",
+    "mtime": 1793860404.3155723,
+    "seen": 1793860669.384609,
+    "ast_hash": "e8c21def0343a69f72868bb81d96aca7",
     "semantic_hash": ""
   },
   "src/components/ReaderView.tsx": {
@@ -306,9 +306,9 @@
     "semantic_hash": ""
   },
   "src/utils/logger/config.ts": {
-    "mtime": 1793332028.4597604,
-    "seen": 1793332291.7551954,
-    "ast_hash": "9523c07ba6c799875f078ceea8fe55c1",
+    "mtime": 1793860346.2786288,
+    "seen": 1793860669.384609,
+    "ast_hash": "abc0597af32511e0fd98533eadd3961d",
     "semantic_hash": ""
   },
   "src/utils/logger/correlation.ts": {
@@ -342,9 +342,9 @@
     "semantic_hash": ""
   },
   "src/utils/logger/index.ts": {
-    "mtime": 1793332028.46175,
-    "seen": 1793332291.7561946,
-    "ast_hash": "7556896bd2b8bf10a320d403dd82b030",
+    "mtime": 1793860352.4425094,
+    "seen": 1793860669.384609,
+    "ast_hash": "f5643ab71a3c50f0614437b906bd6087",
     "semantic_hash": ""
   },
   "src/utils/logger/react.ts": {
@@ -372,9 +372,9 @@
     "semantic_hash": ""
   },
   "src/utils/logger/transports/index.ts": {
-    "mtime": 1793332028.4659603,
-    "seen": 1793332291.7561946,
-    "ast_hash": "2d4f83a5f0bd280802040a5affa1a5da",
+    "mtime": 1793860324.2359042,
+    "seen": 1793860669.384609,
+    "ast_hash": "832a21a5a19841bc1b60c0807800ae51",
     "semantic_hash": ""
   },
   "src/utils/logger/transports/tauri.ts": {
@@ -909,6 +909,24 @@
     "mtime": 1793856751.1923373,
     "seen": 1793856813.1694436,
     "ast_hash": "b4712f6040dc71617c312cd81158d0ab",
+    "semantic_hash": ""
+  },
+  "src/utils/logger/transports/memory.ts": {
+    "mtime": 1793860305.7966425,
+    "seen": 1793860669.384609,
+    "ast_hash": "b4b4b08fa55a6598f7ec23971d02d583",
+    "semantic_hash": ""
+  },
+  "tests/unit/components/LogViewer.test.tsx": {
+    "mtime": 1793860515.7912846,
+    "seen": 1793860669.384609,
+    "ast_hash": "6e76e42c774341d87c0c64c999020926",
+    "semantic_hash": ""
+  },
+  "tests/unit/memoryTransport.test.ts": {
+    "mtime": 1793860499.6645262,
+    "seen": 1793860669.384609,
+    "ast_hash": "5908b8b4ae4537b30cca3e4e4c9cd82c",
     "semantic_hash": ""
   }
 }

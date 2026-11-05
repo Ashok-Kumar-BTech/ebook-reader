@@ -6,6 +6,7 @@ import { useBreakpoint } from "./hooks/useBreakpoint";
 import { VirtualizedFileList } from "./components/VirtualizedFileList";
 import { ReaderView } from "./components/ReaderView";
 import { ErrorHost } from "./components/ErrorHost";
+import { LogViewer } from "./components/LogViewer";
 import { AppBar } from "./components/shell/AppBar";
 import { BreadcrumbsBar } from "./components/shell/BreadcrumbsBar";
 import { ViewOptionsSheet } from "./components/shell/ViewOptionsSheet";
@@ -68,7 +69,30 @@ export default function App() {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [canRevealInOS, setCanRevealInOS] = useState(false);
   const [showExitToast, setShowExitToast] = useState(false);
+  const [isLogViewerOpen, setIsLogViewerOpen] = useState(false);
   const exitToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Close Log Viewer on Back gesture / Escape
+  useEffect(() => {
+    if (!isLogViewerOpen) return;
+    const unregister = registerBackHandler(() => {
+      setIsLogViewerOpen(false);
+      return true;
+    }, 20); // Priority 20: closes before reader modals or directory navigation
+    return unregister;
+  }, [isLogViewerOpen]);
+
+  // Global keyboard shortcut: Ctrl+Shift+L to toggle In-App Log Console
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "L" || e.key === "l" || e.code === "KeyL")) {
+        e.preventDefault();
+        setIsLogViewerOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
 
   const triggerExitToast = useCallback(() => {
     setShowExitToast(true);
@@ -630,6 +654,11 @@ export default function App() {
           Press back again to exit
         </div>
       )}
+
+      <LogViewer
+        isOpen={isLogViewerOpen}
+        onClose={() => setIsLogViewerOpen(false)}
+      />
     </div>
   );
 }
