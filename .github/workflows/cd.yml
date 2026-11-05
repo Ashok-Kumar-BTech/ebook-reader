@@ -94,7 +94,21 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
-            squashfs-tools
+            squashfs-tools \
+            libfuse2
+
+      - name: Pre-seed Linux AppImage Bundling Tools
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p ~/.cache/tauri
+          curl --retry 5 --retry-delay 3 --retry-all-errors -fsSL \
+            https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-x86_64 \
+            -o ~/.cache/tauri/AppRun-x86_64
+          curl --retry 5 --retry-delay 3 --retry-all-errors -fsSL \
+            https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-x86_64.AppImage \
+            -o ~/.cache/tauri/linuxdeploy-x86_64.AppImage
+          chmod +x ~/.cache/tauri/AppRun-x86_64 ~/.cache/tauri/linuxdeploy-x86_64.AppImage
+          ls -la ~/.cache/tauri
 
       - name: Install Node Dependencies
         run: npm ci

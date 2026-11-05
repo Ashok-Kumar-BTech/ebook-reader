@@ -264,9 +264,9 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793868779.0732422,
-    "seen": 1793868835.0979013,
-    "ast_hash": "8146630f2269aed2047239a136fc2a6e",
+    "mtime": 1793893014.4823136,
+    "seen": 1793893040.5700274,
+    "ast_hash": "05d11a6b3215c1948ab0dc461815ae8c",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
@@ -888,9 +888,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/cd.yml": {
-    "mtime": 1793868709.911595,
-    "seen": 1793868835.0979013,
-    "ast_hash": "b9b2cd186ca719deddc2d7ca6c76db87",
+    "mtime": 1793892978.8171916,
+    "seen": 1793893040.5700274,
+    "ast_hash": "c2055120680fc3a65a21f1408db3931b",
     "semantic_hash": ""
   },
   "src-tauri/tauri.dev.conf.json": {
@@ -939,12 +939,6 @@
     "mtime": 1793867219.6881819,
     "seen": 1793868835.0979013,
     "ast_hash": "177916420e419839efcf7131f8a1d5de",
-    "semantic_hash": ""
-  },
-  "2_Build Android APK (ARM64).txt": {
-    "mtime": 1793868188.2145255,
-    "seen": 1793868835.0979013,
-    "ast_hash": "3762f3e91cd4ba1af5e6a3248fdadf1b",
     "semantic_hash": ""
   }
 }
