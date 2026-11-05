@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { UploadIcon } from "@primer/octicons-react";
 import { useUiStore, type SortBy, type ViewMode, type AppTheme, type RecentFolder } from "./stores/uiStore";
 import { useBookStore } from "./stores/bookStore";
@@ -15,6 +15,7 @@ import { getFileSystemProvider, type DirRef } from "./platform/fs";
 import { formatRegistry } from "./adapters/registry";
 import { useLogRender, useLogger } from "./utils/logger";
 import { initWindowStateWatcher, toggleFullscreen } from "./utils/windowState";
+import { initPlatformBackNavigation, registerBackHandler } from "./utils/backNavigation";
 import { getParentPath, getBreadcrumbSegments } from "./utils/pathUtils";
 import { AppError, toAppError } from "./errors/appError";
 
@@ -66,6 +67,35 @@ export default function App() {
   const [isViewOptionsOpen, setIsViewOptionsOpen] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [canRevealInOS, setCanRevealInOS] = useState(false);
+  const [showExitToast, setShowExitToast] = useState(false);
+  const exitToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerExitToast = useCallback(() => {
+    setShowExitToast(true);
+    if (exitToastTimerRef.current) {
+      clearTimeout(exitToastTimerRef.current);
+    }
+    exitToastTimerRef.current = setTimeout(() => {
+      setShowExitToast(false);
+      exitToastTimerRef.current = null;
+    }, 2000);
+  }, []);
+
+  // Initialize native platform back gesture & button listener
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    initPlatformBackNavigation({
+      onExitPrompt: triggerExitToast,
+      enableTouchFallback: isCompact,
+    }).then((cleanup) => {
+      unlisten = cleanup;
+    });
+
+    return () => {
+      if (unlisten) unlisten();
+      if (exitToastTimerRef.current) clearTimeout(exitToastTimerRef.current);
+    };
+  }, [triggerExitToast, isCompact]);
 
   useEffect(() => {
     let isMounted = true;
@@ -208,6 +238,30 @@ export default function App() {
   useEffect(() => {
     if (mode !== "browse") return;
 
+    const unregister = registerBackHandler(() => {
+      if (isViewOptionsOpen) {
+        setIsViewOptionsOpen(false);
+        return true;
+      }
+      if (librarySearchQuery) {
+        setLibrarySearchQuery("");
+        return true;
+      }
+      if (canGoBack) {
+        navigateBack();
+        return true;
+      }
+      if (canGoUp) {
+        handleNavigateUp();
+        return true;
+      }
+      if (currentRoot) {
+        setCurrentRoot(null);
+        return true;
+      }
+      return false; // Exit app / root reached
+    }, 0);
+
     (window as any).__handleAndroidBack = () => {
       if (isViewOptionsOpen) {
         setIsViewOptionsOpen(false);
@@ -233,6 +287,7 @@ export default function App() {
     };
 
     return () => {
+      unregister();
       delete (window as any).__handleAndroidBack;
     };
   }, [mode, isViewOptionsOpen, librarySearchQuery, canGoBack, canGoUp, currentRoot, navigateBack, handleNavigateUp, setCurrentRoot]);
@@ -564,6 +619,16 @@ export default function App() {
         </div>
       ) : (
         <ReaderView onClose={handleCloseBook} />
+      )}
+
+      {showExitToast && (
+        <div
+          role="status"
+          data-testid="exit-toast"
+          className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-black/85 text-white text-xs font-medium shadow-2xl backdrop-blur-md pointer-events-none animate-in fade-in zoom-in-95 duration-150 border border-white/10 select-none"
+        >
+          Press back again to exit
+        </div>
       )}
     </div>
   );

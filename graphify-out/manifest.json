@@ -30,9 +30,9 @@
     "semantic_hash": ""
   },
   "src-tauri/capabilities/default.json": {
-    "mtime": 1793336033.843878,
-    "seen": 1793338188.3908951,
-    "ast_hash": "057499389c555a2dc201b8851df14332",
+    "mtime": 1793856342.7223122,
+    "seen": 1793856813.1694436,
+    "ast_hash": "7c605b87c76bffa7eee2a1bcecb05bf6",
     "semantic_hash": ""
   },
   "src-tauri/src/lib.rs": {
@@ -54,9 +54,9 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1793809834.6144688,
-    "seen": 1793810063.3103342,
-    "ast_hash": "785d9139a2e26308684253b462717a73",
+    "mtime": 1793856609.5933416,
+    "seen": 1793856813.1694436,
+    "ast_hash": "5130d91095f33b954791d705e582bdd7",
     "semantic_hash": ""
   },
   "src/adapters/cbzAdapter.ts": {
@@ -264,9 +264,9 @@
     "semantic_hash": ""
   },
   "DEV-LOG.md": {
-    "mtime": 1793849865.2820127,
-    "seen": 1793849885.6670702,
-    "ast_hash": "5c78b3cea0695971a5a0d8a9614a33b0",
+    "mtime": 1793856784.701794,
+    "seen": 1793856813.1694436,
+    "ast_hash": "fcfb6e9ac3a9b0178f1632f0a365307f",
     "semantic_hash": ""
   },
   "src/utils/tauriApi.ts": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "src/components/ReaderView.tsx": {
-    "mtime": 1793792791.9030588,
-    "seen": 1793792979.0380275,
-    "ast_hash": "4fd298a7b08d5f6abf67fc87c260662e",
+    "mtime": 1793856422.8399353,
+    "seen": 1793856813.1694436,
+    "ast_hash": "297b859d23969af16402de7c11674f54",
     "semantic_hash": ""
   },
   "src/components/SettingsDrawer.tsx": {
@@ -432,9 +432,9 @@
     "semantic_hash": ""
   },
   "src-tauri/capabilities/mobile.json": {
-    "mtime": 1793339660.4032333,
-    "seen": 1793340790.5076742,
-    "ast_hash": "4b427f2b9599efd301e1421439ac9bbb",
+    "mtime": 1793856323.7555852,
+    "seen": 1793856813.1694436,
+    "ast_hash": "56bfb1cef74494b28cc28fa8cd7d0774",
     "semantic_hash": ""
   },
   "src/platform/fs/android.ts": {
@@ -897,6 +897,18 @@
     "mtime": 1793849761.3543413,
     "seen": 1793849885.6670702,
     "ast_hash": "1726d6b5f87cd3747ed0dd3de6383c93",
+    "semantic_hash": ""
+  },
+  "src/utils/backNavigation.ts": {
+    "mtime": 1793856706.1998236,
+    "seen": 1793856813.1694436,
+    "ast_hash": "d06577a01c20a03d6a6421008f4a61fa",
+    "semantic_hash": ""
+  },
+  "tests/unit/backNavigation.test.ts": {
+    "mtime": 1793856751.1923373,
+    "seen": 1793856813.1694436,
+    "ast_hash": "b4712f6040dc71617c312cd81158d0ab",
     "semantic_hash": ""
   }
 }

@@ -28,6 +28,7 @@ import { useBookStore } from "../stores/bookStore";
 import { useUiStore } from "../stores/uiStore";
 import { getAdapterForPath } from "../adapters/registry";
 import { getFileSystemProvider } from "../platform/fs";
+import { registerBackHandler } from "../utils/backNavigation";
 import { useLogger } from "../utils/logger";
 import { toggleFullscreen, isFullscreen } from "../utils/windowState";
 import { extractDocumentTitle } from "../utils/pathUtils";
@@ -1345,8 +1346,33 @@ export function ReaderView({ onClose }: ReaderViewProps) {
     }
   }, [readerTheme, fontSize, lineHeight, margin, viewMode, panelMode, debouncedZoomLevel, currentBookPath, updateSettings]);
 
-  // Android System Back Gesture Handler
+  // Android System Back Gesture & Platform Back Handler
   useEffect(() => {
+    const unregister = registerBackHandler(() => {
+      if (isJumpModalOpen) {
+        setIsJumpModalOpen(false);
+        return true;
+      }
+      if (isSettingsOpen) {
+        setIsSettingsOpen(false);
+        return true;
+      }
+      if (isTocOpen) {
+        setIsTocOpen(false);
+        return true;
+      }
+      if (isSearchBookmarksOpen) {
+        setIsSearchBookmarksOpen(false);
+        return true;
+      }
+      if (isWindowFullscreen) {
+        handleToggleFullscreen();
+        return true;
+      }
+      onClose();
+      return true;
+    }, 10); // Priority 10 (higher than browse mode)
+
     (window as any).__handleAndroidBack = () => {
       if (isJumpModalOpen) {
         setIsJumpModalOpen(false);
@@ -1371,7 +1397,9 @@ export function ReaderView({ onClose }: ReaderViewProps) {
       onClose();
       return true;
     };
+
     return () => {
+      unregister();
       delete (window as any).__handleAndroidBack;
     };
   }, [isJumpModalOpen, isSettingsOpen, isTocOpen, isSearchBookmarksOpen, isWindowFullscreen, onClose]);
